@@ -22,6 +22,10 @@ const HANDLER_KEYS = new Set([
   'onkeydown',
   'onkeyup',
   'handler',
+  'innerhtml',
+  'outerhtml',
+  'dangerouslysetinnerhtml',
+  'html',
 ]);
 
 const FIELD_DEF_KEYS = new Set(['name', 'id', 'label', 'type', 'required']);
@@ -159,12 +163,16 @@ function layerDataA11y(
   entry: CatalogEntry,
 ): ValidationResult<WorkspaceSpec> {
   const actions = declaredActions(spec);
+  const catalogActions = new Set(entry.allowedActions ?? []);
   for (const action of actions) {
     if (!SPEC_ACTION_SET.has(action)) {
       return fail(
         'unknown_action',
         `action "${action}" is not in hover|resize|select|submit|approve|reject`,
       );
+    }
+    if (catalogActions.size > 0 && !catalogActions.has(action)) {
+      return fail('unknown_action', `action "${action}" is not allowed on "${entry.id}"`);
     }
   }
 
@@ -177,6 +185,10 @@ function layerDataA11y(
   const binds = collectBinds(spec);
   const roles = new Map((entry.dataRoles ?? []).map((role) => [role.id, role]));
   const fields = declaredFieldNames(spec);
+
+  if (binds.length > 0 && fields === null) {
+    return fail('missing_bound_field', 'binds require a declared fields list');
+  }
 
   for (const bind of binds) {
     if (!bind.field) {

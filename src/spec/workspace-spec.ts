@@ -29,6 +29,8 @@ export type SpecField = string | { name?: string; id?: string; label?: string };
 
 /**
  * Workspace spec. No `data: row[]` — rows arrive through the data-channel handle.
+ * `allowedActions` is the closed Stage 3 set only — catalog extras (pan/zoom) stay off the spec.
+ * `binds` require `fields` so a missing column is detectable.
  */
 export type WorkspaceSpec = {
   component: string;

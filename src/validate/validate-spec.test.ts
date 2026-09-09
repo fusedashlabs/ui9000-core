@@ -28,6 +28,13 @@ const catalog: EngineCatalog = [
     allowedActions: ['submit'],
     accessibility: { nameFrom: 'form label' },
   },
+  {
+    id: 'map-chart',
+    intents: ['spatial'],
+    dataRoles: [{ id: 'geo', required: true }],
+    allowedActions: ['hover', 'pan', 'zoom', 'resize'],
+    accessibility: { nameFrom: 'title' },
+  },
 ];
 
 const validBar = {
@@ -172,6 +179,45 @@ describe('validateSpec', () => {
       catalog,
     );
     expect(result).toMatchObject({ ok: false, code: 'javascript_url' });
+  });
+
+  it('refuses binds when no fields list is declared', () => {
+    const result = validateSpec(
+      { component: 'bar-chart', binds: { category: 'severity', metric: 'count' } },
+      catalog,
+    );
+    expect(result).toMatchObject({ ok: false, code: 'missing_bound_field' });
+  });
+
+  it('refuses innerHTML and html props', () => {
+    const html = validateSpec({ ...validBar, props: { innerHTML: '<img>' } }, catalog);
+    expect(html).toMatchObject({ ok: false, code: 'handler_prop' });
+
+    const markup = validateSpec({ ...validBar, props: { html: '<b>x</b>' } }, catalog);
+    expect(markup).toMatchObject({ ok: false, code: 'handler_prop' });
+  });
+
+  it('refuses catalog-only actions such as pan even when metadata lists them', () => {
+    const result = validateSpec(
+      {
+        component: 'map-chart',
+        fields: ['country'],
+        binds: { geo: 'country' },
+        allowedActions: ['hover', 'pan'],
+      },
+      catalog,
+    );
+    expect(result).toMatchObject({ ok: false, code: 'unknown_action' });
+  });
+
+  it('accepts a map-chart with closed actions only', () => {
+    const spec = {
+      component: 'map-chart',
+      fields: ['country'],
+      binds: { geo: 'country' },
+      allowedActions: ['hover', 'resize'],
+    };
+    expect(validateSpec(spec, catalog).ok).toBe(true);
   });
 
   it('refuses a mixed fields+rows payload', () => {
