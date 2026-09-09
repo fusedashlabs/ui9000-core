@@ -31,10 +31,12 @@ const HANDLER_KEYS = new Set([
 const FIELD_DEF_KEYS = new Set(['name', 'id', 'label', 'type', 'required']);
 
 const HANDLER_SOURCE = /^(?:function\b|\([^)]*\)\s*=>)/;
-/** Scheme, not the word "javascript". Also matches url(javascript:…). */
-const JAVASCRIPT_SCHEME = /(?:^|[^a-z0-9_+.-])javascript\s*:/i;
-/** data: URLs only — not prose like "Compare data: production". */
+/** Script URL schemes — not the word "javascript". Also matches url(javascript:…). */
+const SCRIPT_SCHEME = /(?:^|[^a-z0-9_+.-])(?:javascript|vbscript)\s*:/i;
+/** data: / blob: payloads — not prose like "Compare data: production". */
 const DATA_URL = /(?:^|[^a-z0-9_+.-])data\s*:(?:[a-z]+\/[a-z0-9.+-]+|,)/i;
+const BLOB_URL = /(?:^|[^a-z0-9_+.-])blob\s*:/i;
+const ROW_KEYS = ['data', 'points', 'series', 'rows'] as const;
 
 export function validateSpec(
   spec: unknown,
@@ -126,11 +128,11 @@ function layerSafety(spec: WorkspaceSpec): ValidationResult<WorkspaceSpec> {
       return fail('handler_prop', 'functions are not allowed on the spec');
     }
     if (typeof value === 'string') {
-      if (JAVASCRIPT_SCHEME.test(value)) {
-        return fail('javascript_url', 'javascript: URLs are refused');
+      if (SCRIPT_SCHEME.test(value)) {
+        return fail('javascript_url', 'javascript: and vbscript: URLs are refused');
       }
-      if (DATA_URL.test(value)) {
-        return fail('data_url', 'data: URLs are refused');
+      if (DATA_URL.test(value) || BLOB_URL.test(value)) {
+        return fail('data_url', 'data: and blob: URLs are refused');
       }
       if (HANDLER_SOURCE.test(value.trim())) {
         return fail('handler_prop', 'handler source is not allowed on the spec');
@@ -243,8 +245,9 @@ function isHandlerKey(key: string): boolean {
 }
 
 function hasRowPayload(raw: Record<string, unknown>): boolean {
-  if (isRowArray(raw.data)) return true;
-  if (isPlainObject(raw.props) && isRowArray(raw.props.data)) return true;
+  if (ROW_KEYS.some((key) => isRowArray(raw[key]))) return true;
+  const props = raw.props;
+  if (isPlainObject(props) && ROW_KEYS.some((key) => isRowArray(props[key]))) return true;
   return false;
 }
 

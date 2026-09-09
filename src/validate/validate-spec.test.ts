@@ -210,6 +210,19 @@ describe('validateSpec', () => {
     expect(result).toMatchObject({ ok: false, code: 'unknown_action' });
   });
 
+  it('refuses a closed action that the catalog entry does not allow', () => {
+    const result = validateSpec(
+      {
+        component: 'map-chart',
+        fields: ['country'],
+        binds: { geo: 'country' },
+        allowedActions: ['hover', 'select'],
+      },
+      catalog,
+    );
+    expect(result).toMatchObject({ ok: false, code: 'unknown_action' });
+  });
+
   it('accepts a map-chart with closed actions only', () => {
     const spec = {
       component: 'map-chart',
@@ -234,5 +247,27 @@ describe('validateSpec', () => {
       catalog,
     );
     expect(result).toMatchObject({ ok: false, code: 'unmet_data' });
+  });
+
+  it('refuses vbscript: as javascript_url and blob: as data_url', () => {
+    const vbs = validateSpec({ ...validBar, props: { href: 'vbscript:msgbox(1)' } }, catalog);
+    expect(vbs).toMatchObject({ ok: false, code: 'javascript_url' });
+
+    const blob = validateSpec({ ...validBar, props: { src: 'blob:https://h/1' } }, catalog);
+    expect(blob).toMatchObject({ ok: false, code: 'data_url' });
+  });
+
+  it('refuses row-shaped points and series on props', () => {
+    const points = validateSpec(
+      { ...validBar, props: { points: [{ x: 'a', y: 1 }] } },
+      catalog,
+    );
+    expect(points).toMatchObject({ ok: false, code: 'unmet_data' });
+
+    const series = validateSpec(
+      { ...validBar, props: { series: [{ id: 's', points: [{ x: 'a', y: 1 }] }] } },
+      catalog,
+    );
+    expect(series).toMatchObject({ ok: false, code: 'unmet_data' });
   });
 });
