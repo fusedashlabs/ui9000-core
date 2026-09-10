@@ -30,3 +30,10 @@ export {
   SHOW_WORKSPACE_TOOL,
   handleShowWorkspace,
 } from './tool/show-workspace.js';
+export type {
+  InterpretResult,
+  LoadWorkspaceComponent,
+  WorkspaceHost,
+  WorkspaceMounter,
+} from './interpreter/interpret.js';
+export { interpretWorkspace } from './interpreter/interpret.js';
