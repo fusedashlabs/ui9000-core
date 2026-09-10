@@ -38,3 +38,7 @@ export type {
 } from './interpreter/interpret.js';
 export { interpretWorkspace } from './interpreter/interpret.js';
 export { loadWorkspaceCatalog, workspaceCatalogIds } from './catalog/load-workspace.js';
+export type { Table, TableColumn } from './profiler/table.js';
+export { parseCsvTable, tableRowCount } from './profiler/table.js';
+export type { ProfileEnv } from './profiler/profile-columns.js';
+export { assertClosedProfile, profileColumns } from './profiler/profile-columns.js';

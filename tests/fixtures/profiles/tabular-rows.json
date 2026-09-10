@@ -1,0 +1,17 @@
+{
+  "hasCategory": true,
+  "hasNumericMetric": false,
+  "categoryCardinality": 3,
+  "hasGeo": false,
+  "hasTemporal": false,
+  "hasNodes": false,
+  "hasLinks": false,
+  "hasTabularRows": true,
+  "rowCount": 3,
+  "hasEntityId": false,
+  "hasClaim": false,
+  "hasEvents": false,
+  "controlCount": 0,
+  "allControlsLabelled": false,
+  "hasMapToken": false
+}

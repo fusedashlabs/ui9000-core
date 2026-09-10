@@ -1,0 +1,3 @@
+control,label,type
+email,Email address,text
+age,Age in years,number
