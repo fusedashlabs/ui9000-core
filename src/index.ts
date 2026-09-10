@@ -37,3 +37,4 @@ export type {
   WorkspaceMounter,
 } from './interpreter/interpret.js';
 export { interpretWorkspace } from './interpreter/interpret.js';
+export { loadWorkspaceCatalog, workspaceCatalogIds } from './catalog/load-workspace.js';
