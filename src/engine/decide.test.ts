@@ -272,6 +272,30 @@ describe('decide', () => {
     });
   });
 
+  it('rejects a catalog entry with no id into the trace', () => {
+    const slim: EngineCatalog = [
+      {
+        eligibility: [
+          {
+            when: 'profile.hasNumericMetric',
+            reason: 'KPI summarises a numeric headline.',
+          },
+        ],
+      } as EngineCatalog[number],
+      catalog.find((entry) => entry.id === 'kpi-widget')!,
+    ];
+    const decision = decide({ intent: 'summary', profile, catalog: slim });
+    expect(decision.winner).toBe('kpi-widget');
+    expect(decision.rejected).toContainEqual({
+      id: 'missing-id:0',
+      reason: 'Catalog entry is missing an id.',
+    });
+    expect(decision.trace.rejections).toContainEqual({
+      id: 'missing-id:0',
+      reason: 'Catalog entry is missing an id.',
+    });
+  });
+
   it('does not invent intents', () => {
     expect([...INTENTS]).toEqual([
       'spatial',

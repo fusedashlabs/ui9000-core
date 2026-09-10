@@ -8,6 +8,7 @@ import { evalWhen } from './when.js';
 const INTENT_MISMATCH = 'Component intents do not include this objective.';
 const NO_ELIGIBILITY = 'No eligibility rule matched the profile.';
 const BAD_WHEN = 'Catalog when-clause could not be evaluated.';
+const MISSING_ID = 'Catalog entry is missing an id.';
 
 export function decide(input: DecideInput): EngineDecision {
   const { intent, catalog } = input;
@@ -16,8 +17,11 @@ export function decide(input: DecideInput): EngineDecision {
   const rejected: EngineRejection[] = [];
 
   const entries = Array.isArray(catalog) ? catalog : [];
-  for (const entry of entries) {
-    if (!entry?.id) continue;
+  for (const [index, entry] of entries.entries()) {
+    if (typeof entry?.id !== 'string' || !entry.id.trim()) {
+      rejected.push({ id: `missing-id:${index}`, reason: MISSING_ID });
+      continue;
+    }
     const result = scoreEntry(entry, intent, profile);
     if (result.kind === 'eligible') {
       eligible.push({ id: entry.id, score: result.score, reasons: result.reasons });
