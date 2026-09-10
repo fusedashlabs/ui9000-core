@@ -42,4 +42,8 @@ export type WorkspaceSpec = {
   tools?: readonly { name?: string; [key: string]: unknown }[];
   children?: readonly unknown[];
   label?: string;
+  /** Signed data-link. Widget fetches rows here — never from the MCP tool result. */
+  dataUrl?: string;
+  /** Host tool the widget calls to read the signed payload. Not a model-facing tool. */
+  callServerTool?: string;
 };

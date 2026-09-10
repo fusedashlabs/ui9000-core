@@ -16,3 +16,17 @@ export { VALIDATION_CODES, validateSpec } from './validate/validate-spec.js';
 export type { EngineDecision, DecideInput } from './engine/types.js';
 export { decide } from './engine/decide.js';
 export type { Trace, TraceCandidate, TraceRejection } from './trace/trace.js';
+export type { SignedLink, SignDataLink, ReadDataLink } from './tool/data-channel.js';
+export { CALL_SERVER_TOOL, attachDataHandle, readViaHandle } from './tool/data-channel.js';
+export type {
+  ShowWorkspaceContext,
+  ShowWorkspaceResult,
+  ShowWorkspaceCode,
+} from './tool/show-workspace.js';
+export {
+  SHOW_WORKSPACE_NAME,
+  SHOW_WORKSPACE_DESCRIPTION,
+  SHOW_WORKSPACE_INPUT_SCHEMA,
+  SHOW_WORKSPACE_TOOL,
+  handleShowWorkspace,
+} from './tool/show-workspace.js';
