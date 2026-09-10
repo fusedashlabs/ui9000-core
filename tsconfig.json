@@ -9,7 +9,7 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "noEmit": true,
-    "types": ["vitest/globals", "vite/client"],
+    "types": ["node", "vitest/globals", "vite/client"],
     "paths": {
       "@fusedashlabs/widgets/catalog": ["../widgets/src/catalog/index.ts"]
     }

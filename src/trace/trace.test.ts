@@ -44,7 +44,7 @@ describe('Trace', () => {
     const smuggled = {
       ...trace,
       candidates: [{ ...trace.candidates[0], rows: [{ secret: 1 }] }],
-    } as Trace;
+    } as unknown as Trace;
     expect(() => assertTraceHasNoRows(smuggled)).toThrow('trace must not contain rows');
   });
 });

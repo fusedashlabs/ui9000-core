@@ -281,7 +281,7 @@ describe('decide', () => {
             reason: 'KPI summarises a numeric headline.',
           },
         ],
-      } as EngineCatalog[number],
+      } as unknown as EngineCatalog[number],
       catalog.find((entry) => entry.id === 'kpi-widget')!,
     ];
     const decision = decide({ intent: 'summary', profile, catalog: slim });
