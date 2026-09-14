@@ -1,0 +1,116 @@
+{
+  "objective": "comparison",
+  "profile": {
+    "hasCategory": true,
+    "hasNumericMetric": true,
+    "categoryCardinality": 5,
+    "hasGeo": true,
+    "hasTemporal": false,
+    "hasNodes": false,
+    "hasLinks": false,
+    "hasTabularRows": true,
+    "rowCount": 10,
+    "hasEntityId": true,
+    "hasClaim": false,
+    "hasEvents": false,
+    "controlCount": 0,
+    "allControlsLabelled": false,
+    "hasMapToken": true
+  },
+  "candidates": [
+    {
+      "id": "bar-chart",
+      "score": 15,
+      "reasons": [
+        "Bar compares a handful of discrete groups on one metric.",
+        "evalCase bar-picks-severity-counts: discrete groups"
+      ]
+    },
+    {
+      "id": "histogram-chart",
+      "score": 12,
+      "reasons": [
+        "Histogram shows the shape of a numeric distribution such as severity scores."
+      ]
+    }
+  ],
+  "rejections": [
+    {
+      "id": "network-graph",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "map-chart",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "kpi-widget",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "table",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "text",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "image",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "event-timeline",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "evidence-panel",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "entity-detail",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "text-input",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "number-input",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "select",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "multi-select",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "checkbox",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "date-input",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "button",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "form",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "approval-bar",
+      "reason": "Component intents do not include this objective."
+    }
+  ],
+  "actions": [
+    "hover",
+    "resize"
+  ],
+  "tieBreak": "highest score 15 (bar-chart)"
+}

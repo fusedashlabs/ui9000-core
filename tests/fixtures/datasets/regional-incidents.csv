@@ -1,0 +1,11 @@
+id,country,team,incidents
+INC-001,FR,Platform,12
+INC-002,DE,Platform,7
+INC-003,FR,Payments,19
+INC-004,ES,Identity,4
+INC-005,DE,Identity,9
+INC-006,IT,Mobile,15
+INC-007,ES,Mobile,3
+INC-008,IT,Search,22
+INC-009,FR,Search,6
+INC-010,DE,Payments,11
