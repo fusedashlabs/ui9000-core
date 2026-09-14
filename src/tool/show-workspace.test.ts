@@ -252,7 +252,7 @@ describe('show_workspace fail-closed', () => {
   it('distinguishes a missing signer from a signer failure', async () => {
     const missing = await handleShowWorkspace(
       { intent: 'comparison' },
-      { catalog, profile, payload: secretRows } as ShowWorkspaceContext,
+      context({ signDataLink: true as unknown as ShowWorkspaceContext['signDataLink'] }),
     );
     expect(missing).toMatchObject({ ok: false, code: 'missing_signer' });
 

@@ -46,8 +46,11 @@ export type ShowWorkspaceContext = {
   payload?: unknown;
   /** Column names / control labels — not row objects. Used to satisfy catalog dataRoles. */
   fields?: readonly string[];
-  /** From src/migrate/datalink when S3-13 lands; tests inject a stub. */
-  signDataLink: SignDataLink;
+  /**
+   * Tests inject a stub. Production omits this so `attachDataHandle` calls
+   * migrate `signDataLink`. A non-function value is `missing_signer`.
+   */
+  signDataLink?: SignDataLink;
 };
 
 export const SHOW_WORKSPACE_INPUT_SCHEMA = {
@@ -131,7 +134,7 @@ export async function handleShowWorkspace(
       'show_workspace requires a catalog and profile from the server, not from tool arguments.',
     );
   }
-  if (typeof context.signDataLink !== 'function') {
+  if (context.signDataLink !== undefined && typeof context.signDataLink !== 'function') {
     return fail(
       'missing_signer',
       'show_workspace needs signDataLink to issue a data handle.',
@@ -160,7 +163,11 @@ export async function handleShowWorkspace(
 
   let spec: WorkspaceSpec;
   try {
-    const attached = await attachDataHandle(shaped.spec, context.payload, context.signDataLink);
+    const attached = await attachDataHandle(
+      shaped.spec,
+      context.payload,
+      context.signDataLink,
+    );
     if (!attached.ok) {
       return fail(
         attached.code === 'leaky_handle' ? 'leaky_handle' : 'signer_failed',

@@ -1,3 +1,4 @@
+import { signDataLink as signMigratedDataLink } from '../migrate/datalink/index.js';
 import type { WorkspaceSpec } from '../spec/workspace-spec.js';
 
 /** Widget-side fetch name. Not listed on tools/list — the model sees only show_workspace. */
@@ -10,7 +11,7 @@ export type SignedLink = {
   dataUrl: string;
 };
 
-/** Injected from src/migrate/datalink (S3-13). Do not implement the store here. */
+/** Default: migrate `signDataLink`. Tests may inject a stub. Do not implement the store here. */
 export type SignDataLink = (payload: unknown) => SignedLink | Promise<SignedLink>;
 
 export type ReadDataLink = (link: SignedLink) => unknown | Promise<unknown>;
@@ -29,7 +30,7 @@ export type AttachHandleFail = {
 export async function attachDataHandle(
   spec: WorkspaceSpec,
   payload: unknown,
-  signDataLink: SignDataLink,
+  signDataLink: SignDataLink = signMigratedDataLink,
 ): Promise<AttachHandleOk | AttachHandleFail> {
   const link = await signDataLink(payload);
   if (!link || typeof link.dataUrl !== 'string' || !link.dataUrl.trim()) {

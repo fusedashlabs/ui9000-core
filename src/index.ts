@@ -42,3 +42,33 @@ export type { Table, TableColumn } from './profiler/table.js';
 export { parseCsvTable, tableRowCount } from './profiler/table.js';
 export type { ProfileEnv } from './profiler/profile-columns.js';
 export { assertClosedProfile, profileColumns } from './profiler/profile-columns.js';
+export type { DataLinkOptions } from './migrate/datalink/index.js';
+export {
+  DEFAULT_MAX_PAYLOAD_SIZE_MB,
+  DEFAULT_TTL_HOURS,
+  readDataLink,
+  signDataLink,
+} from './migrate/datalink/index.js';
+export type {
+  JsonRpcId,
+  JsonRpcResponse,
+  McpServer,
+  ShowWorkspaceHandler,
+  ShowWorkspaceToolInfo,
+  StdioStreams,
+  ToolDescriptor,
+} from './server/index.js';
+export {
+  PROTOCOL_VERSION,
+  SERVER_INFO,
+  connectStdio,
+  createServer,
+} from './server/index.js';
+export type { CreateWorkspaceServerOptions } from './workspace-server.js';
+export {
+  WORKSPACE_DATA_PATH_ENV,
+  createWorkspaceServer,
+  resolveWorkspaceDataPath,
+  startWorkspaceServer,
+} from './workspace-server.js';
+
