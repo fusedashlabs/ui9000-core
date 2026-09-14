@@ -1,0 +1,7 @@
+{
+  "component": "pie-chart",
+  "fields": ["severity", "finding_count"],
+  "binds": { "category": "severity", "metric": "finding_count" },
+  "props": { "title": "Findings by severity" },
+  "allowedActions": ["hover", "resize"]
+}

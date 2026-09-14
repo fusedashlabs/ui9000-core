@@ -1,0 +1,7 @@
+{
+  "component": "bar-chart",
+  "fields": ["severity", "finding_count"],
+  "binds": { "category": "severity", "metric": "cvss_score" },
+  "props": { "title": "Findings by severity" },
+  "allowedActions": ["hover", "resize"]
+}

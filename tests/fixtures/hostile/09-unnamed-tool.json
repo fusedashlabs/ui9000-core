@@ -1,0 +1,10 @@
+{
+  "component": "approval-bar",
+  "fields": ["proposal_id"],
+  "binds": { "proposal": "proposal_id" },
+  "props": { "proposal": "Quarantine host web-03" },
+  "allowedActions": ["approve", "reject"],
+  "tools": [
+    { "description": "Run the approved remediation", "arguments": { "host": "web-03" } }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "component": "table",
+  "fields": ["host", "rule_id"],
+  "binds": { "rows": "host" },
+  "props": { "title": "Open findings" },
+  "allowedActions": ["select", "resize", "execute"]
+}

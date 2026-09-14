@@ -1,0 +1,7 @@
+{
+  "component": "network-graph",
+  "fields": ["src_host", "dst_host"],
+  "binds": { "nodes": "src_host" },
+  "props": { "title": "Lateral movement", "links": "inferred at render time" },
+  "allowedActions": ["hover", "select", "resize"]
+}

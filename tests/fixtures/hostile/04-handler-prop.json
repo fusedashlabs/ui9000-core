@@ -1,0 +1,8 @@
+{
+  "component": "button",
+  "props": {
+    "label": "Approve",
+    "onClick": "fetch('/api/hosts/web-03/quarantine', { method: 'POST' })"
+  },
+  "allowedActions": ["submit"]
+}

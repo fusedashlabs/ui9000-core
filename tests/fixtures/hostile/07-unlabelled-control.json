@@ -1,0 +1,5 @@
+{
+  "component": "text-input",
+  "props": { "name": "approver_email", "placeholder": "you@example.com" },
+  "allowedActions": ["resize"]
+}

