@@ -1,0 +1,9 @@
+question,mcp_ui_tool,mcp_ui_chart_id,engine_component_id,data_accuracy,notes
+Show incidents on a map by country.,generate_geo_map_chart,c14a0001-0000-4000-8000-000000000001,map-chart,pass,intent=spatial; dataset=regional-incidents; mcp_ui_chart_id is a fixture data-link UUID; live mcp-ui mints a new id per sign
+Where are these incidents geographically?,generate_geo_map_chart,c14a0001-0000-4000-8000-000000000002,map-chart,pass,intent=spatial; dataset=regional-incidents; mcp_ui_chart_id is a fixture data-link UUID; live mcp-ui mints a new id per sign
+Compare incident counts by team as a bar chart.,generate_simple_single_series_chart,c14a0002-0000-4000-8000-000000000003,bar-chart,pass,intent=comparison; dataset=regional-incidents; mcp_ui_chart_id is a fixture data-link UUID; live mcp-ui mints a new id per sign
+Which teams have more incidents than the others?,generate_simple_single_series_chart,c14a0002-0000-4000-8000-000000000004,bar-chart,pass,intent=comparison; dataset=regional-incidents; mcp_ui_chart_id is a fixture data-link UUID; live mcp-ui mints a new id per sign
+Give me a KPI of total incidents.,generate_kpi_widget,c14a0003-0000-4000-8000-000000000005,kpi-widget,pass,intent=summary; dataset=regional-incidents; mcp_ui_chart_id is a fixture data-link UUID; live mcp-ui mints a new id per sign
+Summarize the incident count for this dataset.,generate_kpi_widget,c14a0003-0000-4000-8000-000000000006,kpi-widget,pass,intent=summary; dataset=regional-incidents; mcp_ui_chart_id is a fixture data-link UUID; live mcp-ui mints a new id per sign
+Approve or reject incident INC-001.,n/a,n/a,approval-bar,n/a,intent=form; dataset=regional-incidents; mcp-ui has no approval/form generator; engine path is approval-bar
+I need to accept or reject these incident records.,n/a,n/a,approval-bar,n/a,intent=form; dataset=regional-incidents; mcp-ui has no approval/form generator; engine path is approval-bar

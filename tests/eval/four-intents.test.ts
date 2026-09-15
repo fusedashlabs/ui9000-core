@@ -54,6 +54,9 @@ const csv = readFileSync(`${DATASET_DIR}${DATASET}.csv`, 'utf8');
 const recordedProfile: DataProfile = JSON.parse(
   readFileSync(`${DATASET_DIR}${DATASET}.json`, 'utf8'),
 );
+const recordedWinners: Record<(typeof OBJECTIVES)[number], string> = JSON.parse(
+  readFileSync(`${DATASET_DIR}${DATASET}.winners.json`, 'utf8'),
+);
 const profile = profileColumns(parseCsvTable(csv), HOST);
 
 /** Every intent sees the same profile and the same catalog — only the objective moves. */
@@ -110,16 +113,16 @@ describe('same dataset × four intents', () => {
   it('spatial picks the map, because the host has a token', () => {
     const decision = run('spatial');
 
-    expect(decision.winner).toBe('map-chart');
-    expect(ids(decision.eligible)).toEqual(['map-chart']);
+    expect(decision.winner).toBe(recordedWinners.spatial);
+    expect(ids(decision.eligible)).toEqual([recordedWinners.spatial]);
     expect(decision.trace.objective).toBe('spatial');
 
     // pan / zoom are catalog actions; the workspace never sees them.
     expect(decision.trace.actions).toEqual(['hover', 'resize']);
-    expect(decision.trace.actions).toEqual(catalogActions('map-chart'));
+    expect(decision.trace.actions).toEqual(catalogActions(recordedWinners.spatial));
 
     // The comparison winner loses this intent on a sentence, not on a code.
-    expect(reasonFor(decision, 'bar-chart')).toBe(
+    expect(reasonFor(decision, recordedWinners.comparison)).toBe(
       'Component intents do not include this objective.',
     );
   });
@@ -127,21 +130,21 @@ describe('same dataset × four intents', () => {
   it('comparison picks bars over the histogram on the same numbers', () => {
     const decision = run('comparison');
 
-    expect(decision.winner).toBe('bar-chart');
+    expect(decision.winner).toBe(recordedWinners.comparison);
     // Contested: the histogram is eligible too, and is outscored, not excluded.
-    expect(ids(decision.eligible)).toEqual(['bar-chart', 'histogram-chart']);
-    expect(scoreOf(decision, 'bar-chart')).toBeGreaterThan(scoreOf(decision, 'histogram-chart')!);
+    expect(ids(decision.eligible)).toEqual([recordedWinners.comparison, 'histogram-chart']);
+    expect(scoreOf(decision, recordedWinners.comparison)).toBeGreaterThan(scoreOf(decision, 'histogram-chart')!);
     expect(decision.trace.actions).toEqual(['hover', 'resize']);
   });
 
   it('summary picks the KPI over the table on a documented tie-break', () => {
     const decision = run('summary');
 
-    expect(decision.winner).toBe('kpi-widget');
-    expect(ids(decision.eligible)).toEqual(['kpi-widget', 'table']);
+    expect(decision.winner).toBe(recordedWinners.summary);
+    expect(ids(decision.eligible)).toEqual([recordedWinners.summary, 'table']);
     // Same score: the trace has to say out loud why one of them won.
-    expect(scoreOf(decision, 'kpi-widget')).toBe(scoreOf(decision, 'table'));
-    expect(decision.trace.tieBreak).toContain('kpi-widget');
+    expect(scoreOf(decision, recordedWinners.summary)).toBe(scoreOf(decision, 'table'));
+    expect(decision.trace.tieBreak).toContain(recordedWinners.summary);
     expect(decision.trace.tieBreak).toContain('table');
     expect(decision.trace.actions).toEqual(['resize']);
   });
@@ -149,8 +152,8 @@ describe('same dataset × four intents', () => {
   it('form picks approval over the controls this dataset cannot fill', () => {
     const decision = run('form');
 
-    expect(decision.winner).toBe('approval-bar');
-    expect(ids(decision.eligible)).toEqual(['approval-bar']);
+    expect(decision.winner).toBe(recordedWinners.form);
+    expect(ids(decision.eligible)).toEqual([recordedWinners.form]);
     expect(decision.trace.actions).toEqual(['approve', 'reject']);
 
     // Every labelled-control component is refused, each with its own sentence.
@@ -175,7 +178,7 @@ describe('four intents, four workspaces', () => {
 
   it('never returns the same component twice', () => {
     const winners = decisions.map(([, decision]) => decision.winner);
-    expect(winners).toEqual(['map-chart', 'bar-chart', 'kpi-widget', 'approval-bar']);
+    expect(winners).toEqual(OBJECTIVES.map((intent) => recordedWinners[intent]));
     expect(new Set(winners).size).toBe(OBJECTIVES.length);
   });
 

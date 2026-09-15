@@ -1,0 +1,108 @@
+{
+  "spatial-1": {
+    "tool": "generate_geo_map_chart",
+    "chartId": "c14a0001-0000-4000-8000-000000000001",
+    "data": [
+      { "id": "INC-001", "country": "FR", "team": "Platform", "incidents": "12" },
+      { "id": "INC-002", "country": "DE", "team": "Platform", "incidents": "7" },
+      { "id": "INC-003", "country": "FR", "team": "Payments", "incidents": "19" },
+      { "id": "INC-004", "country": "ES", "team": "Identity", "incidents": "4" },
+      { "id": "INC-005", "country": "DE", "team": "Identity", "incidents": "9" },
+      { "id": "INC-006", "country": "IT", "team": "Mobile", "incidents": "15" },
+      { "id": "INC-007", "country": "ES", "team": "Mobile", "incidents": "3" },
+      { "id": "INC-008", "country": "IT", "team": "Search", "incidents": "22" },
+      { "id": "INC-009", "country": "FR", "team": "Search", "incidents": "6" },
+      { "id": "INC-010", "country": "DE", "team": "Payments", "incidents": "11" }
+    ]
+  },
+  "spatial-2": {
+    "tool": "generate_geo_map_chart",
+    "chartId": "c14a0001-0000-4000-8000-000000000002",
+    "data": [
+      { "id": "INC-001", "country": "FR", "team": "Platform", "incidents": "12" },
+      { "id": "INC-002", "country": "DE", "team": "Platform", "incidents": "7" },
+      { "id": "INC-003", "country": "FR", "team": "Payments", "incidents": "19" },
+      { "id": "INC-004", "country": "ES", "team": "Identity", "incidents": "4" },
+      { "id": "INC-005", "country": "DE", "team": "Identity", "incidents": "9" },
+      { "id": "INC-006", "country": "IT", "team": "Mobile", "incidents": "15" },
+      { "id": "INC-007", "country": "ES", "team": "Mobile", "incidents": "3" },
+      { "id": "INC-008", "country": "IT", "team": "Search", "incidents": "22" },
+      { "id": "INC-009", "country": "FR", "team": "Search", "incidents": "6" },
+      { "id": "INC-010", "country": "DE", "team": "Payments", "incidents": "11" }
+    ]
+  },
+  "comparison-1": {
+    "tool": "generate_simple_single_series_chart",
+    "chartId": "c14a0002-0000-4000-8000-000000000003",
+    "data": [
+      { "id": "INC-001", "country": "FR", "team": "Platform", "incidents": "12" },
+      { "id": "INC-002", "country": "DE", "team": "Platform", "incidents": "7" },
+      { "id": "INC-003", "country": "FR", "team": "Payments", "incidents": "19" },
+      { "id": "INC-004", "country": "ES", "team": "Identity", "incidents": "4" },
+      { "id": "INC-005", "country": "DE", "team": "Identity", "incidents": "9" },
+      { "id": "INC-006", "country": "IT", "team": "Mobile", "incidents": "15" },
+      { "id": "INC-007", "country": "ES", "team": "Mobile", "incidents": "3" },
+      { "id": "INC-008", "country": "IT", "team": "Search", "incidents": "22" },
+      { "id": "INC-009", "country": "FR", "team": "Search", "incidents": "6" },
+      { "id": "INC-010", "country": "DE", "team": "Payments", "incidents": "11" }
+    ]
+  },
+  "comparison-2": {
+    "tool": "generate_simple_single_series_chart",
+    "chartId": "c14a0002-0000-4000-8000-000000000004",
+    "data": [
+      { "id": "INC-001", "country": "FR", "team": "Platform", "incidents": "12" },
+      { "id": "INC-002", "country": "DE", "team": "Platform", "incidents": "7" },
+      { "id": "INC-003", "country": "FR", "team": "Payments", "incidents": "19" },
+      { "id": "INC-004", "country": "ES", "team": "Identity", "incidents": "4" },
+      { "id": "INC-005", "country": "DE", "team": "Identity", "incidents": "9" },
+      { "id": "INC-006", "country": "IT", "team": "Mobile", "incidents": "15" },
+      { "id": "INC-007", "country": "ES", "team": "Mobile", "incidents": "3" },
+      { "id": "INC-008", "country": "IT", "team": "Search", "incidents": "22" },
+      { "id": "INC-009", "country": "FR", "team": "Search", "incidents": "6" },
+      { "id": "INC-010", "country": "DE", "team": "Payments", "incidents": "11" }
+    ]
+  },
+  "summary-1": {
+    "tool": "generate_kpi_widget",
+    "chartId": "c14a0003-0000-4000-8000-000000000005",
+    "data": [
+      { "id": "INC-001", "country": "FR", "team": "Platform", "incidents": "12" },
+      { "id": "INC-002", "country": "DE", "team": "Platform", "incidents": "7" },
+      { "id": "INC-003", "country": "FR", "team": "Payments", "incidents": "19" },
+      { "id": "INC-004", "country": "ES", "team": "Identity", "incidents": "4" },
+      { "id": "INC-005", "country": "DE", "team": "Identity", "incidents": "9" },
+      { "id": "INC-006", "country": "IT", "team": "Mobile", "incidents": "15" },
+      { "id": "INC-007", "country": "ES", "team": "Mobile", "incidents": "3" },
+      { "id": "INC-008", "country": "IT", "team": "Search", "incidents": "22" },
+      { "id": "INC-009", "country": "FR", "team": "Search", "incidents": "6" },
+      { "id": "INC-010", "country": "DE", "team": "Payments", "incidents": "11" }
+    ]
+  },
+  "summary-2": {
+    "tool": "generate_kpi_widget",
+    "chartId": "c14a0003-0000-4000-8000-000000000006",
+    "data": [
+      { "id": "INC-001", "country": "FR", "team": "Platform", "incidents": "12" },
+      { "id": "INC-002", "country": "DE", "team": "Platform", "incidents": "7" },
+      { "id": "INC-003", "country": "FR", "team": "Payments", "incidents": "19" },
+      { "id": "INC-004", "country": "ES", "team": "Identity", "incidents": "4" },
+      { "id": "INC-005", "country": "DE", "team": "Identity", "incidents": "9" },
+      { "id": "INC-006", "country": "IT", "team": "Mobile", "incidents": "15" },
+      { "id": "INC-007", "country": "ES", "team": "Mobile", "incidents": "3" },
+      { "id": "INC-008", "country": "IT", "team": "Search", "incidents": "22" },
+      { "id": "INC-009", "country": "FR", "team": "Search", "incidents": "6" },
+      { "id": "INC-010", "country": "DE", "team": "Payments", "incidents": "11" }
+    ]
+  },
+  "form-1": {
+    "tool": "n/a",
+    "chartId": "n/a",
+    "data": null
+  },
+  "form-2": {
+    "tool": "n/a",
+    "chartId": "n/a",
+    "data": null
+  }
+}
