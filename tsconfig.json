@@ -15,5 +15,5 @@
       "@fusedashlabs/widgets/catalog": ["../widgets/src/catalog/index.ts"]
     }
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts"]
+  "include": ["src/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts"]
 }

@@ -1,0 +1,55 @@
+{
+  "tokenizer": "cl100k_base",
+  "measured_at": "2026-09-15T11:46:43.216Z",
+  "mcp_ui": 32183,
+  "workspace": 691,
+  "delta_pct": -97.85,
+  "mcp_ui_detail": {
+    "tokens": 32183,
+    "utf8_bytes": 129370,
+    "tool_count": 31,
+    "names": [
+      "generate_simple_single_series_chart",
+      "generate_grouped_or_stacked_chart",
+      "generate_pie_chart",
+      "generate_kpi_widget",
+      "generate_scatterplot_chart",
+      "generate_geo_map_chart",
+      "generate_sankey_diagram",
+      "generate_treemap_chart",
+      "generate_histogram_chart",
+      "generate_bubble_chart",
+      "generate_matrix_radar_radial_polar_chart",
+      "generate_sparkline_chart",
+      "generate_boxplot_chart",
+      "generate_punchcard_chart",
+      "generate_ks_plot_chart",
+      "generate_roc_curve_chart",
+      "generate_gini_impurity_entropy_chart",
+      "generate_bias_variance_tradeoff_chart",
+      "generate_violin_chart",
+      "generate_partial_dependence_ice_chart",
+      "generate_network_graph",
+      "generate_custom_chart",
+      "generate_waterfall_chart",
+      "generate_parallel_coordinates_chart",
+      "generate_area_grouped_bar_chart",
+      "generate_scatter_sparkline_chart",
+      "load_dataset",
+      "resolve_chart_colors",
+      "resolve_limits_domains",
+      "profile_dataset",
+      "query_dataset"
+    ],
+    "note": "mcp-ui tools/list result JSON, tokenizer=cl100k_base"
+  },
+  "workspace_detail": {
+    "tokens": 691,
+    "utf8_bytes": 3048,
+    "tool_count": 1,
+    "names": [
+      "show_workspace"
+    ],
+    "note": "workspace-server tools/list result JSON, tokenizer=cl100k_base"
+  }
+}

@@ -32,6 +32,7 @@
   "devDependencies": {
     "@types/geojson": "^7946.0.14",
     "@types/node": "^22.10.0",
+    "js-tiktoken": "^1.0.21",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   }

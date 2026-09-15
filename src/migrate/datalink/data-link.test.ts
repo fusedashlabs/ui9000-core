@@ -56,9 +56,12 @@ describe('signDataLink', () => {
 
   it('never embeds the payload in the url', () => {
     const link = sign(rows);
+    const url = new URL(link.dataUrl);
     expect(link.dataUrl).not.toContain('north');
-    expect(link.dataUrl).not.toContain('99');
-    expect(new URL(link.dataUrl).pathname.split('/')).toHaveLength(4);
+    expect(url.pathname).toMatch(/^\/v1\/data-links\/[0-9a-f-]{36}$/i);
+    expect(url.searchParams.has('sig')).toBe(true);
+    expect(url.searchParams.has('exp')).toBe(true);
+    expect(url.searchParams.get('sig')).not.toContain('north');
   });
 
   it('issues a distinct id per call', () => {
