@@ -50,6 +50,27 @@ export {
   signDataLink,
 } from './migrate/datalink/index.js';
 export type {
+  LayerValidation,
+  LoadCatalog,
+  MapValidation,
+  RegionKeys,
+  RegionWarning,
+  Suggestion,
+} from './migrate/map-validation/index.js';
+export {
+  GEOJSON_KEYS,
+  MIN_RENDERABLE_COVERAGE,
+  MapValidationError,
+  assertRenderableMap,
+  findUnrenderableMap,
+  isMapConfig,
+  loadCatalog,
+  resolveMapType,
+  validateChartConfig,
+  validateMapData,
+  validateRegions,
+} from './migrate/map-validation/index.js';
+export type {
   JsonRpcId,
   JsonRpcResponse,
   McpServer,

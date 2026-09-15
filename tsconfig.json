@@ -8,8 +8,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "isolatedModules": true,
+    "resolveJsonModule": true,
     "noEmit": true,
-    "types": ["node", "vitest/globals", "vite/client"],
+    "types": ["node", "vitest/globals", "vite/client", "geojson"],
     "paths": {
       "@fusedashlabs/widgets/catalog": ["../widgets/src/catalog/index.ts"]
     }
