@@ -10,6 +10,7 @@ import {
   normalizeDataLinkBaseUrl,
   readDataLink,
   signDataLink,
+  type SignedLink,
 } from './data-link.js';
 import { TtlStore } from './store.js';
 import { createSignedDataUrl } from './signature.js';
@@ -39,8 +40,12 @@ afterEach(() => {
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-function sign(payload: unknown, env: NodeJS.ProcessEnv = TEST_ENV) {
-  return signDataLink(payload, { env, store });
+function sign(payload: unknown, env: NodeJS.ProcessEnv = TEST_ENV): SignedLink {
+  const link = signDataLink(payload, { env, store });
+  if (typeof (link as Promise<SignedLink>).then === 'function') {
+    throw new Error('expected local HMAC sign');
+  }
+  return link as SignedLink;
 }
 
 function read(link: { dataUrl: string }, env: NodeJS.ProcessEnv = TEST_ENV) {
@@ -69,10 +74,7 @@ describe('signDataLink', () => {
   });
 
   it('strips a trailing /mcp from the base url', () => {
-    const link = signDataLink(rows, {
-      env: { ...TEST_ENV, MCP_BASE_URL: 'https://workspace.local/mcp' },
-      store,
-    });
+    const link = sign(rows, { ...TEST_ENV, MCP_BASE_URL: 'https://workspace.local/mcp' });
     expect(link.dataUrl.startsWith('https://workspace.local/v1/data-links/')).toBe(true);
     expect(normalizeDataLinkBaseUrl('https://workspace.local/mcp/')).toBe('https://workspace.local');
   });
@@ -216,5 +218,97 @@ describe('secret handling', () => {
         store,
       }),
     ).toThrow(/known development default/);
+  });
+});
+
+describe('hosted remote persist', () => {
+  it('does not POST when the persist flag is off, even on a public origin', async () => {
+    const fetchImpl = vi.fn();
+    const link = signDataLink(rows, {
+      env: { ...TEST_ENV, MCP_BASE_URL: 'https://mcp.ui9000.com' },
+      store,
+      fetchImpl,
+    });
+    expect(typeof (link as Promise<SignedLink>).then).not.toBe('function');
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect((link as SignedLink).dataUrl.startsWith('https://mcp.ui9000.com/v1/data-links/')).toBe(
+      true,
+    );
+  });
+
+  it('POSTs {config,data} to /v1/data-links and caches the payload under the host id', async () => {
+    const fetchImpl = vi.fn(async (url: string, init: { body: string }) => {
+      expect(url).toBe('https://mcp.ui9000.com/v1/data-links');
+      expect(JSON.parse(init.body)).toEqual({
+        config: { source: 'show_workspace' },
+        data: rows,
+      });
+      return {
+        ok: true,
+        status: 201,
+        json: async () => ({
+          id: 'hosted-id',
+          dataUrl: 'https://mcp.ui9000.com/v1/data-links/hosted-id?sig=a&exp=1',
+        }),
+        text: async () => '',
+      };
+    });
+
+    const link = await signDataLink(rows, {
+      env: {
+        ...TEST_ENV,
+        MCP_BASE_URL: 'https://mcp.ui9000.com',
+        MCP_DATA_LINK_REMOTE_PERSIST: '1',
+      },
+      store,
+      fetchImpl,
+    });
+
+    expect(link.dataUrl).toBe('https://mcp.ui9000.com/v1/data-links/hosted-id?sig=a&exp=1');
+    expect(isOpaqueDataUrl(link.dataUrl)).toBe(true);
+    expect(store.get('hosted-id')?.payload).toEqual(rows);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not POST when the origin is loopback', async () => {
+    const fetchImpl = vi.fn();
+    const link = signDataLink(rows, {
+      env: {
+        ...TEST_ENV,
+        MCP_BASE_URL: 'http://127.0.0.1:8088',
+        MCP_DATA_LINK_REMOTE_PERSIST: '1',
+      },
+      store,
+      fetchImpl,
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect((link as SignedLink).dataUrl.startsWith('http://127.0.0.1:8088/v1/data-links/')).toBe(
+      true,
+    );
+  });
+
+  it('does not cache a host body whose dataUrl origin does not match', async () => {
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      status: 201,
+      json: async () => ({
+        id: 'hosted-id',
+        dataUrl: 'http://localhost:5173/v1/data-links/hosted-id?sig=a&exp=1',
+      }),
+      text: async () => '',
+    }));
+
+    await expect(
+      signDataLink(rows, {
+        env: {
+          ...TEST_ENV,
+          MCP_BASE_URL: 'https://mcp.ui9000.com',
+          MCP_DATA_LINK_REMOTE_PERSIST: '1',
+        },
+        store,
+        fetchImpl,
+      }),
+    ).rejects.toThrow(/does not match/);
+    expect(store.get('hosted-id')).toBeNull();
   });
 });

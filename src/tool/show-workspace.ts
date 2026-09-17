@@ -4,7 +4,9 @@ import type { DataProfile } from '../spec/data-profile.js';
 import { INTENTS, type Intent } from '../spec/intent.js';
 import type { WorkspaceSpec } from '../spec/workspace-spec.js';
 import { validateSpec } from '../validate/validate-spec.js';
+import type { ClassifiedColumn } from '../profiler/roles.js';
 import { attachDataHandle, type SignDataLink } from './data-channel.js';
+import { chartTypeForComponent, workspaceWidgetPayload } from './widget-payload.js';
 
 export const SHOW_WORKSPACE_NAME = 'show_workspace';
 
@@ -29,6 +31,8 @@ export type ShowWorkspaceOk = {
   ok: true;
   spec: WorkspaceSpec;
   summary: string;
+  /** FuseDash chartType for the hosted MCP App. Absent when the View cannot render. */
+  chartType?: string;
 };
 
 export type ShowWorkspaceFail = {
@@ -46,6 +50,11 @@ export type ShowWorkspaceContext = {
   payload?: unknown;
   /** Column names / control labels — not row objects. Used to satisfy catalog dataRoles. */
   fields?: readonly string[];
+  /**
+   * Profiler classification. When set, binds map catalog roles to those columns
+   * (category→team, metric→incidents) instead of CSV order.
+   */
+  classified?: readonly ClassifiedColumn[];
   /**
    * Tests inject a stub. Production omits this so `attachDataHandle` calls
    * migrate `signDataLink`. A non-function value is `missing_signer`.
@@ -151,21 +160,31 @@ export async function handleShowWorkspace(
     return fail('no_winner', reason || 'No eligible catalog component for this intent and profile.');
   }
 
+  const winner = context.catalog.find((item) => item.id === decision.winner);
   const shaped = shapeSpec(
     {
       component: decision.winner,
       allowedActions: decision.trace.actions,
     },
-    context.catalog.find((item) => item.id === decision.winner),
+    winner,
     context.fields,
+    context.classified,
   );
   if (!shaped.ok) return shaped;
+
+  const chartType = chartTypeForComponent(decision.winner, winner?.chartTypeKeys);
+  const payload = workspaceWidgetPayload(
+    decision.winner,
+    chartType,
+    shaped.spec.binds,
+    context.payload,
+  );
 
   let spec: WorkspaceSpec;
   try {
     const attached = await attachDataHandle(
       shaped.spec,
-      context.payload,
+      payload,
       context.signDataLink,
     );
     if (!attached.ok) {
@@ -188,6 +207,7 @@ export async function handleShowWorkspace(
     ok: true,
     spec: validated.spec,
     summary: buildSummary(validated.spec, parsed.intent, decision.winner, decision.trace.tieBreak),
+    ...(chartType ? { chartType } : {}),
   };
 }
 
@@ -195,6 +215,7 @@ function shapeSpec(
   base: WorkspaceSpec,
   entry: CatalogEntry | undefined,
   fields: readonly string[] | undefined,
+  classified?: readonly ClassifiedColumn[],
 ): { ok: true; spec: WorkspaceSpec } | ShowWorkspaceFail {
   const spec: WorkspaceSpec = { ...base };
   if (entry?.accessibility?.nameFrom) {
@@ -202,9 +223,10 @@ function shapeSpec(
   }
 
   const roles = entry?.dataRoles ?? [];
-  const bindRoles = roles.filter((role) => role.required && role.id !== 'fields');
+  const requiredRoles = roles.filter((role) => role.required && role.id !== 'fields');
+  const optionalRoles = roles.filter((role) => !role.required && role.id !== 'fields');
   const needsFieldsRole = roles.some((role) => role.required && role.id === 'fields');
-  const namesResult = normalizeFieldNames(fields, bindRoles.map((role) => role.id));
+  const namesResult = normalizeFieldNames(fields, requiredRoles.map((role) => role.id));
   if (!namesResult.ok) {
     return fail(
       'missing_binds',
@@ -213,26 +235,80 @@ function shapeSpec(
   }
   const names = namesResult.names;
 
-  if (bindRoles.length > 0 && names.length < bindRoles.length) {
+  if (requiredRoles.length > 0 && !classified?.length && names.length < requiredRoles.length) {
     return fail(
       'missing_binds',
       'Catalog required data roles need column names; pass fields on the server context, not in tool arguments.',
     );
   }
 
-  if (bindRoles.length > 0) {
-    spec.binds = bindRoles.map((role, index) => ({
-      role: role.id,
-      field: names[index] ?? role.id,
-    }));
+  const binds: { role: string; field: string }[] = [];
+  for (let index = 0; index < requiredRoles.length; index += 1) {
+    const role = requiredRoles[index]!;
+    const field = classified?.length
+      ? fieldForRole(role.id, classified)
+      : (names[index] ?? role.id);
+    if (!field) {
+      return fail(
+        'missing_binds',
+        `No column matches catalog role "${role.id}".`,
+      );
+    }
+    binds.push({ role: role.id, field });
   }
 
-  if (needsFieldsRole || bindRoles.length > 0) {
-    const labels = names.length > 0 ? names : ['Field'];
+  if (classified?.length) {
+    const usedRoles = new Set(binds.map((item) => item.role));
+    const usedFields = new Set(binds.map((item) => item.field));
+    for (const role of optionalRoles) {
+      if (usedRoles.has(role.id)) continue;
+      const field = fieldForRole(role.id, classified);
+      if (!field || usedFields.has(field)) continue;
+      binds.push({ role: role.id, field });
+      usedFields.add(field);
+    }
+  }
+
+  if (binds.length > 0) spec.binds = binds;
+
+  if (needsFieldsRole || binds.length > 0) {
+    const labels = classified?.length
+      ? classified.map((entry) => entry.column.name)
+      : names.length > 0
+        ? names
+        : ['Field'];
     spec.fields = labels.map((name) => ({ name, label: name }));
   }
 
   return { ok: true, spec };
+}
+
+/** Catalog dataRole id → profiler column roles, first match wins. */
+const ROLE_COLUMN: Record<string, readonly ClassifiedColumn['role'][]> = {
+  category: ['category'],
+  metric: ['metric'],
+  distribution: ['metric'],
+  geo: ['geo'],
+  proposal: ['entity', 'claim'],
+  claim: ['claim'],
+  entity: ['entity'],
+  nodes: ['node'],
+  links: ['link'],
+  events: ['event'],
+  sources: ['sources'],
+  rows: ['category', 'metric', 'entity', 'geo'],
+};
+
+function fieldForRole(
+  roleId: string,
+  classified: readonly ClassifiedColumn[],
+): string | undefined {
+  const wanted = ROLE_COLUMN[roleId] ?? [roleId as ClassifiedColumn['role']];
+  for (const role of wanted) {
+    const hit = classified.find((entry) => entry.role === role);
+    if (hit) return hit.column.name;
+  }
+  return undefined;
 }
 
 function normalizeFieldNames(
@@ -288,10 +364,23 @@ function buildSummary(
   tieBreak: string,
 ): string {
   const parts = [`${winner} for ${intent}`, tieBreak];
+  const binds = formatBinds(spec.binds);
+  if (binds) parts.push(binds);
   if (spec.callServerTool) {
     parts.push(`rows via ${spec.callServerTool}`);
   }
   return parts.filter((part) => part.trim().length > 0).join('. ');
+}
+
+function formatBinds(binds: WorkspaceSpec['binds']): string | undefined {
+  if (!binds) return undefined;
+  const items = Array.isArray(binds)
+    ? binds.map((item) => `${item.role}=${item.field}`)
+    : Object.entries(binds).map(([role, value]) => {
+        const field = typeof value === 'string' ? value : value.field;
+        return `${role}=${field}`;
+      });
+  return items.length ? `binds ${items.join(', ')}` : undefined;
 }
 
 function fail(code: ShowWorkspaceCode, reason: string): ShowWorkspaceFail {

@@ -123,6 +123,82 @@ describe('createServer', () => {
     expect(result.capabilities).toEqual({ tools: {} });
   });
 
+  it('advertises resources when an MCP App is attached', async () => {
+    const server = createServer(stubHandler, {
+      appResource: {
+        uri: 'ui://ui9000/chart',
+        name: 'UI9000 Chart',
+        mimeType: 'text/html;profile=mcp-app',
+        loadHtml: () => '<html></html>',
+        ui: { csp: { connectDomains: [], resourceDomains: [], frameDomains: [] } },
+      },
+    });
+
+    const init = resultOf(await server.handle(request('initialize')));
+    expect(init.capabilities).toEqual({
+      tools: {},
+      resources: {},
+      extensions: {
+        'io.modelcontextprotocol/ui': {
+          mimeTypes: ['text/html;profile=mcp-app'],
+        },
+      },
+    });
+
+    const listed = resultOf(await server.handle(request('tools/list')));
+    expect((listed.tools as Array<Record<string, unknown>>)[0]?._meta).toMatchObject({
+      ui: { resourceUri: 'ui://ui9000/chart' },
+      'ui/resourceUri': 'ui://ui9000/chart',
+    });
+
+    const html = resultOf(
+      await server.handle(request('resources/read', { uri: 'ui://ui9000/chart' })),
+    );
+    expect(html.contents).toEqual([
+      expect.objectContaining({ mimeType: 'text/html;profile=mcp-app', text: '<html></html>' }),
+    ]);
+  });
+
+  it('puts chartType on the App envelope instead of dumping the spec as text', async () => {
+    const server = createServer(
+      () => ({
+        ok: true,
+        spec: { component: 'bar-chart', dataUrl: 'https://workspace.local/v1/data-links/abc' },
+        summary: 'bar-chart for comparison',
+        chartType: 'barChart',
+      }),
+      {
+        appResource: {
+          uri: 'ui://ui9000/chart',
+          name: 'UI9000 Chart',
+          mimeType: 'text/html;profile=mcp-app',
+          loadHtml: () => '<html></html>',
+          ui: { csp: { connectDomains: [], resourceDomains: [], frameDomains: [] } },
+        },
+      },
+    );
+
+    const result = resultOf(
+      await server.handle(
+        request('tools/call', { name: 'show_workspace', arguments: { intent: 'comparison' } }),
+      ),
+    );
+
+    expect(result._meta).toMatchObject({
+      ui: { resourceUri: 'ui://ui9000/chart' },
+      'ui/resourceUri': 'ui://ui9000/chart',
+      chartType: 'barChart',
+      dataUrl: 'https://workspace.local/v1/data-links/abc',
+    });
+    expect(result.content).toEqual([
+      {
+        type: 'text',
+        text: expect.stringContaining('ui9000-meta:'),
+      },
+    ]);
+    expect((result.content as Array<{ text: string }>)[0]?.text).toContain('bar-chart for comparison');
+  });
+
   it('routes tools/call arguments to the injected handler untouched', async () => {
     const handler = vi.fn(() => ({ ok: true, summary: 'routed' }));
     const server = createServer(handler);

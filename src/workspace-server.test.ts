@@ -1,5 +1,6 @@
 import { PassThrough } from 'node:stream';
 import { createRequire } from 'node:module';
+import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -12,6 +13,10 @@ import type { JsonRpcResponse } from './server/index.js';
 import { attachDataHandle, isOpaqueDataUrl } from './tool/data-channel.js';
 import { SHOW_WORKSPACE_DESCRIPTION, SHOW_WORKSPACE_NAME } from './tool/show-workspace.js';
 import {
+  DEFAULT_HOSTED_MCP_BASE_URL,
+  REMOTE_PERSIST_ENV,
+  WORKSPACE_MAPBOX_TOKEN,
+  applyWorkspaceHostDefaults,
   createServer,
   createWorkspaceServer,
   handleShowWorkspace,
@@ -50,6 +55,58 @@ function resultOf(response: JsonRpcResponse | null): Record<string, unknown> {
   return response?.result as Record<string, unknown>;
 }
 
+function parseStdioFrames(chunk: Buffer | string): Array<Record<string, unknown>> {
+  const text = typeof chunk === 'string' ? chunk : chunk.toString('utf8');
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
+}
+
+function rpcOverStdio(
+  input: PassThrough,
+  output: PassThrough,
+  message: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const id = message.id;
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      output.off('data', onData);
+      reject(new Error(`timed out waiting for stdio id=${String(id)}`));
+    }, 5000);
+    const onData = (chunk: Buffer) => {
+      for (const frame of parseStdioFrames(chunk)) {
+        if (frame.id === id) {
+          clearTimeout(timer);
+          output.off('data', onData);
+          resolve(frame);
+          return;
+        }
+      }
+    };
+    output.on('data', onData);
+    input.write(`${JSON.stringify(message)}\n`);
+  });
+}
+
+async function initializeSdkStdio(input: PassThrough, output: PassThrough): Promise<void> {
+  const init = await rpcOverStdio(input, output, {
+    jsonrpc: '2.0',
+    id: 1,
+    method: 'initialize',
+    params: {
+      protocolVersion: '2025-06-18',
+      capabilities: {},
+      clientInfo: { name: 'workspace-server-test', version: '0.0.0' },
+    },
+  });
+  expect(init.error).toBeUndefined();
+  input.write(
+    `${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' })}\n`,
+  );
+}
+
 function wiredServer() {
   const csv = fs.readFileSync(FIXTURE, 'utf8');
   return createWorkspaceServer({
@@ -65,6 +122,8 @@ describe('createWorkspaceServer', () => {
     expect(typeof createServer).toBe('function');
     expect(typeof handleShowWorkspace).toBe('function');
     expect(typeof signDataLink).toBe('function');
+    expect(typeof applyWorkspaceHostDefaults).toBe('function');
+    expect(WORKSPACE_MAPBOX_TOKEN.startsWith('pk.')).toBe(true);
   });
 
   it('lists exactly one tool named show_workspace', async () => {
@@ -80,6 +139,10 @@ describe('createWorkspaceServer', () => {
       type: 'object',
       required: ['intent'],
     });
+    expect(tools[0]?._meta).toMatchObject({
+      ui: { resourceUri: 'ui://ui9000/chart' },
+      'ui/resourceUri': 'ui://ui9000/chart',
+    });
   });
 
   it('routes show_workspace through handleShowWorkspace, not a stub', async () => {
@@ -92,18 +155,39 @@ describe('createWorkspaceServer', () => {
 
     const body = result.structuredContent as {
       ok: boolean;
-      spec?: { component?: string; dataUrl?: string };
+      spec?: { component?: string; dataUrl?: string; binds?: unknown };
       summary?: string;
     };
     expect(body.ok).toBe(true);
     expect(body.spec?.component).toBe('bar-chart');
-    expect(body.spec?.dataUrl).toEqual(expect.any(String));
+    expect(body.spec?.binds).toEqual([
+      { role: 'category', field: 'department' },
+      { role: 'metric', field: 'revenue' },
+    ]);
     expect(isOpaqueDataUrl(body.spec!.dataUrl!)).toBe(true);
     expect(JSON.stringify(result)).not.toContain('Engineering');
     expect(JSON.stringify(result)).not.toContain('120.5');
 
     const payload = readDataLink({ dataUrl: body.spec!.dataUrl! }, { env: TEST_ENV, store });
-    expect(payload).toEqual(expect.arrayContaining([expect.objectContaining({ department: 'Engineering' })]));
+    expect(payload).toEqual({
+      chartType: 'barChart',
+      name: 'bar-chart',
+      data: [
+        { label: 'Engineering', value: 120.5 },
+        { label: 'Support', value: 98.2 },
+        { label: 'Sales', value: 143.9 },
+        { label: 'Design', value: 77.4 },
+      ],
+    });
+    expect(result._meta).toMatchObject({
+      ui: { resourceUri: 'ui://ui9000/chart' },
+      chartType: 'barChart',
+    });
+    expect(String((result.content as Array<{ text?: string }>)[0]?.text)).toContain('ui9000-meta:');
+    expect(String((result.content as Array<{ text?: string }>)[0]?.text)).toContain('bar-chart for comparison');
+    expect(String((result.content as Array<{ text?: string }>)[0]?.text)).toContain(
+      'binds category=department, metric=revenue',
+    );
   });
 
   it('refuses dataset rows in arguments', async () => {
@@ -142,6 +226,84 @@ describe('createWorkspaceServer', () => {
     expect(body.spec?.component).toBe('bar-chart');
   });
 
+  it('picks map-chart for spatial without WORKSPACE_HAS_MAP_TOKEN', async () => {
+    const geo = fileURLToPath(
+      new URL('../tests/fixtures/profiles/geo-lat-lng.csv', import.meta.url),
+    );
+    const server = createWorkspaceServer({
+      env: TEST_ENV,
+      table: parseCsvTable(fs.readFileSync(geo, 'utf8')),
+      store,
+    });
+    const result = resultOf(
+      await server.handle(
+        request('tools/call', { name: SHOW_WORKSPACE_NAME, arguments: { intent: 'spatial' } }),
+      ),
+    );
+    const body = result.structuredContent as {
+      ok: boolean;
+      spec?: { component?: string; dataUrl?: string; binds?: unknown };
+    };
+    expect(body.ok).toBe(true);
+    expect(body.spec?.component).toBe('map-chart');
+    expect(body.spec?.binds).toEqual([
+      { role: 'geo', field: 'lat' },
+      { role: 'metric', field: 'readings' },
+    ]);
+    const payload = readDataLink({ dataUrl: body.spec!.dataUrl! }, { env: TEST_ENV, store });
+    expect(payload).toEqual({
+      chartType: 'mapChart',
+      name: 'map-chart',
+      layers: [
+        {
+          name: 'Markers',
+          visualisationType: 'markers',
+          geospatialData: ['point'],
+          arrangeByMetric: ['value'],
+          data: [
+            { point: [-0.1278, 51.5074], value: 42 },
+            { point: [-2.2426, 53.4808], value: 17 },
+            { point: [-1.6178, 54.9783], value: 29 },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('aggregates country ids into a choropleth for spatial', async () => {
+    const geo = fileURLToPath(
+      new URL('../tests/fixtures/datasets/regional-incidents.csv', import.meta.url),
+    );
+    const server = createWorkspaceServer({
+      env: TEST_ENV,
+      table: parseCsvTable(fs.readFileSync(geo, 'utf8')),
+      store,
+    });
+    const result = resultOf(
+      await server.handle(
+        request('tools/call', { name: SHOW_WORKSPACE_NAME, arguments: { intent: 'spatial' } }),
+      ),
+    );
+    const body = result.structuredContent as {
+      ok: boolean;
+      spec?: { component?: string; dataUrl?: string; binds?: unknown };
+    };
+    expect(body.ok).toBe(true);
+    expect(body.spec?.component).toBe('map-chart');
+    expect(body.spec?.binds).toEqual([
+      { role: 'geo', field: 'country' },
+      { role: 'metric', field: 'incidents' },
+    ]);
+    const payload = readDataLink({ dataUrl: body.spec!.dataUrl! }, { env: TEST_ENV, store });
+    expect(payload).toMatchObject({
+      chartType: 'mapChart',
+      data: expect.arrayContaining([
+        { label: 'France', value: 37 },
+        { label: 'Germany', value: 27 },
+      ]),
+    });
+  });
+
   it('keeps secret and STORAGE_DIR in the same env bag when no store is passed', async () => {
     const env = { ...TEST_ENV, STORAGE_DIR: dir };
     const server = createWorkspaceServer({
@@ -159,10 +321,38 @@ describe('createWorkspaceServer', () => {
 
     const envStore = new TtlStore(undefined, dir);
     const payload = readDataLink({ dataUrl: body.spec!.dataUrl! }, { env, store: envStore });
-    expect(payload).toEqual(
-      expect.arrayContaining([expect.objectContaining({ department: 'Engineering' })]),
-    );
+    expect(payload).toMatchObject({
+      chartType: 'barChart',
+      data: expect.arrayContaining([expect.objectContaining({ label: 'Engineering', value: 120.5 })]),
+    });
     expect(fs.readdirSync(dir).some((name) => name.endsWith('.json'))).toBe(true);
+  });
+
+  it('serves the hosted MCP App HTML on resources/read', async () => {
+    const html = '<!doctype html><html><body>ui9000-chart</body></html>';
+    const server = createWorkspaceServer({
+      env: TEST_ENV,
+      table: parseCsvTable(fs.readFileSync(FIXTURE, 'utf8')),
+      store,
+      loadChartHtml: () => html,
+    });
+    const listed = resultOf(await server.handle(request('resources/list')));
+    expect(listed.resources).toEqual([
+      expect.objectContaining({
+        uri: 'ui://ui9000/chart',
+        mimeType: 'text/html;profile=mcp-app',
+      }),
+    ]);
+    const read = resultOf(
+      await server.handle(request('resources/read', { uri: 'ui://ui9000/chart' })),
+    );
+    expect(read.contents).toEqual([
+      expect.objectContaining({
+        uri: 'ui://ui9000/chart',
+        mimeType: 'text/html;profile=mcp-app',
+        text: html,
+      }),
+    ]);
   });
 });
 
@@ -206,11 +396,39 @@ describe('attachDataHandle migrate default', () => {
   });
 });
 
+describe('applyWorkspaceHostDefaults', () => {
+  it('fills hosted origin, remote persist, and the baked Mapbox token without mutating input', () => {
+    const input: NodeJS.ProcessEnv = {};
+    const next = applyWorkspaceHostDefaults(input);
+    expect(input.MCP_BASE_URL).toBeUndefined();
+    expect(next.MCP_BASE_URL).toBe(DEFAULT_HOSTED_MCP_BASE_URL);
+    expect(next[REMOTE_PERSIST_ENV]).toBe('1');
+    expect(next.MAPBOX_ACCESS_TOKEN).toBe(WORKSPACE_MAPBOX_TOKEN);
+  });
+
+  it('does not enable remote persist for a loopback MCP_BASE_URL', () => {
+    const next = applyWorkspaceHostDefaults({ MCP_BASE_URL: 'http://127.0.0.1:8088' });
+    expect(next.MCP_BASE_URL).toBe('http://127.0.0.1:8088');
+    expect(next[REMOTE_PERSIST_ENV]).toBeUndefined();
+    expect(next.MAPBOX_ACCESS_TOKEN).toBe(WORKSPACE_MAPBOX_TOKEN);
+  });
+
+  it('keeps an explicit Mapbox token and hosted origin', () => {
+    const next = applyWorkspaceHostDefaults({
+      MCP_BASE_URL: 'https://mcp.ui9000.com',
+      MAPBOX_ACCESS_TOKEN: 'pk.override',
+    });
+    expect(next.MCP_BASE_URL).toBe('https://mcp.ui9000.com');
+    expect(next[REMOTE_PERSIST_ENV]).toBe('1');
+    expect(next.MAPBOX_ACCESS_TOKEN).toBe('pk.override');
+  });
+});
+
 describe('startWorkspaceServer', () => {
-  it('answers tools/list over stdio with the real handler', async () => {
+  it('answers tools/list over SDK stdio with the real handler', async () => {
     const input = new PassThrough();
     const output = new PassThrough();
-    const disconnect = startWorkspaceServer(
+    const disconnect = await startWorkspaceServer(
       { input, output },
       {
         env: TEST_ENV,
@@ -219,11 +437,12 @@ describe('startWorkspaceServer', () => {
       },
     );
     try {
-      const line = new Promise<Record<string, unknown>>((resolve) => {
-        output.once('data', (chunk: Buffer) => resolve(JSON.parse(chunk.toString('utf8'))));
+      await initializeSdkStdio(input, output);
+      const response = await rpcOverStdio(input, output, {
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'tools/list',
       });
-      input.write(`${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' })}\n`);
-      const response = await line;
       const tools = (response.result as { tools: Array<{ name: string }> }).tools;
       expect(tools).toHaveLength(1);
       expect(tools[0]?.name).toBe(SHOW_WORKSPACE_NAME);
@@ -232,10 +451,46 @@ describe('startWorkspaceServer', () => {
     }
   });
 
-  it('resolves tsx/cli the same way the bin trampoline does', () => {
+  it('answers tools/list with no mcp.json env', async () => {
+    const input = new PassThrough();
+    const output = new PassThrough();
+    const disconnect = await startWorkspaceServer(
+      { input, output },
+      {
+        env: {},
+        table: parseCsvTable(fs.readFileSync(FIXTURE, 'utf8')),
+        store,
+      },
+    );
+    try {
+      await initializeSdkStdio(input, output);
+      const response = await rpcOverStdio(input, output, {
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'tools/list',
+      });
+      const tools = (response.result as { tools: Array<{ name: string }> }).tools;
+      expect(tools).toHaveLength(1);
+      expect(tools[0]?.name).toBe(SHOW_WORKSPACE_NAME);
+    } finally {
+      disconnect();
+    }
+  });
+
+  it('resolves tsx/cli and the widgets catalog the same way the bin trampoline does', () => {
     const require = createRequire(
       fileURLToPath(new URL('../bin/ui9000-workspace-server.mjs', import.meta.url)),
     );
     expect(require.resolve('tsx/cli')).toMatch(/tsx/);
+    const catalog = execFileSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        "import { fileURLToPath } from 'node:url'; process.stdout.write(fileURLToPath(import.meta.resolve('@fusedashlabs/widgets/catalog')));",
+      ],
+      { encoding: 'utf8', cwd: fileURLToPath(new URL('../../..', import.meta.url)) },
+    );
+    expect(catalog).toMatch(/catalog/);
   });
 });

@@ -7,16 +7,14 @@
  * the server. The registered name is `SHOW_WORKSPACE_NAME` from the tool
  * module so it cannot drift from the contract.
  *
- * The wire protocol is hand-rolled because @ui9000/core has no MCP SDK
- * dependency and FUS-4086 may not add one. The sibling mcp-ui repo pins
- * @modelcontextprotocol/sdk 1.30.0 and builds the same surface as
- * `new McpServer(...)` + `server.registerTool(name, config, cb)` +
- * `server.connect(new StdioServerTransport())`. If that dependency is ever
- * added here, swap the body of createServer for those three calls: the
- * exported ShowWorkspaceHandler/McpServer types are shaped to survive it.
+ * In-process tests use this hand-rolled `handle()`. Live stdio
+ * (`startWorkspaceServer`) uses `createSdkWorkspaceServer` (MCP SDK 1.30 +
+ * ext-apps), the same wire Cursor issues `resources/read` against.
  */
 
 import { SHOW_WORKSPACE_NAME } from '../tool/show-workspace.js';
+import type { McpAppResource } from './mcp-app.js';
+import { chartIdFromDataUrl, formatWorkspaceAppText } from './mcp-app.js';
 
 export { SHOW_WORKSPACE_NAME };
 
@@ -30,12 +28,15 @@ export type ShowWorkspaceHandler = (args: unknown) => unknown | Promise<unknown>
 export type ShowWorkspaceToolInfo = {
   description?: string;
   inputSchema?: Record<string, unknown>;
+  /** When set, Cursor/Claude open `ui://` instead of the JSON data-link. */
+  appResource?: McpAppResource;
 };
 
 export type ToolDescriptor = {
   name: string;
   description?: string;
   inputSchema: Record<string, unknown>;
+  _meta?: Record<string, unknown>;
 };
 
 export type JsonRpcId = string | number;
@@ -64,6 +65,7 @@ const PARSE_ERROR = -32700;
 const INVALID_REQUEST = -32600;
 const METHOD_NOT_FOUND = -32601;
 const INVALID_PARAMS = -32602;
+const INTERNAL_ERROR = -32603;
 
 /**
  * Builds the server. One tool, one handler, no registry: a second registerTool
@@ -84,7 +86,18 @@ export function createServer(
   if (info.description !== undefined) {
     tool.description = info.description;
   }
+  if (info.appResource) {
+    tool._meta = {
+      ui: {
+        resourceUri: info.appResource.uri,
+        visibility: ['model', 'app'],
+        csp: info.appResource.ui.csp,
+      },
+      'ui/resourceUri': info.appResource.uri,
+    };
+  }
   const tools: readonly ToolDescriptor[] = Object.freeze([tool]);
+  const appResource = info.appResource;
 
   async function handle(message: unknown): Promise<JsonRpcResponse | null> {
     if (message === null || typeof message !== 'object' || Array.isArray(message)) {
@@ -104,7 +117,17 @@ export function createServer(
       case 'initialize':
         return okResponse(id, {
           protocolVersion: PROTOCOL_VERSION,
-          capabilities: { tools: {} },
+          capabilities: appResource
+            ? {
+                tools: {},
+                resources: {},
+                extensions: {
+                  'io.modelcontextprotocol/ui': {
+                    mimeTypes: [appResource.mimeType],
+                  },
+                },
+              }
+            : { tools: {} },
           serverInfo: SERVER_INFO,
         });
       case 'ping':
@@ -113,6 +136,10 @@ export function createServer(
         return okResponse(id, { tools });
       case 'tools/call':
         return callTool(id, request.params);
+      case 'resources/list':
+        return listResources(id);
+      case 'resources/read':
+        return readResource(id, request.params);
       default:
         return errorResponse(id, METHOD_NOT_FOUND, `Unknown method: ${method}`);
     }
@@ -142,20 +169,121 @@ export function createServer(
         isError: true,
       });
     }
-    return okResponse(id, toolResult(result));
+    return okResponse(id, workspaceToolResult(result, appResource));
+  }
+
+  async function listResources(id: JsonRpcId): Promise<JsonRpcResponse> {
+    if (!appResource) {
+      return errorResponse(id, METHOD_NOT_FOUND, 'Unknown method: resources/list');
+    }
+    return okResponse(id, {
+      resources: [
+        {
+          uri: appResource.uri,
+          name: appResource.name,
+          mimeType: appResource.mimeType,
+          description: appResource.description,
+          _meta: { ui: appResource.ui },
+        },
+      ],
+    });
+  }
+
+  async function readResource(id: JsonRpcId, params: unknown): Promise<JsonRpcResponse> {
+    if (!appResource) {
+      return errorResponse(id, METHOD_NOT_FOUND, 'Unknown method: resources/read');
+    }
+    if (params === null || typeof params !== 'object' || Array.isArray(params)) {
+      return errorResponse(id, INVALID_PARAMS, 'resources/read params must be an object.');
+    }
+    const uri = (params as { uri?: unknown }).uri;
+    if (uri !== appResource.uri) {
+      return errorResponse(id, INVALID_PARAMS, `Unknown resource: ${String(uri)}`);
+    }
+    try {
+      const text = await appResource.loadHtml();
+      return okResponse(id, {
+        contents: [
+          {
+            uri: appResource.uri,
+            mimeType: appResource.mimeType,
+            text,
+            _meta: { ui: appResource.ui },
+          },
+        ],
+      });
+    } catch (error) {
+      return errorResponse(id, INTERNAL_ERROR, describeError(error));
+    }
   }
 
   return { tools, handle };
 }
 
-function toolResult(result: unknown): Record<string, unknown> {
+function toolResult(
+  result: unknown,
+  appResource: McpAppResource | undefined,
+): Record<string, unknown> {
+  const app = appResource ? workspaceAppEnvelope(result, appResource) : undefined;
   const payload: Record<string, unknown> = {
-    content: [{ type: 'text', text: stringify(result) }],
+    content: [{ type: 'text', text: app?.text ?? stringify(result) }],
   };
   if (result !== null && typeof result === 'object' && !Array.isArray(result)) {
-    payload.structuredContent = result;
+    payload.structuredContent = app?.structured ?? result;
   }
+  if (app?._meta) payload._meta = app._meta;
   return payload;
+}
+
+/** Same CallToolResult envelope the stdio SDK path returns. */
+export function workspaceToolResult(
+  result: unknown,
+  appResource: McpAppResource | undefined,
+): Record<string, unknown> {
+  return toolResult(result, appResource);
+}
+
+function workspaceAppEnvelope(
+  result: unknown,
+  appResource: McpAppResource,
+):
+  | {
+      text: string;
+      structured: Record<string, unknown>;
+      _meta: Record<string, unknown>;
+    }
+  | undefined {
+  if (result === null || typeof result !== 'object' || Array.isArray(result)) return undefined;
+  const body = result as Record<string, unknown>;
+  if (body.ok !== true) return undefined;
+  const spec = body.spec;
+  const dataUrl =
+    typeof body.dataUrl === 'string'
+      ? body.dataUrl
+      : spec && typeof spec === 'object' && !Array.isArray(spec)
+        ? (spec as { dataUrl?: unknown }).dataUrl
+        : undefined;
+  const chartType = typeof body.chartType === 'string' ? body.chartType : undefined;
+  if (typeof dataUrl !== 'string' || !dataUrl || !chartType) return undefined;
+  const meta = {
+    chartType,
+    dataUrl,
+    chartId: chartIdFromDataUrl(dataUrl),
+  };
+  const summary = typeof body.summary === 'string' ? body.summary : `${chartType}`;
+  return {
+    text: formatWorkspaceAppText(summary, meta),
+    structured: { ...body, ...meta },
+    _meta: {
+      ui: {
+        resourceUri: appResource.uri,
+        visibility: ['model', 'app'],
+        csp: appResource.ui.csp,
+      },
+      'ui/resourceUri': appResource.uri,
+      ...meta,
+    },
+  };
 }
 
 function stringify(value: unknown): string {
@@ -187,4 +315,4 @@ export function errorResponse(
   return { jsonrpc: '2.0', id, error: { code, message } };
 }
 
-export { PARSE_ERROR, INVALID_REQUEST, METHOD_NOT_FOUND, INVALID_PARAMS };
+export { PARSE_ERROR, INVALID_REQUEST, METHOD_NOT_FOUND, INVALID_PARAMS, INTERNAL_ERROR };

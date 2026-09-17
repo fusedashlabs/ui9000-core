@@ -9,6 +9,16 @@ export {
   readDataLink,
   signDataLink,
 } from './data-link.js';
+export {
+  DEFAULT_HOSTED_MCP_BASE_URL,
+  HOSTED_DATA_LINK_PERSIST_TIMEOUT_MS,
+  REMOTE_PERSIST_ENV,
+  dataLinkCreateUrl,
+  enableRemotePersist,
+  isRemoteDataLinkBase,
+  persistHostedDataLink,
+  shouldRemotePersistDataLink,
+} from './hosted.js';
 export type { StoredDataLink } from './store.js';
 export {
   DEFAULT_TTL_MS,

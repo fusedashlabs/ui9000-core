@@ -11,18 +11,26 @@ import { fileURLToPath } from 'node:url';
 
 import { loadWorkspaceCatalog } from './catalog/load-workspace.js';
 import {
+  DEFAULT_BASE_URL,
+  enableRemotePersist,
+  isRemoteDataLinkBase,
   resolveDataLinkStorageDir,
   signDataLink,
   TtlStore,
 } from './migrate/datalink/index.js';
 import { profileColumns } from './profiler/profile-columns.js';
+import { classifyColumns } from './profiler/roles.js';
 import { parseCsvTable, tableRowCount, type Table } from './profiler/table.js';
 import {
-  connectStdio,
   createServer,
   type McpServer,
+  type ShowWorkspaceHandler,
+  type ShowWorkspaceToolInfo,
   type StdioStreams,
 } from './server/index.js';
+import { connectSdkWorkspace } from './server/sdk-workspace.js';
+import type { Disconnect } from './server/stdio.js';
+import { workspaceChartAppResource } from './server/mcp-app.js';
 import {
   SHOW_WORKSPACE_DESCRIPTION,
   SHOW_WORKSPACE_INPUT_SCHEMA,
@@ -31,6 +39,32 @@ import {
 } from './tool/show-workspace.js';
 
 export const WORKSPACE_DATA_PATH_ENV = 'WORKSPACE_DATA_PATH';
+
+/**
+ * Same public FuseDash charts key mcp-ui bakes as `MCP_MAPBOX_TOKEN`.
+ * Maps always have a token on this server — do not require `WORKSPACE_HAS_MAP_TOKEN`.
+ */
+export const WORKSPACE_MAPBOX_TOKEN =
+  'pk.eyJ1IjoiYW5keWsxOTg3IiwiYSI6ImNqeHJtdGJjNTA5bWwzbW1mcXA0cTZuMmkifQ.qAhmQzT0m6-KuvZt7-C83A';
+
+/**
+ * Fill hosted defaults so Cursor/Claude stdio starts with no mcp.json env.
+ * Does not mutate the input object.
+ */
+export function applyWorkspaceHostDefaults(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const next: NodeJS.ProcessEnv = { ...env };
+  if (!next.MCP_BASE_URL?.trim()) {
+    next.MCP_BASE_URL = DEFAULT_BASE_URL;
+  }
+  const base = next.MCP_BASE_URL.trim();
+  if (isRemoteDataLinkBase(base)) {
+    enableRemotePersist(next);
+  }
+  if (!(next.MAPBOX_ACCESS_TOKEN || next.MAPBOX_TOKEN || '').trim()) {
+    next.MAPBOX_ACCESS_TOKEN = WORKSPACE_MAPBOX_TOKEN;
+  }
+  return next;
+}
 
 /** `packages/core` — relative `WORKSPACE_DATA_PATH` resolves here, not cwd. */
 function packageRoot(): string {
@@ -44,6 +78,8 @@ export type CreateWorkspaceServerOptions = {
   store?: TtlStore;
   /** Override package root when resolving a relative data path. Tests only. */
   root?: string;
+  /** Tests inject hosted App View HTML so resources/read does not hit the network. */
+  loadChartHtml?: () => string | Promise<string>;
 };
 
 /** JSON-RPC tool schema. Cloned so the `as const` contract object stays frozen. */
@@ -51,53 +87,77 @@ const SHOW_WORKSPACE_LIST_SCHEMA = JSON.parse(
   JSON.stringify(SHOW_WORKSPACE_INPUT_SCHEMA),
 ) as Record<string, unknown>;
 
-/**
- * Bind catalog + profile into `createServer(handleShowWorkspace)`.
- * The model still only sends `{ intent }`. Rows live on the server and leave as
- * an opaque handle, never as tool arguments or result rows.
- *
- * When `env`/`store` are omitted, `handleShowWorkspace` leaves `signDataLink`
- * unset so `attachDataHandle` calls migrate `signDataLink` (process.env +
- * default TTL store). A host `env` without `store` still uses `env.STORAGE_DIR`,
- * not `process.env` — same bag for secret and files.
- */
-export function createWorkspaceServer(
-  options: CreateWorkspaceServerOptions = {},
-): McpServer {
+type WiredWorkspace = {
+  handler: ShowWorkspaceHandler;
+  info: ShowWorkspaceToolInfo;
+};
+
+function wireWorkspace(options: CreateWorkspaceServerOptions = {}): WiredWorkspace {
   const env = options.env ?? process.env;
   const table =
     options.table ??
     loadWorkspaceTable(options.dataPath ?? env[WORKSPACE_DATA_PATH_ENV], options.root);
   const catalog = loadWorkspaceCatalog();
-  const profile = profileColumns(table, { hasMapToken: envHasMapToken(env) });
+  const profile = profileColumns(table, { hasMapToken: true });
   const payload = tableToRows(table);
   const fields = table.columns.map((column) => column.name);
+  const classified = classifyColumns(table).columns;
 
   const context: ShowWorkspaceContext = {
     catalog,
     profile,
     payload,
     fields,
+    classified,
   };
   const store = resolveBoundStore(env, options);
-  if (store !== undefined) {
-    context.signDataLink = (rows) => signDataLink(rows, { env, store });
-  }
+  context.signDataLink = (rows) =>
+    signDataLink(rows, store !== undefined ? { env, store } : { env });
 
-  const handler = (args: unknown) => handleShowWorkspace(args, context);
-
-  return createServer(handler, {
-    description: SHOW_WORKSPACE_DESCRIPTION,
-    inputSchema: SHOW_WORKSPACE_LIST_SCHEMA,
-  });
+  return {
+    handler: (args) => handleShowWorkspace(args, context),
+    info: {
+      description: SHOW_WORKSPACE_DESCRIPTION,
+      inputSchema: SHOW_WORKSPACE_LIST_SCHEMA,
+      appResource: workspaceChartAppResource(
+        env.MCP_BASE_URL || DEFAULT_BASE_URL,
+        options.loadChartHtml,
+      ),
+    },
+  };
 }
 
-/** Stdio entry used by `yarn workspace @ui9000/core start` and the bin. */
-export function startWorkspaceServer(
+/**
+ * Bind catalog + profile into `createServer(handleShowWorkspace)`.
+ * The model still only sends `{ intent }`. Rows live on the server and leave as
+ * an opaque handle, never as tool arguments or result rows.
+ *
+ * Stdio (`startWorkspaceServer`) applies hosted defaults: `MCP_BASE_URL`
+ * → `https://mcp.ui9000.com`, Mapbox token always present, remote persist on.
+ * A host `env` without `store` still uses `env.STORAGE_DIR`, not `process.env`.
+ *
+ * `createWorkspaceServer` stays on the hand-rolled JSON-RPC handle() used by
+ * in-process tests. Live stdio (bin / injected streams) always uses the SDK.
+ */
+export function createWorkspaceServer(
+  options: CreateWorkspaceServerOptions = {},
+): McpServer {
+  const wired = wireWorkspace(options);
+  return createServer(wired.handler, wired.info);
+}
+
+/**
+ * Stdio entry used by `yarn workspace @fusedashlabs/ui9000-workspace start` and the bin.
+ * Always MCP SDK + ext-apps so Cursor issues `resources/read` — including when
+ * tests inject streams.
+ */
+export async function startWorkspaceServer(
   streams?: StdioStreams,
   options?: CreateWorkspaceServerOptions,
-) {
-  return connectStdio(createWorkspaceServer(options), streams);
+): Promise<Disconnect> {
+  const env = applyWorkspaceHostDefaults(options?.env ?? process.env);
+  const wired = wireWorkspace({ ...options, env });
+  return connectSdkWorkspace(wired.handler, wired.info, streams);
 }
 
 /**
@@ -147,8 +207,3 @@ function resolveBoundStore(
   return undefined;
 }
 
-function envHasMapToken(env: NodeJS.ProcessEnv): boolean {
-  const flag = (env.WORKSPACE_HAS_MAP_TOKEN || '').trim().toLowerCase();
-  if (flag === '1' || flag === 'true' || flag === 'yes') return true;
-  return Boolean((env.MAPBOX_ACCESS_TOKEN || env.MAPBOX_TOKEN || '').trim());
-}

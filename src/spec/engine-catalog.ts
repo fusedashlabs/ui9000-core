@@ -34,6 +34,8 @@ export type CatalogEntry = {
   eligibility?: readonly CatalogRule[];
   disqualify?: readonly CatalogRule[];
   evalCases?: readonly CatalogEvalCase[];
+  /** FuseDash chartType for MCP Apps. Optional — widgets metadata carries it. */
+  chartTypeKeys?: readonly string[];
 };
 
 export type EngineCatalog = readonly CatalogEntry[];

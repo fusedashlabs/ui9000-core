@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import type { EngineCatalog } from '../spec/engine-catalog.js';
 import type { DataProfile } from '../spec/data-profile.js';
 import { INTENTS } from '../spec/intent.js';
+import { classifyColumns } from '../profiler/roles.js';
+import { parseCsvTable } from '../profiler/table.js';
 import {
   CALL_SERVER_TOOL,
   attachDataHandle,
@@ -291,5 +293,90 @@ describe('show_workspace fail-closed', () => {
       { role: 'metric', field: 'count' },
     ]);
     expect(hasRowObjects(result)).toBe(false);
+  });
+
+  it('binds profiler columns onto catalog roles, not CSV order', async () => {
+    const table = parseCsvTable('id,country,team,incidents\nINC-001,FR,Search,22\n');
+    const result = await handleShowWorkspace(
+      { intent: 'comparison' },
+      context({
+        fields: table.columns.map((column) => column.name),
+        classified: classifyColumns(table).columns,
+        payload: [{ id: 'INC-001', country: 'FR', team: 'Search', incidents: '22' }],
+        profile: {
+          ...profile,
+          hasGeo: true,
+          hasEntityId: true,
+          categoryCardinality: 1,
+          rowCount: 1,
+        },
+      }),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.spec.binds).toEqual([
+      { role: 'category', field: 'team' },
+      { role: 'metric', field: 'incidents' },
+    ]);
+    expect(result.chartType).toBe('barChart');
+  });
+
+  it('binds optional map metric when the profiler found one', async () => {
+    const table = parseCsvTable('country,incidents\nFR,12\nDE,11\n');
+    const result = await handleShowWorkspace(
+      { intent: 'spatial' },
+      context({
+        fields: table.columns.map((column) => column.name),
+        classified: classifyColumns(table).columns,
+        payload: [
+          { country: 'FR', incidents: '12' },
+          { country: 'DE', incidents: '11' },
+        ],
+      }),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.spec.component).toBe('map-chart');
+    expect(result.spec.binds).toEqual([
+      { role: 'geo', field: 'country' },
+      { role: 'metric', field: 'incidents' },
+    ]);
+  });
+
+  it('binds histogram distribution to the profiler metric column', async () => {
+    const table = parseCsvTable('score\n1\n4\n4\n8\n');
+    const result = await handleShowWorkspace(
+      { intent: 'comparison' },
+      context({
+        catalog: [
+          {
+            id: 'histogram-chart',
+            intents: ['comparison'],
+            allowedActions: ['hover', 'resize'],
+            dataRoles: [{ id: 'distribution', required: true }],
+            chartTypeKeys: ['histogramChart'],
+            eligibility: [
+              {
+                when: 'profile.hasNumericMetric',
+                reason: 'Histogram bins a numeric column.',
+              },
+            ],
+          },
+        ],
+        fields: table.columns.map((column) => column.name),
+        classified: classifyColumns(table).columns,
+        payload: [{ score: '1' }, { score: '4' }, { score: '4' }, { score: '8' }],
+        profile: {
+          hasNumericMetric: true,
+          rowCount: 4,
+          hasCategory: false,
+        },
+      }),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.spec.component).toBe('histogram-chart');
+    expect(result.spec.binds).toEqual([{ role: 'distribution', field: 'score' }]);
+    expect(result.chartType).toBe('histogramChart');
   });
 });

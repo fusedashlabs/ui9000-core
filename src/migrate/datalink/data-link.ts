@@ -12,6 +12,13 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import {
+  DEFAULT_HOSTED_MCP_BASE_URL,
+  isRemoteDataLinkBase,
+  persistHostedDataLink,
+  shouldRemotePersistDataLink,
+  type PersistFetch,
+} from './hosted.js';
 import { requireDataLinkSecret } from './secret.js';
 import { getDataLinkStore, type TtlStore } from './store.js';
 import {
@@ -27,13 +34,15 @@ export type SignedLink = { dataUrl: string };
 
 export const DEFAULT_TTL_HOURS = 24;
 export const DEFAULT_MAX_PAYLOAD_SIZE_MB = 1.5;
-export const DEFAULT_BASE_URL = 'http://localhost:8088';
+/** Same hosted origin mcp-ui npx uses. Override with loopback `MCP_BASE_URL` for local `mcp:serve`. */
+export const DEFAULT_BASE_URL = DEFAULT_HOSTED_MCP_BASE_URL;
 
 export type DataLinkOptions = {
   baseUrl?: string;
   secret?: string;
   env?: NodeJS.ProcessEnv;
   store?: TtlStore;
+  fetchImpl?: PersistFetch;
 };
 
 /** mcp-ui `getDataLinkTtlHours`: DATA_LINK_TTL_HOURS, floored, min 1, default 24. */
@@ -77,8 +86,14 @@ function resolveBaseUrl(options: DataLinkOptions, env: NodeJS.ProcessEnv): strin
  * Refuses payloads over MAX_PAYLOAD_SIZE_MB (1.5 MB) — the cap is on the
  * serialized bytes, matching mcp-ui, so a link can never be larger than the
  * host is willing to serve back.
+ *
+ * Hosted stdio (Cursor / Claude) POSTs to `MCP_BASE_URL` when
+ * `MCP_DATA_LINK_REMOTE_PERSIST` is set — same path as mcp-ui npx.
  */
-export function signDataLink(payload: unknown, options: DataLinkOptions = {}): SignedLink {
+export function signDataLink(
+  payload: unknown,
+  options: DataLinkOptions = {},
+): SignedLink | Promise<SignedLink> {
   const env = options.env ?? process.env;
   const maxPayloadSizeMb = getMaxPayloadSizeMb(env);
   const maxPayloadSizeBytes = maxPayloadSizeMb * 1024 * 1024;
@@ -88,15 +103,22 @@ export function signDataLink(payload: unknown, options: DataLinkOptions = {}): S
     throw new Error(`Payload too large. Maximum size is ${maxPayloadSizeMb}MB.`);
   }
 
+  const ttlHours = getDataLinkTtlHours(env);
+  const store = options.store ?? getDataLinkStore();
+  const baseUrl = resolveBaseUrl(options, env);
+
+  if (shouldRemotePersistDataLink(env) && isRemoteDataLinkBase(baseUrl)) {
+    return persistHostedDataLink(payload, baseUrl, options.fetchImpl).then((hosted) => {
+      store.set(hosted.id, payload, ttlHours * 60 * 60 * 1000);
+      return { dataUrl: hosted.dataUrl };
+    });
+  }
+
   const secret = options.secret ?? requireDataLinkSecret(env);
   const id = randomUUID();
-  const ttlHours = getDataLinkTtlHours(env);
   const exp = generateExpiration(ttlHours);
-
-  const store = options.store ?? getDataLinkStore();
   store.set(id, payload, ttlHours * 60 * 60 * 1000);
-
-  return { dataUrl: createSignedDataUrl(resolveBaseUrl(options, env), id, exp, secret) };
+  return { dataUrl: createSignedDataUrl(baseUrl, id, exp, secret) };
 }
 
 /**

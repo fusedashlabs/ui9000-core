@@ -1,11 +1,11 @@
 {
-  "name": "@ui9000/core",
-  "version": "0.0.0",
-  "private": true,
+  "name": "@fusedashlabs/ui9000-workspace",
+  "version": "0.1.0",
   "type": "module",
-  "description": "UI9000 decision engine — spec, validation, catalog, profiler, workspace MCP server. Not published yet.",
+  "description": "UI9000 workspace MCP — one tool, show_workspace. For Cursor and Claude. FuseDash client keeps using mcp-ui.",
   "license": "Apache-2.0",
   "bin": {
+    "ui9000-workspace": "./bin/ui9000-workspace-server.mjs",
     "ui9000-workspace-server": "./bin/ui9000-workspace-server.mjs"
   },
   "exports": {
@@ -16,18 +16,27 @@
   },
   "files": [
     "bin",
-    "src"
+    "src",
+    "LICENSE",
+    "README.md"
   ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "tsc --noEmit",
-    "start": "tsx src/bin.ts",
+    "start": "node ./bin/ui9000-workspace-server.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "yarn typecheck && yarn test"
   },
   "dependencies": {
     "@fusedashlabs/widgets": "workspace:*",
-    "tsx": "^4.23.13"
+    "@modelcontextprotocol/ext-apps": "1.7.5",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "tsx": "^4.23.13",
+    "zod": "3.25.76"
   },
   "devDependencies": {
     "@types/geojson": "^7946.0.14",
@@ -35,5 +44,26 @@
     "js-tiktoken": "^1.0.21",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
-  }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fuselab-creative/ui9000-widgets.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/fuselab-creative/ui9000-widgets/tree/main/packages/core",
+  "bugs": {
+    "url": "https://github.com/fuselab-creative/ui9000-widgets/issues"
+  },
+  "keywords": [
+    "mcp",
+    "ui9000",
+    "fusedash",
+    "show_workspace",
+    "cursor",
+    "claude"
+  ]
 }

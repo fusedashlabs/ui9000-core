@@ -35,8 +35,9 @@ const LINK_PAIRS: readonly (readonly [string, string])[] = [
 ];
 
 const NODE_NAMES = ['node', 'nodes', 'nodeid'];
-const LAT_NAMES = ['lat', 'latitude'];
-const LNG_NAMES = ['lng', 'lon', 'long', 'longitude'];
+/** Shared with widget-payload lat/lng marker detection. */
+export const GEO_LAT_NAMES = ['lat', 'latitude'] as const;
+export const GEO_LNG_NAMES = ['lng', 'lon', 'long', 'longitude'] as const;
 /** Region ids that join to GeoJSON / PMTiles, per map-chart's geo dataRole. */
 const REGION_NAMES = [
   'country',
@@ -133,8 +134,13 @@ function isLinkEndpoint(key: string, present: ReadonlySet<string>): boolean {
 
 function isGeo(key: string, present: ReadonlySet<string>): boolean {
   if (REGION_NAMES.includes(key)) return true;
-  const hasPair = LAT_NAMES.some((n) => present.has(n)) && LNG_NAMES.some((n) => present.has(n));
-  return hasPair && (LAT_NAMES.includes(key) || LNG_NAMES.includes(key));
+  const hasPair =
+    GEO_LAT_NAMES.some((n) => present.has(n)) && GEO_LNG_NAMES.some((n) => present.has(n));
+  return (
+    hasPair &&
+    ((GEO_LAT_NAMES as readonly string[]).includes(key) ||
+      (GEO_LNG_NAMES as readonly string[]).includes(key))
+  );
 }
 
 /** A header hint, or values that are all ISO 8601 — never a bare number column. */

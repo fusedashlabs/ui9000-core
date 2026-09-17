@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 import { getEncoding } from 'js-tiktoken';
 
 import { createServer } from '../src/server/index.js';
+import { workspaceChartAppResource } from '../src/server/mcp-app.js';
 import {
   SHOW_WORKSPACE_DESCRIPTION,
   SHOW_WORKSPACE_INPUT_SCHEMA,
@@ -79,6 +80,7 @@ export async function listWorkspaceTools(): Promise<{ tools: unknown[] }> {
         string,
         unknown
       >,
+      appResource: workspaceChartAppResource('https://mcp.ui9000.com', () => ''),
     },
   );
   const response = await server.handle({ jsonrpc: '2.0', id: 1, method: 'tools/list' });

@@ -44,8 +44,11 @@ export type { ProfileEnv } from './profiler/profile-columns.js';
 export { assertClosedProfile, profileColumns } from './profiler/profile-columns.js';
 export type { DataLinkOptions } from './migrate/datalink/index.js';
 export {
+  DEFAULT_BASE_URL,
+  DEFAULT_HOSTED_MCP_BASE_URL,
   DEFAULT_MAX_PAYLOAD_SIZE_MB,
   DEFAULT_TTL_HOURS,
+  REMOTE_PERSIST_ENV,
   readDataLink,
   signDataLink,
 } from './migrate/datalink/index.js';
@@ -82,12 +85,15 @@ export type {
 export {
   PROTOCOL_VERSION,
   SERVER_INFO,
+  WORKSPACE_CHART_RESOURCE_URI,
   connectStdio,
   createServer,
 } from './server/index.js';
 export type { CreateWorkspaceServerOptions } from './workspace-server.js';
 export {
   WORKSPACE_DATA_PATH_ENV,
+  WORKSPACE_MAPBOX_TOKEN,
+  applyWorkspaceHostDefaults,
   createWorkspaceServer,
   resolveWorkspaceDataPath,
   startWorkspaceServer,
