@@ -86,12 +86,16 @@ None required to start. Overrides:
 
 Does **not** use the widgets `v*` tag (that workflow publishes only `@fusedashlabs/widgets`).
 
+From GitHub: **Actions → Release — workspace MCP → Run workflow** (`NPM_TOKEN` is already on this repo).
+
+Locally (after `npm login` to the `@fusedashlabs` org):
+
 ```bash
 yarn build
 yarn workspace @fusedashlabs/ui9000-workspace npm publish
 ```
 
-Yarn rewrites `workspace:*` to the published `@fusedashlabs/widgets` version. Requires `npm login` to the `@fusedashlabs` org.
+Yarn rewrites `workspace:*` to the published `@fusedashlabs/widgets` version.
 
 ## Folder map
 
