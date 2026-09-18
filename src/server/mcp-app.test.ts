@@ -2,16 +2,24 @@ import { describe, expect, it } from 'vitest';
 import { existsSync } from 'node:fs';
 import {
   formatWorkspaceAppText,
+  hostedChartAppUrl,
   loadLocalChartAppHtml,
   localChartAppHtmlPath,
   UI9000_META_PREFIX,
 } from './mcp-app.js';
 
 describe('workspace MCP App HTML', () => {
-  it('finds the sibling mcp-ui chart-app.html in this checkout', () => {
+  it('prefers sibling mcp-ui chart-app.html, else hosted mcp-app/chart', () => {
     const path = localChartAppHtmlPath();
-    expect(path).toBeTruthy();
-    expect(existsSync(path!)).toBe(true);
+    if (!path) {
+      // GitHub checkout of this repo alone has no sibling mcp-ui. npx uses hosted HTML.
+      expect(loadLocalChartAppHtml()).toBeUndefined();
+      expect(hostedChartAppUrl('https://mcp.ui9000.com')).toBe(
+        'https://mcp.ui9000.com/mcp-app/chart',
+      );
+      return;
+    }
+    expect(existsSync(path)).toBe(true);
     const html = loadLocalChartAppHtml();
     expect(html).toContain('ontoolresult');
     expect(html).toContain('UI9000 Chart');
