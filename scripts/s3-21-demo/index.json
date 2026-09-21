@@ -1,0 +1,61 @@
+{
+  "dataset": "regional-incidents",
+  "tools_list": [
+    "show_workspace"
+  ],
+  "generate_star_in_tools_list": false,
+  "renderer": "Hosted MCP App is ui://ui9000/chart (chart-app). interpretWorkspace is the fail-closed unit path, not the live iframe.",
+  "workspaces": [
+    {
+      "intent": "spatial",
+      "winner": "map-chart",
+      "chartType": "mapChart",
+      "summary": "map-chart for spatial. highest score 15 (map-chart). binds geo=country, metric=incidents. rows via read_workspace_data",
+      "specComponent": "map-chart",
+      "actions": [
+        "hover",
+        "resize"
+      ],
+      "tieBreak": "highest score 15 (map-chart)",
+      "traceFile": "spatial.trace.json"
+    },
+    {
+      "intent": "comparison",
+      "winner": "bar-chart",
+      "chartType": "barChart",
+      "summary": "bar-chart for comparison. highest score 15 (bar-chart). binds category=team, metric=incidents. rows via read_workspace_data",
+      "specComponent": "bar-chart",
+      "actions": [
+        "hover",
+        "resize"
+      ],
+      "tieBreak": "highest score 15 (bar-chart)",
+      "traceFile": "comparison.trace.json"
+    },
+    {
+      "intent": "summary",
+      "winner": "kpi-widget",
+      "chartType": "KPI",
+      "summary": "kpi-widget for summary. tied at 12; picked kpi-widget before table by id. binds metric=incidents. rows via read_workspace_data",
+      "specComponent": "kpi-widget",
+      "actions": [
+        "resize"
+      ],
+      "tieBreak": "tied at 12; picked kpi-widget before table by id",
+      "traceFile": "summary.trace.json"
+    },
+    {
+      "intent": "form",
+      "winner": "approval-bar",
+      "chartType": "customWidget",
+      "summary": "approval-bar for form. highest score 12 (approval-bar). binds proposal=id. rows via read_workspace_data",
+      "specComponent": "approval-bar",
+      "actions": [
+        "approve",
+        "reject"
+      ],
+      "tieBreak": "highest score 12 (approval-bar)",
+      "traceFile": "form.trace.json"
+    }
+  ]
+}

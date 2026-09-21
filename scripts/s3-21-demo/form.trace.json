@@ -1,0 +1,112 @@
+{
+  "objective": "form",
+  "profile": {
+    "hasCategory": true,
+    "hasNumericMetric": true,
+    "categoryCardinality": 5,
+    "hasGeo": true,
+    "hasTemporal": false,
+    "hasNodes": false,
+    "hasLinks": false,
+    "hasTabularRows": true,
+    "rowCount": 10,
+    "hasEntityId": true,
+    "hasClaim": false,
+    "hasEvents": false,
+    "controlCount": 0,
+    "allControlsLabelled": false,
+    "hasMapToken": true
+  },
+  "candidates": [
+    {
+      "id": "approval-bar",
+      "score": 12,
+      "reasons": [
+        "Approval bar proposes an action on a claim or entity."
+      ]
+    }
+  ],
+  "rejections": [
+    {
+      "id": "network-graph",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "map-chart",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "kpi-widget",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "bar-chart",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "histogram-chart",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "table",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "text",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "image",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "event-timeline",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "evidence-panel",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "entity-detail",
+      "reason": "Component intents do not include this objective."
+    },
+    {
+      "id": "text-input",
+      "reason": "Unlabelled control is refused."
+    },
+    {
+      "id": "number-input",
+      "reason": "Unlabelled control is refused."
+    },
+    {
+      "id": "select",
+      "reason": "Unlabelled control is refused."
+    },
+    {
+      "id": "multi-select",
+      "reason": "Unlabelled control is refused."
+    },
+    {
+      "id": "checkbox",
+      "reason": "Unlabelled control is refused."
+    },
+    {
+      "id": "date-input",
+      "reason": "Unlabelled control is refused."
+    },
+    {
+      "id": "button",
+      "reason": "Unlabelled control is refused."
+    },
+    {
+      "id": "form",
+      "reason": "Unlabelled control is refused."
+    }
+  ],
+  "actions": [
+    "approve",
+    "reject"
+  ],
+  "tieBreak": "highest score 12 (approval-bar)"
+}

@@ -25,8 +25,8 @@ calendar window, signed at cutover (S3-21). Do not paste an estimate here.
 
 | Path | Env / flag | Server |
 |------|------------|--------|
-| Incumbent | `CHART_MCP_SERVER_URL` (mcp-ui). `MCP_UI_READ_ONLY` **unset**. `workspace_mcp` off. | generate_* in `tools/list` |
-| Cutover | `WORKSPACE_MCP_SERVER_URL` + `workspace_mcp=true` (or `WORKSPACE_MCP_COMPANY_IDS`). After go-live, mcp-ui `MCP_UI_READ_ONLY=1` on that tenant. | one tool `show_workspace` |
+| Incumbent | `CHART_MCP_SERVER_URL` (mcp-ui). `MCP_UI_READ_ONLY` **unset**. `workspace_mcp` off (and `WORKSPACE_MCP_DEFAULT` unset). | generate_* in `tools/list` |
+| Cutover | Distinct `WORKSPACE_MCP_SERVER_URL` + `WORKSPACE_MCP_DEFAULT=1` (opt out with `workspace_mcp=false`). Gateway omits mcp-ui for that tenant. Do **not** set process-wide `MCP_UI_READ_ONLY=1` on shared mcp.ui9000.com. | one tool `show_workspace` |
 
 Same model, same tenant cohort, same window length on both sides.
 
