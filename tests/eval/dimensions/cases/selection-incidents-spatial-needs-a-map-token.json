@@ -1,0 +1,18 @@
+{
+  "id": "selection-incidents-spatial-needs-a-map-token",
+  "dimension": "selection",
+  "intent": "spatial",
+  "profile": "regional-incidents",
+  "expect": {
+    "winner": null,
+    "notEligible": [
+      "map-chart"
+    ],
+    "rejectedWith": [
+      {
+        "id": "map-chart",
+        "reason": "Map stays lazy until the host injects a token and tile URLs."
+      }
+    ]
+  }
+}

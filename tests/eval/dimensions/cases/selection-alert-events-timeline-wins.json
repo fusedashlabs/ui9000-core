@@ -1,0 +1,23 @@
+{
+  "id": "selection-alert-events-timeline-wins",
+  "dimension": "selection",
+  "intent": "evidence",
+  "profile": "cyber-alert-events",
+  "expect": {
+    "winner": "event-timeline",
+    "alsoEligible": [
+      "table",
+      "text"
+    ],
+    "outscores": [
+      "table",
+      "text"
+    ],
+    "rejectedWith": [
+      {
+        "id": "evidence-panel",
+        "reason": "Without a claim use table or entity-detail."
+      }
+    ]
+  }
+}

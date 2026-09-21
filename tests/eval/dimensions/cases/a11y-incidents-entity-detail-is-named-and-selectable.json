@@ -1,0 +1,15 @@
+{
+  "id": "a11y-incidents-entity-detail-is-named-and-selectable",
+  "dimension": "a11y",
+  "intent": "evidence",
+  "profile": "regional-incidents",
+  "expect": {
+    "label": "entity-detail",
+    "everyFieldLabelled": true,
+    "actions": [
+      "select",
+      "resize"
+    ],
+    "actionsAllowedByCatalog": true
+  }
+}

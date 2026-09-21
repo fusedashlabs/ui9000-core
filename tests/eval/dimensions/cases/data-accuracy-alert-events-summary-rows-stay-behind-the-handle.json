@@ -1,0 +1,17 @@
+{
+  "id": "data-accuracy-alert-events-summary-rows-stay-behind-the-handle",
+  "dimension": "data_accuracy",
+  "intent": "summary",
+  "profile": "cyber-alert-events",
+  "expect": {
+    "rowCount": 4,
+    "columns": [
+      "ts",
+      "event",
+      "asset"
+    ],
+    "noRowsInTrace": true,
+    "noRowsInSpec": true,
+    "hasDataUrl": true
+  }
+}

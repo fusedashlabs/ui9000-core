@@ -1,0 +1,25 @@
+{
+  "id": "data-accuracy-incidents-profile-matches-the-recording",
+  "dimension": "data_accuracy",
+  "intent": "comparison",
+  "profile": "regional-incidents",
+  "expect": {
+    "matchesRecordedProfile": true,
+    "profile": {
+      "hasCategory": true,
+      "hasNumericMetric": true,
+      "categoryCardinality": 5,
+      "rowCount": 10
+    },
+    "rowCount": 10,
+    "columns": [
+      "id",
+      "country",
+      "team",
+      "incidents"
+    ],
+    "noRowsInTrace": true,
+    "noRowsInSpec": true,
+    "hasDataUrl": true
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "a11y-asset-graph-evidence-table-is-named",
+  "dimension": "a11y",
+  "intent": "evidence",
+  "profile": "cyber-asset-graph",
+  "expect": {
+    "label": "table",
+    "everyFieldLabelled": true,
+    "actions": [
+      "select",
+      "resize"
+    ],
+    "actionsAllowedByCatalog": true
+  }
+}

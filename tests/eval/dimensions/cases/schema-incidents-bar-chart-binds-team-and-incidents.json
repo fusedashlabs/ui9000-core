@@ -1,0 +1,25 @@
+{
+  "id": "schema-incidents-bar-chart-binds-team-and-incidents",
+  "dimension": "schema",
+  "intent": "comparison",
+  "profile": "regional-incidents",
+  "expect": {
+    "specValid": true,
+    "component": "bar-chart",
+    "actions": [
+      "hover",
+      "resize"
+    ],
+    "bindRoles": [
+      "category",
+      "metric"
+    ],
+    "fieldNames": [
+      "id",
+      "country",
+      "team",
+      "incidents"
+    ],
+    "closedProfileKeys": true
+  }
+}

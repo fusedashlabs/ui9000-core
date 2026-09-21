@@ -1,0 +1,15 @@
+{
+  "id": "a11y-alert-events-timeline-is-named-and-selectable",
+  "dimension": "a11y",
+  "intent": "evidence",
+  "profile": "cyber-alert-events",
+  "expect": {
+    "label": "event-timeline",
+    "everyFieldLabelled": true,
+    "actions": [
+      "select",
+      "resize"
+    ],
+    "actionsAllowedByCatalog": true
+  }
+}

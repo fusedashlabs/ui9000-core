@@ -1,0 +1,14 @@
+{
+  "id": "a11y-incidents-kpi-is-named-and-resize-only",
+  "dimension": "a11y",
+  "intent": "summary",
+  "profile": "regional-incidents",
+  "expect": {
+    "label": "kpi-widget",
+    "everyFieldLabelled": true,
+    "actions": [
+      "resize"
+    ],
+    "actionsAllowedByCatalog": true
+  }
+}

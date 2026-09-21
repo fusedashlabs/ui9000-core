@@ -1,0 +1,24 @@
+{
+  "id": "data-accuracy-alert-events-temporal-and-events-are-profiled",
+  "dimension": "data_accuracy",
+  "intent": "evidence",
+  "profile": "cyber-alert-events",
+  "expect": {
+    "matchesRecordedProfile": true,
+    "profile": {
+      "hasTemporal": true,
+      "hasEvents": true,
+      "hasNumericMetric": false,
+      "rowCount": 4
+    },
+    "rowCount": 4,
+    "columns": [
+      "ts",
+      "event",
+      "asset"
+    ],
+    "noRowsInTrace": true,
+    "noRowsInSpec": true,
+    "hasDataUrl": true
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "id": "selection-threat-claims-form-approval-bar-wins",
+  "dimension": "selection",
+  "intent": "form",
+  "profile": "cyber-threat-claims",
+  "expect": {
+    "winner": "approval-bar",
+    "notEligible": [
+      "form",
+      "button"
+    ],
+    "rejectedWith": [
+      {
+        "id": "text-input",
+        "reason": "Unlabelled control is refused."
+      }
+    ]
+  }
+}

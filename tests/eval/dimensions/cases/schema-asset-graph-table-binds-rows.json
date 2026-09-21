@@ -1,0 +1,22 @@
+{
+  "id": "schema-asset-graph-table-binds-rows",
+  "dimension": "schema",
+  "intent": "evidence",
+  "profile": "cyber-asset-graph",
+  "expect": {
+    "specValid": true,
+    "component": "table",
+    "actions": [
+      "select",
+      "resize"
+    ],
+    "bindRoles": [
+      "rows"
+    ],
+    "fieldNames": [
+      "source",
+      "target",
+      "sessions"
+    ]
+  }
+}

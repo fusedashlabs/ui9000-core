@@ -1,0 +1,15 @@
+{
+  "id": "a11y-threat-claims-evidence-panel-is-named",
+  "dimension": "a11y",
+  "intent": "evidence",
+  "profile": "cyber-threat-claims",
+  "expect": {
+    "label": "evidence-panel",
+    "everyFieldLabelled": true,
+    "actions": [
+      "select",
+      "resize"
+    ],
+    "actionsAllowedByCatalog": true
+  }
+}

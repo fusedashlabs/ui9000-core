@@ -1,0 +1,10 @@
+{
+  "id": "policy-threat-claims-inline-rows-on-an-evidence-spec",
+  "dimension": "policy",
+  "intent": "evidence",
+  "profile": "cyber-threat-claims",
+  "expect": {
+    "probe": "inline-rows",
+    "refusalCode": "unmet_data"
+  }
+}

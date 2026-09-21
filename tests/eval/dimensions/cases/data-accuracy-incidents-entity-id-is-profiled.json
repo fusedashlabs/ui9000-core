@@ -1,0 +1,18 @@
+{
+  "id": "data-accuracy-incidents-entity-id-is-profiled",
+  "dimension": "data_accuracy",
+  "intent": "evidence",
+  "profile": "regional-incidents",
+  "expect": {
+    "matchesRecordedProfile": true,
+    "profile": {
+      "hasEntityId": true,
+      "hasTabularRows": true,
+      "rowCount": 10
+    },
+    "rowCount": 10,
+    "noRowsInTrace": true,
+    "noRowsInSpec": true,
+    "hasDataUrl": true
+  }
+}

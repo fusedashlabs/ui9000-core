@@ -1,0 +1,4 @@
+claim,source,confidence
+"Lateral movement from web-01 to db-03",edr-timeline-4417,0.86
+"Credential stuffing against the VPN gateway",auth-log-review,0.71
+"Exfiltration staged in backup-02",dlp-alert-2291,0.58

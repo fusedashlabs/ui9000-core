@@ -1,0 +1,20 @@
+{
+  "id": "data-accuracy-threat-claims-summary-reports-three-rows",
+  "dimension": "data_accuracy",
+  "intent": "summary",
+  "profile": "cyber-threat-claims",
+  "expect": {
+    "profile": {
+      "rowCount": 3
+    },
+    "rowCount": 3,
+    "columns": [
+      "claim",
+      "source",
+      "confidence"
+    ],
+    "noRowsInTrace": true,
+    "noRowsInSpec": true,
+    "hasDataUrl": true
+  }
+}

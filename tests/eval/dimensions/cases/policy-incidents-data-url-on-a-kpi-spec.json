@@ -1,0 +1,10 @@
+{
+  "id": "policy-incidents-data-url-on-a-kpi-spec",
+  "dimension": "policy",
+  "intent": "summary",
+  "profile": "regional-incidents",
+  "expect": {
+    "probe": "data-url",
+    "refusalCode": "data_url"
+  }
+}

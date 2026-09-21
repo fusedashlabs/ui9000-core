@@ -1,0 +1,10 @@
+{
+  "id": "policy-threat-claims-unnamed-tool-on-an-evidence-spec",
+  "dimension": "policy",
+  "intent": "evidence",
+  "profile": "cyber-threat-claims",
+  "expect": {
+    "probe": "unnamed-tool",
+    "refusalCode": "unnamed_tool"
+  }
+}

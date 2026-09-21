@@ -1,0 +1,16 @@
+{
+  "id": "selection-asset-graph-network-graph-wins",
+  "dimension": "selection",
+  "intent": "graph",
+  "profile": "cyber-asset-graph",
+  "expect": {
+    "winner": "network-graph",
+    "alsoEligible": [
+      "network-graph"
+    ],
+    "notEligible": [
+      "table",
+      "entity-detail"
+    ]
+  }
+}

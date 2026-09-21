@@ -1,0 +1,23 @@
+{
+  "id": "selection-asset-graph-comparison-has-no-category",
+  "dimension": "selection",
+  "intent": "comparison",
+  "profile": "cyber-asset-graph",
+  "expect": {
+    "winner": null,
+    "notEligible": [
+      "bar-chart",
+      "histogram-chart"
+    ],
+    "rejectedWith": [
+      {
+        "id": "bar-chart",
+        "reason": "No eligibility rule matched the profile."
+      },
+      {
+        "id": "histogram-chart",
+        "reason": "No eligibility rule matched the profile."
+      }
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "id": "schema-incidents-kpi-binds-one-metric",
+  "dimension": "schema",
+  "intent": "summary",
+  "profile": "regional-incidents",
+  "expect": {
+    "specValid": true,
+    "component": "kpi-widget",
+    "actions": [
+      "resize"
+    ],
+    "bindRoles": [
+      "metric"
+    ],
+    "fieldNames": [
+      "id",
+      "country",
+      "team",
+      "incidents"
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "id": "data-accuracy-incidents-geo-rows-stay-behind-the-handle",
+  "dimension": "data_accuracy",
+  "intent": "spatial",
+  "profile": {
+    "name": "regional-incidents",
+    "hasMapToken": true
+  },
+  "expect": {
+    "matchesRecordedProfile": true,
+    "profile": {
+      "hasGeo": true,
+      "hasMapToken": true,
+      "rowCount": 10
+    },
+    "rowCount": 10,
+    "columns": [
+      "id",
+      "country",
+      "team",
+      "incidents"
+    ],
+    "noRowsInTrace": true,
+    "noRowsInSpec": true,
+    "hasDataUrl": true
+  }
+}

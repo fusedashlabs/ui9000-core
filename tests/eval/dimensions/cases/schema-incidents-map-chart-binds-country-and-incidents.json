@@ -1,0 +1,28 @@
+{
+  "id": "schema-incidents-map-chart-binds-country-and-incidents",
+  "dimension": "schema",
+  "intent": "spatial",
+  "profile": {
+    "name": "regional-incidents",
+    "hasMapToken": true
+  },
+  "expect": {
+    "specValid": true,
+    "component": "map-chart",
+    "actions": [
+      "hover",
+      "resize"
+    ],
+    "bindRoles": [
+      "geo",
+      "metric"
+    ],
+    "fieldNames": [
+      "id",
+      "country",
+      "team",
+      "incidents"
+    ],
+    "closedProfileKeys": true
+  }
+}

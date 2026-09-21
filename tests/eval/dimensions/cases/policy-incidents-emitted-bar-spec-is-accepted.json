@@ -1,0 +1,10 @@
+{
+  "id": "policy-incidents-emitted-bar-spec-is-accepted",
+  "dimension": "policy",
+  "intent": "comparison",
+  "profile": "regional-incidents",
+  "expect": {
+    "probe": "none",
+    "refusalCode": null
+  }
+}

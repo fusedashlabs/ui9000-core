@@ -1,0 +1,18 @@
+{
+  "id": "selection-alert-events-summary-table-without-a-metric",
+  "dimension": "selection",
+  "intent": "summary",
+  "profile": "cyber-alert-events",
+  "expect": {
+    "winner": "table",
+    "notEligible": [
+      "kpi-widget"
+    ],
+    "rejectedWith": [
+      {
+        "id": "kpi-widget",
+        "reason": "No eligibility rule matched the profile."
+      }
+    ]
+  }
+}

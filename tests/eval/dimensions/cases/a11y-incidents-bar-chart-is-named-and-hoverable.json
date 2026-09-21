@@ -1,0 +1,15 @@
+{
+  "id": "a11y-incidents-bar-chart-is-named-and-hoverable",
+  "dimension": "a11y",
+  "intent": "comparison",
+  "profile": "regional-incidents",
+  "expect": {
+    "label": "bar-chart",
+    "everyFieldLabelled": true,
+    "actions": [
+      "hover",
+      "resize"
+    ],
+    "actionsAllowedByCatalog": true
+  }
+}

@@ -32,12 +32,16 @@ describe('profileColumns fixtures', () => {
     expect(fixtureNames).toEqual([
       'category-metric',
       'claim-sources',
+      'cyber-alert-events',
+      'cyber-asset-graph',
+      'cyber-threat-claims',
       'entity-id',
       'events-with-ts',
       'form-all-labelled',
       'form-unlabelled-control',
       'geo-lat-lng',
       'nodes-links',
+      'regional-incidents',
       'tabular-rows',
     ]);
   });
