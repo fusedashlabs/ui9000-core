@@ -94,7 +94,7 @@ None required to start. Overrides:
 | `DATA_LINK_TTL_HOURS` | `24` | Signed-link lifetime. Floored, minimum 1. |
 | `MAX_PAYLOAD_SIZE_MB` | `1.5` | Cap on serialized payload bytes. |
 | `STORAGE_DIR` | `<packages/core>/.data` | Local TTL store (also a cache of hosted ids). |
-| `WORKSPACE_DATA_PATH` | unset (empty table) | CSV the server already holds. |
+| `WORKSPACE_DATA_PATH` | shipped demo CSV (`regional-incidents`) | CSV the server already holds. Chat attachments are not this file. |
 
 `tools/list` is length 1. Dataset rows never appear in arguments, the MCP result, or the description.
 

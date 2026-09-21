@@ -199,6 +199,39 @@ describe('createServer', () => {
     expect((result.content as Array<{ text: string }>)[0]?.text).toContain('bar-chart for comparison');
   });
 
+  it('derives chartType from spec.component when the handler omits it', async () => {
+    const server = createServer(
+      () => ({
+        ok: true,
+        spec: { component: 'form', dataUrl: 'https://workspace.local/v1/data-links/form' },
+        summary: 'form for capture',
+      }),
+      {
+        appResource: {
+          uri: 'ui://ui9000/chart',
+          name: 'UI9000 Chart',
+          mimeType: 'text/html;profile=mcp-app',
+          loadHtml: () => '<html></html>',
+          ui: { csp: { connectDomains: [], resourceDomains: [], frameDomains: [] } },
+        },
+      },
+    );
+
+    const result = resultOf(
+      await server.handle(
+        request('tools/call', { name: 'show_workspace', arguments: { intent: 'form' } }),
+      ),
+    );
+
+    expect(result._meta).toMatchObject({
+      chartType: 'customWidget',
+      dataUrl: 'https://workspace.local/v1/data-links/form',
+    });
+    expect((result.content as Array<{ text: string }>)[0]?.text).toContain(
+      '"chartType":"customWidget"',
+    );
+  });
+
   it('routes tools/call arguments to the injected handler untouched', async () => {
     const handler = vi.fn(() => ({ ok: true, summary: 'routed' }));
     const server = createServer(handler);

@@ -207,7 +207,7 @@ export async function handleShowWorkspace(
     ok: true,
     spec: validated.spec,
     summary: buildSummary(validated.spec, parsed.intent, decision.winner, decision.trace.tieBreak),
-    ...(chartType ? { chartType } : {}),
+    chartType,
   };
 }
 

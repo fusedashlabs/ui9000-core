@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { workspaceWidgetPayload } from './widget-payload.js';
+import { chartTypeForComponent, workspaceWidgetPayload } from './widget-payload.js';
 
 describe('workspaceWidgetPayload', () => {
+  it('maps engine ids to FuseDash chartType when catalog keys are empty', () => {
+    expect(chartTypeForComponent('form', [])).toBe('customWidget');
+    expect(chartTypeForComponent('network-graph', [])).toBe('networkGraphChart');
+    expect(chartTypeForComponent('bar-chart', ['barChart', 'barGrouped'])).toBe('barChart');
+    expect(chartTypeForComponent('bar-chart', ['*'])).toBe('barChart');
+  });
   it('aggregates category × metric into FuseDash bar points', () => {
     expect(
       workspaceWidgetPayload(

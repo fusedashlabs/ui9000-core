@@ -13,6 +13,7 @@
  */
 
 import { SHOW_WORKSPACE_NAME } from '../tool/show-workspace.js';
+import { chartTypeForComponent } from '../tool/widget-payload.js';
 import type { McpAppResource } from './mcp-app.js';
 import { chartIdFromDataUrl, formatWorkspaceAppText } from './mcp-app.js';
 
@@ -256,14 +257,20 @@ function workspaceAppEnvelope(
   if (result === null || typeof result !== 'object' || Array.isArray(result)) return undefined;
   const body = result as Record<string, unknown>;
   if (body.ok !== true) return undefined;
-  const spec = body.spec;
+  const spec =
+    body.spec && typeof body.spec === 'object' && !Array.isArray(body.spec)
+      ? (body.spec as { dataUrl?: unknown; component?: unknown })
+      : undefined;
   const dataUrl =
     typeof body.dataUrl === 'string'
       ? body.dataUrl
-      : spec && typeof spec === 'object' && !Array.isArray(spec)
-        ? (spec as { dataUrl?: unknown }).dataUrl
+      : typeof spec?.dataUrl === 'string'
+        ? spec.dataUrl
         : undefined;
-  const chartType = typeof body.chartType === 'string' ? body.chartType : undefined;
+  const fromBody = typeof body.chartType === 'string' ? body.chartType.trim() : '';
+  const fromSpec =
+    typeof spec?.component === 'string' ? chartTypeForComponent(spec.component) : '';
+  const chartType = fromBody || fromSpec;
   if (typeof dataUrl !== 'string' || !dataUrl || !chartType) return undefined;
   const meta = {
     chartType,

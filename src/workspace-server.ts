@@ -161,7 +161,12 @@ export async function startWorkspaceServer(
   options?: CreateWorkspaceServerOptions,
 ): Promise<Disconnect> {
   const env = applyWorkspaceHostDefaults(options?.env ?? process.env);
-  const wired = wireWorkspace({ ...options, env });
+  const dataPath =
+    options?.table || options?.dataPath
+      ? options.dataPath
+      : resolveWorkspaceDataPath(env[WORKSPACE_DATA_PATH_ENV], options?.root) ??
+        workspaceDemoCsvPath();
+  const wired = wireWorkspace({ ...options, env, dataPath });
   return connectSdkWorkspace(wired.handler, wired.info, streams);
 }
 

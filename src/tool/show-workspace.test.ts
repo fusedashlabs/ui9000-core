@@ -152,6 +152,7 @@ describe('show_workspace', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.spec.component).toBe('bar-chart');
+    expect(result.chartType).toBe('barChart');
     expect(result.spec.binds).toEqual([
       { role: 'category', field: 'category' },
       { role: 'metric', field: 'metric' },
@@ -169,6 +170,9 @@ describe('show_workspace', () => {
       if (result.ok) winners.push(result.spec.component);
     }
     expect(winners).toEqual(['map-chart', 'bar-chart', 'kpi-widget', 'form']);
+    const form = await handleShowWorkspace({ intent: 'form' }, context());
+    expect(form.ok).toBe(true);
+    if (form.ok) expect(form.chartType).toBe('customWidget');
   });
 });
 
