@@ -1,0 +1,14 @@
+{
+  "id": "schema-map-chart-binds-geo-and-metric",
+  "dimension": "schema",
+  "intent": "spatial",
+  "profile": { "name": "geo-lat-lng", "hasMapToken": true },
+  "expect": {
+    "specValid": true,
+    "component": "map-chart",
+    "actions": ["hover", "resize"],
+    "bindRoles": ["geo", "metric"],
+    "fieldNames": ["site", "lat", "lng", "readings"],
+    "closedProfileKeys": true
+  }
+}

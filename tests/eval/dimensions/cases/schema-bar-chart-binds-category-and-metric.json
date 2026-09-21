@@ -1,0 +1,14 @@
+{
+  "id": "schema-bar-chart-binds-category-and-metric",
+  "dimension": "schema",
+  "intent": "comparison",
+  "profile": "category-metric",
+  "expect": {
+    "specValid": true,
+    "component": "bar-chart",
+    "actions": ["hover", "resize"],
+    "bindRoles": ["category", "metric"],
+    "fieldNames": ["department", "revenue"],
+    "closedProfileKeys": true
+  }
+}

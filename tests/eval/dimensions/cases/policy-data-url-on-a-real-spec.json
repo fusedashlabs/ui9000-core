@@ -1,0 +1,7 @@
+{
+  "id": "policy-data-url-on-a-real-spec",
+  "dimension": "policy",
+  "intent": "comparison",
+  "profile": "category-metric",
+  "expect": { "probe": "data-url", "refusalCode": "data_url" }
+}

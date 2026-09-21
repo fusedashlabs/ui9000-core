@@ -1,0 +1,10 @@
+{
+  "id": "schema-network-graph-has-no-node-columns",
+  "dimension": "schema",
+  "intent": "graph",
+  "profile": "nodes-links",
+  "expect": {
+    "specValid": false,
+    "failCode": "missing_binds"
+  }
+}

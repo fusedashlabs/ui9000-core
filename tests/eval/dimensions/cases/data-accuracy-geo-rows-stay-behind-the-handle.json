@@ -1,0 +1,15 @@
+{
+  "id": "data-accuracy-geo-rows-stay-behind-the-handle",
+  "dimension": "data_accuracy",
+  "intent": "spatial",
+  "profile": { "name": "geo-lat-lng", "hasMapToken": true },
+  "expect": {
+    "matchesRecordedProfile": true,
+    "profile": { "hasGeo": true, "hasMapToken": true, "rowCount": 3 },
+    "rowCount": 3,
+    "columns": ["site", "lat", "lng", "readings"],
+    "noRowsInTrace": true,
+    "noRowsInSpec": true,
+    "hasDataUrl": true
+  }
+}

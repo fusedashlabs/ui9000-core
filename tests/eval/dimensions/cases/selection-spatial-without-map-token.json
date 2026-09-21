@@ -1,0 +1,13 @@
+{
+  "id": "selection-spatial-without-map-token",
+  "dimension": "selection",
+  "intent": "spatial",
+  "profile": "geo-lat-lng",
+  "expect": {
+    "winner": null,
+    "notEligible": ["map-chart"],
+    "rejectedWith": [
+      { "id": "map-chart", "reason": "Map stays lazy until the host injects a token and tile URLs." }
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "id": "policy-unbound-field-on-a-real-spec",
+  "dimension": "policy",
+  "intent": "comparison",
+  "profile": "category-metric",
+  "expect": { "probe": "unbound-field", "refusalCode": "missing_bound_field" }
+}
