@@ -39,7 +39,7 @@ export type {
 export { interpretWorkspace } from './interpreter/interpret.js';
 export { loadWorkspaceCatalog, workspaceCatalogIds } from './catalog/load-workspace.js';
 export type { Table, TableColumn } from './profiler/table.js';
-export { parseCsvTable, tableRowCount } from './profiler/table.js';
+export { parseCsvTable, tableRowCount, tableToRows } from './profiler/table.js';
 export type { ProfileEnv } from './profiler/profile-columns.js';
 export { assertClosedProfile, profileColumns } from './profiler/profile-columns.js';
 export type { DataLinkOptions } from './migrate/datalink/index.js';

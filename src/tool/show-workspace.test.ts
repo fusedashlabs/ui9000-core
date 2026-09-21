@@ -11,6 +11,7 @@ import {
   readViaHandle,
   type SignedLink,
 } from './data-channel.js';
+import { datasetFromPayload } from './ingest-table.js';
 import {
   SHOW_WORKSPACE_DESCRIPTION,
   SHOW_WORKSPACE_INPUT_SCHEMA,
@@ -106,6 +107,9 @@ function memoryChannel() {
       const id = link.dataUrl.split('/').pop();
       return id ? store.get(id) : undefined;
     },
+    loadDataset(id: string) {
+      return datasetFromPayload(store.get(id));
+    },
   };
 }
 
@@ -116,6 +120,7 @@ function context(overrides: Partial<ShowWorkspaceContext> = {}): ShowWorkspaceCo
     profile,
     payload: secretRows,
     signDataLink: channel.signDataLink,
+    loadDataset: channel.loadDataset,
     ...overrides,
   };
 }
@@ -130,6 +135,8 @@ describe('show_workspace', () => {
     expect(SHOW_WORKSPACE_NAME).toBe('show_workspace');
     expect(SHOW_WORKSPACE_INPUT_SCHEMA.properties.intent.enum).toEqual([...INTENTS]);
     expect(SHOW_WORKSPACE_INPUT_SCHEMA.properties).not.toHaveProperty('data');
+    expect(SHOW_WORKSPACE_INPUT_SCHEMA.properties).toHaveProperty('csv');
+    expect(SHOW_WORKSPACE_INPUT_SCHEMA.properties).toHaveProperty('datasetId');
     expect(SHOW_WORKSPACE_INPUT_SCHEMA.additionalProperties).toBe(false);
     const bytes = new TextEncoder().encode(SHOW_WORKSPACE_DESCRIPTION).length;
     expect(bytes).toBeGreaterThanOrEqual(2048);
@@ -145,6 +152,57 @@ describe('show_workspace', () => {
     );
     expect(result).toMatchObject({ ok: false, code: 'rows_in_args' });
     expect(hasRowObjects(result)).toBe(false);
+  });
+
+  it('profiles a pasted csv instead of the server demo table', async () => {
+    const remembered: string[] = [];
+    const result = await handleShowWorkspace(
+      { intent: 'comparison', csv: 'team,score\nAlpha,10\nBeta,20\nGamma,5\n' },
+      context({
+        rememberTable: (table) => {
+          remembered.push(table.columns.map((column) => column.name).join(','));
+        },
+      }),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.spec.component).toBe('bar-chart');
+    expect(result.spec.binds).toEqual([
+      { role: 'category', field: 'team' },
+      { role: 'metric', field: 'score' },
+    ]);
+    expect(result.datasetId).toBe('link-1');
+    expect(result.rowCount).toBe(3);
+    expect(result.columns).toEqual(['team', 'score']);
+    expect(JSON.stringify(result)).not.toContain('Alpha');
+    expect(remembered).toEqual(['team,score']);
+  });
+
+  it('reuses datasetId without the csv body', async () => {
+    const ctx = context();
+    const first = await handleShowWorkspace(
+      { intent: 'comparison', csv: 'team,score\nAlpha,10\nBeta,20\n' },
+      ctx,
+    );
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const second = await handleShowWorkspace(
+      { intent: 'summary', datasetId: first.datasetId },
+      ctx,
+    );
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+    expect(second.spec.component).toBe('kpi-widget');
+    expect(second.columns).toEqual(['team', 'score']);
+    expect(JSON.stringify(second)).not.toContain('Alpha');
+  });
+
+  it('refuses csv and datasetId together', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'comparison', csv: 'a,b\n1,2\n', datasetId: 'x' },
+      context(),
+    );
+    expect(result).toMatchObject({ ok: false, code: 'invalid_ingest' });
   });
 
   it('returns spec and summary without row objects', async () => {

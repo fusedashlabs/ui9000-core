@@ -28,7 +28,9 @@ Replace `@fusedashlabs/ui9000-mcp` in `~/.cursor/mcp.json` (leave FuseDash's mcp
 }
 ```
 
-Restart Cursor. Attach a CSV, then ask with an intent (`comparison`, `spatial`, `summary`, `form`).
+Restart Cursor. Attach or paste a CSV, then ask with an intent (`comparison`, `spatial`, `summary`, `form`). The model should call `show_workspace` with `csv` (the table including the header) or `path` to a local file. Keep `datasetId` from the result for the next chart on the same table.
+
+`WORKSPACE_DATA_PATH` is only a fallback when no `csv` / `path` / `url` / `datasetId` is passed (shipped demo CSV). Chat attachments are not that env file — they must go through `csv` or `path`.
 
 ### Claude.ai (custom connector)
 
@@ -42,7 +44,7 @@ Claude web cannot run `npx`. Add a custom connector:
 https://mcp.ui9000.com/workspace/mcp
 ```
 
-No auth. Enable the connector in the new chat. The hosted server uses the shipped demo CSV (`regional-incidents`) unless `WORKSPACE_DATA_PATH` is set.
+No auth. Enable the connector in the new chat. Paste CSV via `show_workspace.csv` (or `datasetId` from a previous call). `url` / `path` are disabled on this hosted server. Without a source, the shipped demo CSV (`regional-incidents`) is used.
 
 Do **not** use `https://mcp.ui9000.com/mcp` — that is mcp-ui (`generate_*`), not `show_workspace`.
 
@@ -94,9 +96,9 @@ None required to start. Overrides:
 | `DATA_LINK_TTL_HOURS` | `24` | Signed-link lifetime. Floored, minimum 1. |
 | `MAX_PAYLOAD_SIZE_MB` | `1.5` | Cap on serialized payload bytes. |
 | `STORAGE_DIR` | `<packages/core>/.data` | Local TTL store (also a cache of hosted ids). |
-| `WORKSPACE_DATA_PATH` | shipped demo CSV (`regional-incidents`) | CSV the server already holds. Chat attachments are not this file. |
+| `WORKSPACE_DATA_PATH` | shipped demo CSV (`regional-incidents`) | Fallback table when the tool call has no `csv` / `url` / `path` / `datasetId`. |
 
-`tools/list` is length 1. Dataset rows never appear in arguments, the MCP result, or the description.
+`tools/list` is length 1. Pass a table with `csv`, `url`, `path`, or `datasetId` — never `data[]` / `rows`. Dataset rows never appear in the MCP result or the description.
 
 ## Publish to npm
 

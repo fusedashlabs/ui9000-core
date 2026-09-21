@@ -206,6 +206,65 @@ describe('createWorkspaceServer', () => {
     expect(body.code).toBe('rows_in_args');
   });
 
+  it('charts a pasted csv instead of the fixture table', async () => {
+    const server = wiredServer();
+    const result = resultOf(
+      await server.handle(
+        request('tools/call', {
+          name: SHOW_WORKSPACE_NAME,
+          arguments: {
+            intent: 'comparison',
+            csv: 'team,count\nNorth,4\nSouth,9\nEast,1\n',
+          },
+        }),
+      ),
+    );
+    const body = result.structuredContent as {
+      ok: boolean;
+      spec?: { binds?: Array<{ role: string; field: string }> };
+      datasetId?: string;
+      columns?: string[];
+    };
+    expect(body.ok).toBe(true);
+    expect(body.spec?.binds).toEqual([
+      { role: 'category', field: 'team' },
+      { role: 'metric', field: 'count' },
+    ]);
+    expect(body.columns).toEqual(['team', 'count']);
+    expect(body.datasetId).toBeTruthy();
+    expect(JSON.stringify(result)).not.toContain('North');
+    expect(JSON.stringify(result)).not.toContain('Engineering');
+  });
+
+  it('reuses an ingested table on the next intent-only call', async () => {
+    const server = wiredServer();
+    await server.handle(
+      request('tools/call', {
+        name: SHOW_WORKSPACE_NAME,
+        arguments: {
+          intent: 'comparison',
+          csv: 'team,count\nNorth,4\nSouth,9\n',
+        },
+      }),
+    );
+    const result = resultOf(
+      await server.handle(
+        request(
+          'tools/call',
+          { name: SHOW_WORKSPACE_NAME, arguments: { intent: 'summary' } },
+          2,
+        ),
+      ),
+    );
+    const body = result.structuredContent as {
+      ok: boolean;
+      spec?: { component?: string; binds?: Array<{ field: string }> };
+    };
+    expect(body.ok).toBe(true);
+    expect(body.spec?.component).toBe('kpi-widget');
+    expect(body.spec?.binds?.some((item) => item.field === 'count')).toBe(true);
+  });
+
   it('refuses generate_* before the engine runs', async () => {
     const server = wiredServer();
     const response = await server.handle(

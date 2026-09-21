@@ -4,8 +4,18 @@ import type { DataProfile } from '../spec/data-profile.js';
 import { INTENTS, type Intent } from '../spec/intent.js';
 import type { WorkspaceSpec } from '../spec/workspace-spec.js';
 import { validateSpec } from '../validate/validate-spec.js';
-import type { ClassifiedColumn } from '../profiler/roles.js';
+import { profileColumns } from '../profiler/profile-columns.js';
+import { classifyColumns, type ClassifiedColumn } from '../profiler/roles.js';
+import { tableToRows, type Table } from '../profiler/table.js';
 import { attachDataHandle, type SignDataLink } from './data-channel.js';
+import {
+  datasetPersistPayload,
+  idFromDataUrl,
+  INGEST_KEYS,
+  resolveWorkspaceIngest,
+  type IngestOptions,
+  type StoredDataset,
+} from './ingest-table.js';
 import { chartTypeForComponent, workspaceWidgetPayload } from './widget-payload.js';
 
 export const SHOW_WORKSPACE_NAME = 'show_workspace';
@@ -15,6 +25,8 @@ const ARG_ROW_KEYS = ['data', 'points', 'series', 'rows'] as const;
 export const SHOW_WORKSPACE_CODES = [
   'invalid_args',
   'rows_in_args',
+  'invalid_ingest',
+  'dataset_not_found',
   'unknown_intent',
   'missing_context',
   'missing_signer',
@@ -33,6 +45,10 @@ export type ShowWorkspaceOk = {
   summary: string;
   /** FuseDash chartType for the hosted MCP App. Absent when the View cannot render. */
   chartType?: string;
+  /** Opaque id for the ingested table. Pass it on the next intent instead of csv. */
+  datasetId?: string;
+  rowCount?: number;
+  columns?: string[];
 };
 
 export type ShowWorkspaceFail = {
@@ -60,6 +76,14 @@ export type ShowWorkspaceContext = {
    * migrate `signDataLink`. A non-function value is `missing_signer`.
    */
   signDataLink?: SignDataLink;
+  /** Hosted/production: csv + datasetId only. */
+  allowRemoteSources?: boolean;
+  maxBytes?: number;
+  cwd?: string;
+  fetchImpl?: IngestOptions['fetchImpl'];
+  loadDataset?: (id: string) => StoredDataset | undefined | Promise<StoredDataset | undefined>;
+  /** Stdio session: keep the last ingested table for later `{ intent }` calls. */
+  rememberTable?: (table: Table) => void;
 };
 
 export const SHOW_WORKSPACE_INPUT_SCHEMA = {
@@ -71,57 +95,73 @@ export const SHOW_WORKSPACE_INPUT_SCHEMA = {
       type: 'string',
       enum: [...INTENTS],
       description:
-        'Closed objective. One of spatial, comparison, summary, form, evidence, graph. Do not invent values. Do not pass data rows.',
+        'Closed objective. One of spatial, comparison, summary, form, evidence, graph. Do not invent values.',
+    },
+    csv: {
+      type: 'string',
+      description:
+        'Pasted CSV including the header row. Use this when the user attached or pasted a table. Empty string means omit.',
+    },
+    url: {
+      type: 'string',
+      description:
+        'http(s) URL to a CSV. Local/dev only — rejected on hosted/production. Empty string means omit.',
+    },
+    path: {
+      type: 'string',
+      description:
+        'Local CSV path (absolute, or relative to cwd). Local/dev only. Empty string means omit.',
+    },
+    datasetId: {
+      type: 'string',
+      description:
+        'Id returned by an earlier show_workspace on this table. Use instead of csv/url/path.',
     },
   },
 } as const;
 
 /**
  * ~2–3 KB. Lists intents, not the 20 engine component ids.
- * The model must not send dataset rows; the engine picks the component.
+ * The model may send a CSV source; it must not send chart `data[]` rows.
  */
 export const SHOW_WORKSPACE_DESCRIPTION = [
-  'show_workspace renders one workspace for the current dataset.',
+  'show_workspace renders one workspace for a tabular dataset.',
   'Call this tool once per user question. It is the only visualization tool.',
-  'Pass a single field: intent. Never pass data, rows, points, series, records, or CSV.',
-  'Never paste table cells, GeoJSON features, KPI values, or form answers into arguments.',
-  'Rows never belong in this tool. The server already holds the dataset.',
-  'A signed data handle is attached to the spec. The widget fetches rows itself.',
-  'You do not choose a chart type, widget id, or catalog component.',
-  'Do not name a visualization as a tool argument. Do not call generate_* tools.',
+  'You do not choose a chart type, widget id, or catalog component. Do not call generate_*.',
+  '',
+  'intent is required. Optional source — exactly one of csv, url, path, or datasetId.',
+  'csv — paste the user table including the header (chat attachments / pasted CSV).',
+  'url — http(s) CSV, local/dev only. path — local CSV file, local/dev only.',
+  'Hosted/production accepts csv or datasetId only. url and path are rejected there.',
+  'datasetId — reuse a table from an earlier call on this server. Keep that id.',
+  'Never pass data, rows, points, or series arrays. Those keys are refused.',
+  'If the user gave a table this turn, pass csv (or path/url). Omit the source to reuse',
+  'the last loaded table, else the shipped demo CSV. Do not echo table cells after the tool returns.',
   '',
   'intent is a closed enum. Use exactly one of the following values.',
   '',
-  'spatial — geography: points, regions, choropleth, tokens, lat/lng, country, state, city.',
+  'spatial — geography: points, regions, choropleth, lat/lng, country, state, city.',
   'Use spatial when the question is where, which region, which country, or a map join.',
   'The engine may pick a map only when the profile has geo fields and a map token.',
   '',
   'comparison — groups versus a metric: category cardinality, rankings, distributions.',
   'Use comparison when the question is which group is highest, lowest, or how values spread.',
-  'The engine may pick a bar for a handful of categories, or a histogram for a numeric shape.',
   '',
   'summary — headlines and KPIs for a small set of numeric facts.',
   'Use summary when the user wants a snapshot, total, count, or a few headline numbers.',
   '',
   'form — labelled controls the user should fill in: text, number, select, dates, submit.',
   'Use form when the user must enter or confirm values, not when they only want a chart.',
-  'Every control must already be labelled in the profile (allControlsLabelled).',
   '',
   'evidence — claims, sources, entity detail, timelines of supporting facts.',
-  'Use evidence when the question is what supports this claim or who this entity is.',
+  'graph — nodes and links, how things connect, not where they sit on a map.',
   '',
-  'graph — nodes and links, networks, relationships between entities.',
-  'Use graph when the question is how things connect, not where they sit on a map.',
-  'Network chat may still call this tool; it is visualization, not a mutate.',
-  '',
-  'Output is always { spec, summary }. spec.component is chosen by decide() on the server.',
-  'summary is short labels: component id, intent, and a reason sentence. No row objects.',
-  'spec.dataUrl is a signed link. spec.callServerTool is how the widget reads rows.',
-  'If you include data: [{...}] the tool refuses. Empty data arrays are also refused.',
+  'Output is { spec, summary, datasetId, rowCount, columns }. No row objects.',
+  'spec.component is chosen by decide() on the server. spec.dataUrl is a signed widget handle.',
+  'Keep datasetId and pass it with the next intent instead of pasting csv again.',
   'If intent is missing or not in the enum, the tool refuses.',
   'If no catalog component is eligible, the tool refuses with a written reason.',
-  'Do not retry with rows. Retry only with a different intent from the closed list.',
-  'Do not invent a 7th intent. Keep the call small: {"intent":"comparison"} is complete.',
+  'Retry only with a different intent or a different source. Do not invent a 7th intent.',
 ].join('\n');
 
 export const SHOW_WORKSPACE_TOOL = {
@@ -150,25 +190,54 @@ export async function handleShowWorkspace(
     );
   }
 
+  const ingested = await resolveWorkspaceIngest(parsed.raw, {
+    allowRemoteSources: context.allowRemoteSources,
+    maxBytes: context.maxBytes,
+    cwd: context.cwd,
+    fetchImpl: context.fetchImpl,
+    loadDataset: context.loadDataset,
+  });
+  if (ingested.ok === false) {
+    return fail(ingested.code, ingested.reason);
+  }
+
+  let runtime = context;
+  let datasetId: string | undefined;
+  if (ingested.ok && !('skip' in ingested)) {
+    context.rememberTable?.(ingested.table);
+    runtime = contextFromTable(ingested.table, context);
+    datasetId = ingested.datasetId;
+    if (!datasetId && context.signDataLink) {
+      try {
+        const stored = await context.signDataLink(
+          datasetPersistPayload(ingested.label, ingested.table),
+        );
+        datasetId = idFromDataUrl(stored.dataUrl);
+      } catch {
+        datasetId = undefined;
+      }
+    }
+  }
+
   const decision = decide({
     intent: parsed.intent,
-    profile: context.profile,
-    catalog: context.catalog,
+    profile: runtime.profile,
+    catalog: runtime.catalog,
   });
   if (!decision.winner) {
     const reason = decision.rejected[0]?.reason ?? decision.trace.tieBreak;
     return fail('no_winner', reason || 'No eligible catalog component for this intent and profile.');
   }
 
-  const winner = context.catalog.find((item) => item.id === decision.winner);
+  const winner = runtime.catalog.find((item) => item.id === decision.winner);
   const shaped = shapeSpec(
     {
       component: decision.winner,
       allowedActions: decision.trace.actions,
     },
     winner,
-    context.fields,
-    context.classified,
+    runtime.fields,
+    runtime.classified,
   );
   if (!shaped.ok) return shaped;
 
@@ -177,7 +246,7 @@ export async function handleShowWorkspace(
     decision.winner,
     chartType,
     shaped.spec.binds,
-    context.payload,
+    runtime.payload,
   );
 
   let spec: WorkspaceSpec;
@@ -185,7 +254,7 @@ export async function handleShowWorkspace(
     const attached = await attachDataHandle(
       shaped.spec,
       payload,
-      context.signDataLink,
+      runtime.signDataLink,
     );
     if (!attached.ok) {
       return fail(
@@ -198,16 +267,34 @@ export async function handleShowWorkspace(
     return fail('signer_failed', 'signDataLink threw before returning a handle.');
   }
 
-  const validated = validateSpec(spec, context.catalog);
+  const validated = validateSpec(spec, runtime.catalog);
   if (!validated.ok) {
     return fail('invalid_spec', validated.reason);
   }
 
+  const columns = runtime.fields?.filter((name) => name.trim().length > 0);
   return {
     ok: true,
     spec: validated.spec,
     summary: buildSummary(validated.spec, parsed.intent, decision.winner, decision.trace.tieBreak),
     chartType,
+    ...(datasetId ? { datasetId } : {}),
+    ...(typeof runtime.profile.rowCount === 'number' ? { rowCount: runtime.profile.rowCount } : {}),
+    ...(columns && columns.length > 0 ? { columns: [...columns] } : {}),
+  };
+}
+
+function contextFromTable(
+  table: Table,
+  context: ShowWorkspaceContext,
+): ShowWorkspaceContext {
+  const classified = classifyColumns(table).columns;
+  return {
+    ...context,
+    profile: profileColumns(table, { hasMapToken: true }),
+    payload: tableToRows(table),
+    fields: table.columns.map((column) => column.name),
+    classified,
   };
 }
 
@@ -329,7 +416,7 @@ function normalizeFieldNames(
 
 function parseArgs(
   args: unknown,
-): { ok: true; intent: Intent } | ShowWorkspaceFail {
+): { ok: true; intent: Intent; raw: Record<string, unknown> } | ShowWorkspaceFail {
   if (args === null || typeof args !== 'object' || Array.isArray(args)) {
     return fail('invalid_args', 'show_workspace arguments must be an object.');
   }
@@ -337,12 +424,21 @@ function parseArgs(
   if (ARG_ROW_KEYS.some((key) => key in raw)) {
     return fail(
       'rows_in_args',
-      'show_workspace refuses dataset rows in arguments. Pass intent only; rows travel through the data handle.',
+      'show_workspace refuses dataset rows in arguments. Pass csv, url, path, or datasetId instead.',
     );
   }
+  const allowed = new Set<string>(['intent', ...INGEST_KEYS]);
   const keys = Object.keys(raw);
-  if (keys.some((key) => key !== 'intent')) {
-    return fail('invalid_args', 'show_workspace accepts only intent.');
+  if (keys.some((key) => !allowed.has(key))) {
+    return fail(
+      'invalid_args',
+      'show_workspace accepts intent plus optional csv, url, path, or datasetId.',
+    );
+  }
+  for (const key of INGEST_KEYS) {
+    if (key in raw && raw[key] !== undefined && typeof raw[key] !== 'string') {
+      return fail('invalid_args', `${key} must be a string.`);
+    }
   }
   if (typeof raw.intent !== 'string' || !isIntent(raw.intent)) {
     return fail(
@@ -350,7 +446,7 @@ function parseArgs(
       `intent must be one of ${INTENTS.join(', ')}.`,
     );
   }
-  return { ok: true, intent: raw.intent };
+  return { ok: true, intent: raw.intent, raw };
 }
 
 function isIntent(value: string): value is Intent {

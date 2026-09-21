@@ -26,6 +26,20 @@ export function tableRowCount(table: Table): number {
   return rows;
 }
 
+/** Row-oriented copy of a Table. Used to persist / profile, not as MCP tool output. */
+export function tableToRows(table: Table): Record<string, string>[] {
+  const rowCount = tableRowCount(table);
+  const rows: Record<string, string>[] = [];
+  for (let i = 0; i < rowCount; i += 1) {
+    const row: Record<string, string> = {};
+    for (const column of table.columns) {
+      row[column.name] = column.values[i] ?? '';
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+
 /** Header text reduced to letters and digits: `Created At` and `created_at` match. */
 export function normalizeName(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]/g, '');

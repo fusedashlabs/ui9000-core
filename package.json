@@ -1,6 +1,6 @@
 {
   "name": "@fusedashlabs/ui9000-workspace",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "type": "module",
   "description": "UI9000 workspace MCP — one tool, show_workspace. For Cursor and Claude. FuseDash client keeps using mcp-ui.",
   "license": "Apache-2.0",

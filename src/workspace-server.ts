@@ -13,6 +13,7 @@ import { loadWorkspaceCatalog } from './catalog/load-workspace.js';
 import {
   DEFAULT_BASE_URL,
   enableRemotePersist,
+  isProductionLikeEnv,
   isRemoteDataLinkBase,
   resolveDataLinkStorageDir,
   signDataLink,
@@ -20,7 +21,7 @@ import {
 } from './migrate/datalink/index.js';
 import { profileColumns } from './profiler/profile-columns.js';
 import { classifyColumns } from './profiler/roles.js';
-import { parseCsvTable, tableRowCount, type Table } from './profiler/table.js';
+import { parseCsvTable, tableToRows, type Table } from './profiler/table.js';
 import {
   createServer,
   type McpServer,
@@ -37,6 +38,7 @@ import {
   handleShowWorkspace,
   type ShowWorkspaceContext,
 } from './tool/show-workspace.js';
+import { datasetFromPayload } from './tool/ingest-table.js';
 
 export const WORKSPACE_DATA_PATH_ENV = 'WORKSPACE_DATA_PATH';
 
@@ -99,28 +101,39 @@ export function workspaceDemoCsvPath(): string {
 
 export function wireWorkspace(options: CreateWorkspaceServerOptions = {}): WiredWorkspace {
   const env = options.env ?? process.env;
-  const table =
+  let table =
     options.table ??
     loadWorkspaceTable(options.dataPath ?? env[WORKSPACE_DATA_PATH_ENV], options.root);
   const catalog = loadWorkspaceCatalog();
-  const profile = profileColumns(table, { hasMapToken: true });
-  const payload = tableToRows(table);
-  const fields = table.columns.map((column) => column.name);
-  const classified = classifyColumns(table).columns;
-
-  const context: ShowWorkspaceContext = {
-    catalog,
-    profile,
-    payload,
-    fields,
-    classified,
-  };
   const store = resolveBoundStore(env, options);
-  context.signDataLink = (rows) =>
+  const sign: ShowWorkspaceContext['signDataLink'] = (rows) =>
     signDataLink(rows, store !== undefined ? { env, store } : { env });
 
+  const makeContext = (): ShowWorkspaceContext => {
+    const profile = profileColumns(table, { hasMapToken: true });
+    const payload = tableToRows(table);
+    const fields = table.columns.map((column) => column.name);
+    const classified = classifyColumns(table).columns;
+    return {
+      catalog,
+      profile,
+      payload,
+      fields,
+      classified,
+      signDataLink: sign,
+      allowRemoteSources: !isProductionLikeEnv(env),
+      loadDataset: (id) => {
+        if (!store) return undefined;
+        return datasetFromPayload(store.get(id)?.payload);
+      },
+      rememberTable: (next) => {
+        table = next;
+      },
+    };
+  };
+
   return {
-    handler: (args) => handleShowWorkspace(args, context),
+    handler: (args) => handleShowWorkspace(args, makeContext()),
     info: {
       description: SHOW_WORKSPACE_DESCRIPTION,
       inputSchema: SHOW_WORKSPACE_LIST_SCHEMA,
@@ -191,19 +204,6 @@ export function loadWorkspaceTable(
   const resolved = resolveWorkspaceDataPath(dataPath, root);
   if (!resolved) return { columns: [] };
   return parseCsvTable(fs.readFileSync(resolved, 'utf8'));
-}
-
-export function tableToRows(table: Table): Record<string, string>[] {
-  const rowCount = tableRowCount(table);
-  const rows: Record<string, string>[] = [];
-  for (let i = 0; i < rowCount; i += 1) {
-    const row: Record<string, string> = {};
-    for (const column of table.columns) {
-      row[column.name] = column.values[i] ?? '';
-    }
-    rows.push(row);
-  }
-  return rows;
 }
 
 function resolveBoundStore(

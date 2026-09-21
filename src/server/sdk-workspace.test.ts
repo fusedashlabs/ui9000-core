@@ -45,9 +45,15 @@ describe('createSdkWorkspaceServer', () => {
         additionalProperties: false,
       });
       expect(
-        (tools.tools[0]?.inputSchema as { properties?: { intent?: { enum?: string[] } } }).properties
-          ?.intent?.enum,
+        (tools.tools[0]?.inputSchema as { properties?: { intent?: { enum?: string[] }; csv?: unknown } })
+          .properties?.intent?.enum,
       ).toEqual([...INTENTS]);
+      expect(
+        (tools.tools[0]?.inputSchema as { properties?: { csv?: unknown; datasetId?: unknown } }).properties,
+      ).toMatchObject({
+        csv: expect.anything(),
+        datasetId: expect.anything(),
+      });
 
       const listed = await client.listResources();
       expect(listed.resources).toEqual([

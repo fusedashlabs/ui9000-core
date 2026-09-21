@@ -29,6 +29,10 @@ import type { Disconnect, StdioStreams } from './stdio.js';
 const ShowWorkspaceArgsSchema = z
   .object({
     intent: z.enum(INTENTS),
+    csv: z.string().optional(),
+    url: z.string().optional(),
+    path: z.string().optional(),
+    datasetId: z.string().optional(),
   })
   .strict();
 
