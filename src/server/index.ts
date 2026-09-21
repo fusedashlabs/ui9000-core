@@ -27,3 +27,11 @@ export {
 export { connectStdio } from './stdio.js';
 export type { Disconnect, StdioStreams } from './stdio.js';
 export { connectSdkWorkspace, createSdkWorkspaceServer } from './sdk-workspace.js';
+export {
+  DEFAULT_WORKSPACE_HTTP_PORT,
+  WORKSPACE_HTTP_PATH,
+  handleWorkspaceMcpHttpRequest,
+  startWorkspaceHttpServer,
+  wireWorkspaceHttp,
+} from './http-workspace.js';
+export type { WorkspaceHttpListenOptions, WorkspaceHttpServer } from './http-workspace.js';

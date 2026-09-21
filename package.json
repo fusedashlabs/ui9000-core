@@ -1,6 +1,6 @@
 {
   "name": "@fusedashlabs/ui9000-workspace",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "UI9000 workspace MCP — one tool, show_workspace. For Cursor and Claude. FuseDash client keeps using mcp-ui.",
   "license": "Apache-2.0",
@@ -26,6 +26,7 @@
   "scripts": {
     "build": "tsc --noEmit",
     "start": "node ./bin/ui9000-workspace-server.mjs",
+    "start:http": "node ./bin/ui9000-workspace-server.mjs --http",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",

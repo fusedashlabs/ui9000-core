@@ -89,7 +89,7 @@ export {
   connectStdio,
   createServer,
 } from './server/index.js';
-export type { CreateWorkspaceServerOptions } from './workspace-server.js';
+export type { CreateWorkspaceServerOptions, WiredWorkspace } from './workspace-server.js';
 export {
   WORKSPACE_DATA_PATH_ENV,
   WORKSPACE_MAPBOX_TOKEN,
@@ -97,5 +97,13 @@ export {
   createWorkspaceServer,
   resolveWorkspaceDataPath,
   startWorkspaceServer,
+  wireWorkspace,
+  workspaceDemoCsvPath,
 } from './workspace-server.js';
+export {
+  DEFAULT_WORKSPACE_HTTP_PORT,
+  WORKSPACE_HTTP_PATH,
+  handleWorkspaceMcpHttpRequest,
+  startWorkspaceHttpServer,
+} from './server/http-workspace.js';
 

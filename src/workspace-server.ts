@@ -87,12 +87,17 @@ const SHOW_WORKSPACE_LIST_SCHEMA = JSON.parse(
   JSON.stringify(SHOW_WORKSPACE_INPUT_SCHEMA),
 ) as Record<string, unknown>;
 
-type WiredWorkspace = {
+export type WiredWorkspace = {
   handler: ShowWorkspaceHandler;
   info: ShowWorkspaceToolInfo;
 };
 
-function wireWorkspace(options: CreateWorkspaceServerOptions = {}): WiredWorkspace {
+/** Shipped demo CSV so HTTP/Claude connectors have rows without WORKSPACE_DATA_PATH. */
+export function workspaceDemoCsvPath(): string {
+  return fileURLToPath(new URL('./demo/regional-incidents.csv', import.meta.url));
+}
+
+export function wireWorkspace(options: CreateWorkspaceServerOptions = {}): WiredWorkspace {
   const env = options.env ?? process.env;
   const table =
     options.table ??

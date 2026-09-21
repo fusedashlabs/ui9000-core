@@ -30,6 +30,22 @@ Replace `@fusedashlabs/ui9000-mcp` in `~/.cursor/mcp.json` (leave FuseDash's mcp
 
 Restart Cursor. Attach a CSV, then ask with an intent (`comparison`, `spatial`, `summary`, `form`).
 
+### Claude.ai (custom connector)
+
+Claude web cannot run `npx`. Add a custom connector:
+
+1. **Customize → Connectors → Add custom connector**
+2. Name: `UI9000-Workspace`
+3. URL:
+
+```
+https://mcp.ui9000.com/workspace/mcp
+```
+
+No auth. Enable the connector in the new chat. The hosted server uses the shipped demo CSV (`regional-incidents`) unless `WORKSPACE_DATA_PATH` is set.
+
+Do **not** use `https://mcp.ui9000.com/mcp` — that is mcp-ui (`generate_*`), not `show_workspace`.
+
 ### Claude Desktop
 
 Edit `claude_desktop_config.json`:
