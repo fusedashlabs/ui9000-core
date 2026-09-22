@@ -38,13 +38,23 @@ export function expectRefusal(name: string, code: ValidationCode): void {
  * only reason to do so is a value JSON cannot carry, such as a live function.
  */
 export function expectSpecRefusal(spec: unknown, code: ValidationCode): void {
-  const disarm = armRenderTripwires();
-  try {
+  expectNoRenderPath(() => {
     const result = validateSpec(spec, catalog);
     expect(result).toEqual({ ok: false, code, reason: expect.any(String) });
+  });
+}
+
+/**
+ * Run `body` with the render tripwires armed and fail if any of them fired.
+ * Cases 01-09 reach it through `expectSpecRefusal`; regressions that guard a
+ * different gate — the inspector, say — call it directly.
+ */
+export function expectNoRenderPath<T>(body: () => T): T {
+  const disarm = armRenderTripwires();
+  try {
+    return body();
   } finally {
-    const tripped = disarm();
-    expect(tripped).toEqual([]);
+    expect(disarm()).toEqual([]);
   }
 }
 
