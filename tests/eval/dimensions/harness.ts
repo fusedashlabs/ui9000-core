@@ -163,9 +163,29 @@ const CHECKERS: Record<EvalDimension, (run: EvalRun) => string[]> = {
   policy: checkPolicy,
 };
 
+/**
+ * The one claim every dimension makes, whatever its `expect` says: a trace is a
+ * decision record and never the dataset it decided on (FUS-4118).
+ *
+ * `data_accuracy` can still say `noRowsInTrace` explicitly, and some fixtures
+ * do — that key is the fixture witnessing the claim, and it stays worth reading.
+ * But an opt-in key only guards the cases that remember to opt in, and a leak
+ * does not wait for one: it arrives through whichever case a scoring or binding
+ * change happens to touch. So the gate runs here, ahead of the dimension
+ * checker, on all of them.
+ */
+function checkNoRowsInTrace(run: EvalRun): string[] {
+  try {
+    assertTraceHasNoRows(run.decision.trace);
+    return [];
+  } catch (error) {
+    return [`trace carries dataset rows: ${(error as Error).message}`];
+  }
+}
+
 /** Every problem this case has, as sentences. Empty means the case passed. */
 export function checkEvalRun(run: EvalRun): string[] {
-  return CHECKERS[run.case.dimension](run);
+  return [...checkNoRowsInTrace(run), ...CHECKERS[run.case.dimension](run)];
 }
 
 function checkSelection(run: EvalRun): string[] {
