@@ -28,6 +28,14 @@ export const OBJECTIVES = [
   'form',
 ] as const satisfies readonly Intent[];
 
+/**
+ * The four objectives this demo runs. Narrower than `Intent`, which has six:
+ * `evidence` and `graph` need their own dataset, so the demo never produces a
+ * workspace or a trace for them. Keying on `Intent` would promise rows this
+ * script cannot build, and `traces[row.intent]` could not be proven.
+ */
+export type DemoIntent = (typeof OBJECTIVES)[number];
+
 const here = dirname(fileURLToPath(import.meta.url));
 const coreRoot = resolve(here, '..');
 
@@ -44,7 +52,7 @@ export function winnersPath(): string {
 }
 
 export type DemoWorkspace = {
-  intent: Intent;
+  intent: DemoIntent;
   winner: string | null;
   chartType?: string;
   summary?: string;
@@ -60,7 +68,7 @@ export type S321DemoReport = {
   generate_star_in_tools_list: boolean;
   renderer: string;
   workspaces: DemoWorkspace[];
-  traces: Record<(typeof OBJECTIVES)[number], Trace>;
+  traces: Record<DemoIntent, Trace>;
 };
 
 export async function runS321Demo(): Promise<S321DemoReport> {
@@ -70,7 +78,7 @@ export async function runS321Demo(): Promise<S321DemoReport> {
   const profile = profileColumns(table, { hasMapToken: true });
   const listed = await listWorkspaceTools();
   const tools_list = listed.tools.map((tool) => (tool as { name: string }).name);
-  const traces = {} as Record<(typeof OBJECTIVES)[number], Trace>;
+  const traces = {} as Record<DemoIntent, Trace>;
   const workspaces: DemoWorkspace[] = [];
 
   for (const intent of OBJECTIVES) {
