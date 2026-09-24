@@ -563,7 +563,7 @@ describe('startWorkspaceServer', () => {
         '-e',
         "import { fileURLToPath } from 'node:url'; process.stdout.write(fileURLToPath(import.meta.resolve('@fusedashlabs/widgets/catalog')));",
       ],
-      { encoding: 'utf8', cwd: fileURLToPath(new URL('../../..', import.meta.url)) },
+      { encoding: 'utf8', cwd: fileURLToPath(new URL('..', import.meta.url)) },
     );
     expect(catalog).toMatch(/catalog/);
   });
