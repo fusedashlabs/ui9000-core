@@ -16,7 +16,7 @@ jobs:
         with:
           repository: fusedashlabs/ui9000-widgets
           path: vendor/ui9000-widgets
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.WIDGETS_CHECKOUT_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
