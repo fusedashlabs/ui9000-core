@@ -14,6 +14,8 @@
 
 import { SHOW_WORKSPACE_NAME } from '../tool/show-workspace.js';
 import { chartTypeForComponent } from '../tool/widget-payload.js';
+import { workspaceMeta, omitRowArrays } from '../inspector/meta-contract.js';
+import type { Trace, TraceProposal } from '../trace/trace.js';
 import type { McpAppResource } from './mcp-app.js';
 import { chartIdFromDataUrl, formatWorkspaceAppText } from './mcp-app.js';
 
@@ -278,19 +280,30 @@ function workspaceAppEnvelope(
     chartId: chartIdFromDataUrl(dataUrl),
   };
   const summary = typeof body.summary === 'string' ? body.summary : `${chartType}`;
+  const traceId = typeof body.traceId === 'string' ? body.traceId : undefined;
+  const trace = isTrace(body.trace) ? omitRowArrays(body.trace, true) : undefined;
+  const proposal = isProposal(body.proposal) ? omitRowArrays(body.proposal, true) : undefined;
   return {
-    text: formatWorkspaceAppText(summary, meta),
-    structured: { ...body, ...meta },
-    _meta: {
-      ui: {
-        resourceUri: appResource.uri,
-        visibility: ['model', 'app'],
-        csp: appResource.ui.csp,
-      },
-      'ui/resourceUri': appResource.uri,
+    text: formatWorkspaceAppText(summary, { ...meta, ...(traceId ? { traceId } : {}) }),
+    structured: omitRowArrays({ ...body, ...meta }),
+    _meta: workspaceMeta({
+      resourceUri: appResource.uri,
+      csp: appResource.ui.csp,
       ...meta,
-    },
+      ...(trace ? { trace } : {}),
+      ...(proposal ? { proposal } : {}),
+    }),
   };
+}
+
+function isTrace(value: unknown): value is Trace {
+  return !!value && typeof value === 'object' && !Array.isArray(value) && 'objective' in value;
+}
+
+function isProposal(value: unknown): value is TraceProposal {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const proposal = value as Record<string, unknown>;
+  return typeof proposal.action === 'string' && typeof proposal.preview === 'string' && typeof proposal.id === 'string';
 }
 
 function stringify(value: unknown): string {

@@ -232,6 +232,54 @@ describe('createServer', () => {
     );
   });
 
+  it('copies trace and a held proposal onto _meta without putting rows in the text', async () => {
+    const server = createServer(
+      () => ({
+        ok: true,
+        spec: { component: 'approval-bar', dataUrl: 'https://workspace.local/v1/data-links/held' },
+        summary: 'approval-bar for form',
+        chartType: 'customWidget',
+        traceId: 'trace-1',
+        trace: {
+          objective: 'form',
+          actions: ['approve'],
+          outcome: 'held',
+          profile: { rowCount: 2 },
+        },
+        proposal: {
+          id: 'proposal:approve',
+          action: 'approve',
+          preview: 'Preview approve. This is not an execution.',
+        },
+      }),
+      {
+        appResource: {
+          uri: 'ui://ui9000/chart',
+          name: 'UI9000 Chart',
+          mimeType: 'text/html;profile=mcp-app',
+          loadHtml: () => '<html></html>',
+          ui: { csp: { connectDomains: [], resourceDomains: [], frameDomains: [] } },
+        },
+      },
+    );
+
+    const result = resultOf(
+      await server.handle(
+        request('tools/call', { name: 'show_workspace', arguments: { intent: 'form' } }),
+      ),
+    );
+    const text = (result.content as Array<{ text: string }>)[0]?.text ?? '';
+
+    expect(result._meta).toMatchObject({
+      trace: { outcome: 'held' },
+      proposal: { action: 'approve' },
+    });
+    expect(text).toContain('ui9000-meta:');
+    expect(text).toContain('"traceId":"trace-1"');
+    expect(text).not.toContain('"outcome"');
+    expect(text).not.toContain('secret-north');
+  });
+
   it('routes tools/call arguments to the injected handler untouched', async () => {
     const handler = vi.fn(() => ({ ok: true, summary: 'routed' }));
     const server = createServer(handler);

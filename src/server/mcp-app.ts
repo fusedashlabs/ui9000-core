@@ -19,6 +19,8 @@ export const MCP_APP_RESOURCE_MIME = 'text/html;profile=mcp-app';
 /** Same prefix mcp-ui chart-app parses from tool text (Cursor often strips `_meta`). */
 export const UI9000_META_PREFIX = 'ui9000-meta:';
 
+/** chart-app reads `src/inspector/meta-contract.ts`. It does not invent `_meta` keys. */
+
 export const HOSTED_MCP_APP_CHART_PATH = '/mcp-app/chart';
 
 const MAP_CONNECT_ORIGINS = [
@@ -51,6 +53,8 @@ export type WorkspaceAppMeta = {
   chartType: string;
   dataUrl: string;
   chartId: string;
+  /** Id only. The trace payload stays on `_meta`, never in this prefix. */
+  traceId?: string;
 };
 
 export function originFromBaseUrl(raw: string, fallback = DEFAULT_HOSTED_MCP_BASE_URL): string {
@@ -147,6 +151,7 @@ export function formatWorkspaceAppText(summary: string, meta: WorkspaceAppMeta):
     chartType: meta.chartType,
     dataUrl: meta.dataUrl,
     chartId: meta.chartId,
+    ...(meta.traceId ? { traceId: meta.traceId } : {}),
   })}`;
 }
 
