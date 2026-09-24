@@ -120,8 +120,21 @@
     }
   ],
   "proposal": {
+    "id": "proposal:approve",
     "action": "approve",
     "preview": "Preview approve on approval-bar. This record is not an execution."
   },
+  "proposals": [
+    {
+      "id": "proposal:approve",
+      "action": "approve",
+      "preview": "Preview approve on approval-bar. This record is not an execution."
+    },
+    {
+      "id": "proposal:reject",
+      "action": "reject",
+      "preview": "Preview reject on approval-bar. This record is not an execution."
+    }
+  ],
   "outcome": "held"
 }

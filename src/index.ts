@@ -31,6 +31,15 @@ export {
   classifyActions,
   classifyCatalogActions,
 } from './governance/risk.js';
+export type { AuditLog, AuditRecord, AuditVerdict } from './governance/audit.js';
+export {
+  AUDIT_VERDICTS,
+  assertAuditHasNoRows,
+  createAuditLog,
+  recordVerdict,
+} from './governance/audit.js';
+export type { HeldProposal, ProposalSession } from './governance/proposal.js';
+export { holdAction, openProposalSession } from './governance/proposal.js';
 export type {
   Trace,
   TraceCandidate,
