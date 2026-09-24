@@ -1,0 +1,7 @@
+{
+  "id": "policy-unnamed-tool-on-a-real-spec",
+  "dimension": "policy",
+  "intent": "comparison",
+  "profile": "category-metric",
+  "expect": { "probe": "unnamed-tool", "refusalCode": "unnamed_tool" }
+}

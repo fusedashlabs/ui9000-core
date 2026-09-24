@@ -1,0 +1,24 @@
+{
+  "id": "data-accuracy-asset-graph-nodes-and-links-are-profiled",
+  "dimension": "data_accuracy",
+  "intent": "summary",
+  "profile": "cyber-asset-graph",
+  "expect": {
+    "matchesRecordedProfile": true,
+    "profile": {
+      "hasNodes": true,
+      "hasLinks": true,
+      "hasCategory": false,
+      "rowCount": 5
+    },
+    "rowCount": 5,
+    "columns": [
+      "source",
+      "target",
+      "sessions"
+    ],
+    "noRowsInTrace": true,
+    "noRowsInSpec": true,
+    "hasDataUrl": true
+  }
+}

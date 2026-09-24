@@ -1,0 +1,10 @@
+{
+  "id": "policy-incidents-unbound-field-on-an-approval-spec",
+  "dimension": "policy",
+  "intent": "form",
+  "profile": "regional-incidents",
+  "expect": {
+    "probe": "unbound-field",
+    "refusalCode": "missing_bound_field"
+  }
+}

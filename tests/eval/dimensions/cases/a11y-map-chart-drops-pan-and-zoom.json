@@ -1,0 +1,12 @@
+{
+  "id": "a11y-map-chart-drops-pan-and-zoom",
+  "dimension": "a11y",
+  "intent": "spatial",
+  "profile": { "name": "geo-lat-lng", "hasMapToken": true },
+  "expect": {
+    "label": "map-chart",
+    "everyFieldLabelled": true,
+    "actions": ["hover", "resize"],
+    "actionsAllowedByCatalog": true
+  }
+}

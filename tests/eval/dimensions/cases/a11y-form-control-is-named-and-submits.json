@@ -1,0 +1,12 @@
+{
+  "id": "a11y-form-control-is-named-and-submits",
+  "dimension": "a11y",
+  "intent": "form",
+  "profile": "form-all-labelled",
+  "expect": {
+    "label": "button",
+    "everyFieldLabelled": true,
+    "actions": ["submit"],
+    "actionsAllowedByCatalog": true
+  }
+}

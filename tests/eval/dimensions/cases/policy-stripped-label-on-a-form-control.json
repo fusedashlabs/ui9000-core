@@ -1,0 +1,7 @@
+{
+  "id": "policy-stripped-label-on-a-form-control",
+  "dimension": "policy",
+  "intent": "form",
+  "profile": "form-all-labelled",
+  "expect": { "probe": "strip-label", "refusalCode": "unlabelled_control" }
+}

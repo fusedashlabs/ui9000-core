@@ -1,0 +1,15 @@
+{
+  "id": "data-accuracy-category-metric-profile",
+  "dimension": "data_accuracy",
+  "intent": "comparison",
+  "profile": "category-metric",
+  "expect": {
+    "matchesRecordedProfile": true,
+    "profile": { "hasCategory": true, "hasNumericMetric": true, "categoryCardinality": 4, "rowCount": 4 },
+    "rowCount": 4,
+    "columns": ["department", "revenue"],
+    "noRowsInTrace": true,
+    "noRowsInSpec": true,
+    "hasDataUrl": true
+  }
+}

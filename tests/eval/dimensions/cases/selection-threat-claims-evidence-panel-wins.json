@@ -1,0 +1,17 @@
+{
+  "id": "selection-threat-claims-evidence-panel-wins",
+  "dimension": "selection",
+  "intent": "evidence",
+  "profile": "cyber-threat-claims",
+  "expect": {
+    "winner": "evidence-panel",
+    "alsoEligible": [
+      "image",
+      "text",
+      "table"
+    ],
+    "outscores": [
+      "table"
+    ]
+  }
+}

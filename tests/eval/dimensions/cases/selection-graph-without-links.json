@@ -1,0 +1,15 @@
+{
+  "id": "selection-graph-without-links",
+  "dimension": "selection",
+  "intent": "graph",
+  "profile": "category-metric",
+  "expect": {
+    "winner": null,
+    "rejectedWith": [
+      {
+        "id": "network-graph",
+        "reason": "Without both nodes and links the graph is empty; use table or entity-detail."
+      }
+    ]
+  }
+}

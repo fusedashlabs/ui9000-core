@@ -1,0 +1,22 @@
+{
+  "id": "schema-alert-events-timeline-binds-events",
+  "dimension": "schema",
+  "intent": "evidence",
+  "profile": "cyber-alert-events",
+  "expect": {
+    "specValid": true,
+    "component": "event-timeline",
+    "actions": [
+      "select",
+      "resize"
+    ],
+    "bindRoles": [
+      "events"
+    ],
+    "fieldNames": [
+      "ts",
+      "event",
+      "asset"
+    ]
+  }
+}

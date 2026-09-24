@@ -1,0 +1,24 @@
+{
+  "id": "selection-incidents-form-approval-bar-over-controls",
+  "dimension": "selection",
+  "intent": "form",
+  "profile": "regional-incidents",
+  "expect": {
+    "winner": "approval-bar",
+    "notEligible": [
+      "form",
+      "button",
+      "text-input"
+    ],
+    "rejectedWith": [
+      {
+        "id": "button",
+        "reason": "Unlabelled control is refused."
+      },
+      {
+        "id": "form",
+        "reason": "Unlabelled control is refused."
+      }
+    ]
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "data-accuracy-threat-claims-claim-is-profiled",
+  "dimension": "data_accuracy",
+  "intent": "evidence",
+  "profile": "cyber-threat-claims",
+  "expect": {
+    "matchesRecordedProfile": true,
+    "profile": {
+      "hasClaim": true,
+      "hasNumericMetric": true,
+      "rowCount": 3
+    },
+    "rowCount": 3,
+    "columns": [
+      "claim",
+      "source",
+      "confidence"
+    ],
+    "noRowsInTrace": true,
+    "noRowsInSpec": true,
+    "hasDataUrl": true
+  }
+}

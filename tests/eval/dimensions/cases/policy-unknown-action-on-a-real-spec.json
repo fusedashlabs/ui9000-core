@@ -1,0 +1,7 @@
+{
+  "id": "policy-unknown-action-on-a-real-spec",
+  "dimension": "policy",
+  "intent": "spatial",
+  "profile": { "name": "geo-lat-lng", "hasMapToken": true },
+  "expect": { "probe": "unknown-action", "refusalCode": "unknown_action" }
+}

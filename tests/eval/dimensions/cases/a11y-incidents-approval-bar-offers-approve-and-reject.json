@@ -1,0 +1,15 @@
+{
+  "id": "a11y-incidents-approval-bar-offers-approve-and-reject",
+  "dimension": "a11y",
+  "intent": "form",
+  "profile": "regional-incidents",
+  "expect": {
+    "label": "approval-bar",
+    "everyFieldLabelled": true,
+    "actions": [
+      "approve",
+      "reject"
+    ],
+    "actionsAllowedByCatalog": true
+  }
+}

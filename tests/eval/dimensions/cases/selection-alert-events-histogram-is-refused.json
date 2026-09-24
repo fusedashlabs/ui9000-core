@@ -1,0 +1,19 @@
+{
+  "id": "selection-alert-events-histogram-is-refused",
+  "dimension": "selection",
+  "intent": "comparison",
+  "profile": "cyber-alert-events",
+  "expect": {
+    "winner": null,
+    "rejectedWith": [
+      {
+        "id": "histogram-chart",
+        "reason": "Category-only counts belong on bar-chart, not a histogram."
+      },
+      {
+        "id": "bar-chart",
+        "reason": "No eligibility rule matched the profile."
+      }
+    ]
+  }
+}

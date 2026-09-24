@@ -1,0 +1,13 @@
+{
+  "id": "policy-incidents-emitted-map-spec-is-accepted",
+  "dimension": "policy",
+  "intent": "spatial",
+  "profile": {
+    "name": "regional-incidents",
+    "hasMapToken": true
+  },
+  "expect": {
+    "probe": "none",
+    "refusalCode": null
+  }
+}

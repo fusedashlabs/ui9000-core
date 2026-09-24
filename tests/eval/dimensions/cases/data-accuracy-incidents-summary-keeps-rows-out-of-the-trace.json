@@ -1,0 +1,21 @@
+{
+  "id": "data-accuracy-incidents-summary-keeps-rows-out-of-the-trace",
+  "dimension": "data_accuracy",
+  "intent": "summary",
+  "profile": "regional-incidents",
+  "expect": {
+    "profile": {
+      "hasNumericMetric": true,
+      "rowCount": 10
+    },
+    "rowCount": 10,
+    "columns": [
+      "id",
+      "country",
+      "team",
+      "incidents"
+    ],
+    "noRowsInTrace": true,
+    "noRowsInSpec": true
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "id": "selection-incidents-spatial-with-map-token",
+  "dimension": "selection",
+  "intent": "spatial",
+  "profile": {
+    "name": "regional-incidents",
+    "hasMapToken": true
+  },
+  "expect": {
+    "winner": "map-chart",
+    "alsoEligible": [
+      "map-chart"
+    ],
+    "notEligible": [
+      "bar-chart",
+      "table"
+    ]
+  }
+}

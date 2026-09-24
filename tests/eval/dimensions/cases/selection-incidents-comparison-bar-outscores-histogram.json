@@ -1,0 +1,15 @@
+{
+  "id": "selection-incidents-comparison-bar-outscores-histogram",
+  "dimension": "selection",
+  "intent": "comparison",
+  "profile": "regional-incidents",
+  "expect": {
+    "winner": "bar-chart",
+    "alsoEligible": [
+      "histogram-chart"
+    ],
+    "outscores": [
+      "histogram-chart"
+    ]
+  }
+}

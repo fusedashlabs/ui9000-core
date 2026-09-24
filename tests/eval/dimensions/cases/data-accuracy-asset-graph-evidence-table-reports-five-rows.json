@@ -1,0 +1,17 @@
+{
+  "id": "data-accuracy-asset-graph-evidence-table-reports-five-rows",
+  "dimension": "data_accuracy",
+  "intent": "evidence",
+  "profile": "cyber-asset-graph",
+  "expect": {
+    "rowCount": 5,
+    "columns": [
+      "source",
+      "target",
+      "sessions"
+    ],
+    "noRowsInTrace": true,
+    "noRowsInSpec": true,
+    "hasDataUrl": true
+  }
+}

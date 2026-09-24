@@ -1,0 +1,23 @@
+{
+  "id": "selection-incidents-evidence-entity-detail-wins",
+  "dimension": "selection",
+  "intent": "evidence",
+  "profile": "regional-incidents",
+  "expect": {
+    "winner": "entity-detail",
+    "alsoEligible": [
+      "table",
+      "text"
+    ],
+    "outscores": [
+      "table",
+      "text"
+    ],
+    "rejectedWith": [
+      {
+        "id": "evidence-panel",
+        "reason": "Without a claim use table or entity-detail."
+      }
+    ]
+  }
+}

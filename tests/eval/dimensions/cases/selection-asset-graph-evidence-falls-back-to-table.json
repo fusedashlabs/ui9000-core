@@ -1,0 +1,18 @@
+{
+  "id": "selection-asset-graph-evidence-falls-back-to-table",
+  "dimension": "selection",
+  "intent": "evidence",
+  "profile": "cyber-asset-graph",
+  "expect": {
+    "winner": "table",
+    "alsoEligible": [
+      "text"
+    ],
+    "rejectedWith": [
+      {
+        "id": "entity-detail",
+        "reason": "Without an entity id use table for the set."
+      }
+    ]
+  }
+}

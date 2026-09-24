@@ -1,0 +1,5 @@
+ts,event,asset
+2026-02-11T03:12:00Z,port-scan,edge-fw-01
+2026-02-11T03:41:00Z,brute-force,vpn-gw-02
+2026-02-11T04:08:00Z,privilege-escalation,web-01
+2026-02-11T05:20:00Z,data-staging,backup-02

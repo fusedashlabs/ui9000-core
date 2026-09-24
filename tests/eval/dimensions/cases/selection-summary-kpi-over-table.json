@@ -1,0 +1,11 @@
+{
+  "id": "selection-summary-kpi-over-table",
+  "dimension": "selection",
+  "intent": "summary",
+  "profile": "category-metric",
+  "expect": {
+    "winner": "kpi-widget",
+    "alsoEligible": ["table"],
+    "outscores": ["table"]
+  }
+}

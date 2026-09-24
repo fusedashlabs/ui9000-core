@@ -1,0 +1,23 @@
+{
+  "id": "schema-incidents-approval-bar-binds-a-proposal",
+  "dimension": "schema",
+  "intent": "form",
+  "profile": "regional-incidents",
+  "expect": {
+    "specValid": true,
+    "component": "approval-bar",
+    "actions": [
+      "approve",
+      "reject"
+    ],
+    "bindRoles": [
+      "proposal"
+    ],
+    "fieldNames": [
+      "id",
+      "country",
+      "team",
+      "incidents"
+    ]
+  }
+}

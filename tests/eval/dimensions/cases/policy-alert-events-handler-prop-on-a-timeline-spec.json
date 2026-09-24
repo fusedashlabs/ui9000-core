@@ -1,0 +1,10 @@
+{
+  "id": "policy-alert-events-handler-prop-on-a-timeline-spec",
+  "dimension": "policy",
+  "intent": "evidence",
+  "profile": "cyber-alert-events",
+  "expect": {
+    "probe": "handler-prop",
+    "refusalCode": "handler_prop"
+  }
+}

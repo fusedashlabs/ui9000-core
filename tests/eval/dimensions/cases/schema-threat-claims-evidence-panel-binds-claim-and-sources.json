@@ -1,0 +1,24 @@
+{
+  "id": "schema-threat-claims-evidence-panel-binds-claim-and-sources",
+  "dimension": "schema",
+  "intent": "evidence",
+  "profile": "cyber-threat-claims",
+  "expect": {
+    "specValid": true,
+    "component": "evidence-panel",
+    "actions": [
+      "select",
+      "resize"
+    ],
+    "bindRoles": [
+      "claim",
+      "sources"
+    ],
+    "fieldNames": [
+      "claim",
+      "source",
+      "confidence"
+    ],
+    "closedProfileKeys": true
+  }
+}

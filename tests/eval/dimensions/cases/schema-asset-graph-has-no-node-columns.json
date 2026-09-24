@@ -1,0 +1,10 @@
+{
+  "id": "schema-asset-graph-has-no-node-columns",
+  "dimension": "schema",
+  "intent": "graph",
+  "profile": "cyber-asset-graph",
+  "expect": {
+    "specValid": false,
+    "failCode": "missing_binds"
+  }
+}

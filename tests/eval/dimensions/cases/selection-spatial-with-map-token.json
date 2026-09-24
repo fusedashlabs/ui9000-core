@@ -1,0 +1,10 @@
+{
+  "id": "selection-spatial-with-map-token",
+  "dimension": "selection",
+  "intent": "spatial",
+  "profile": { "name": "geo-lat-lng", "hasMapToken": true },
+  "expect": {
+    "winner": "map-chart",
+    "alsoEligible": ["map-chart"]
+  }
+}

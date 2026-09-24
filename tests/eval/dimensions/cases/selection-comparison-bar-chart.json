@@ -1,0 +1,14 @@
+{
+  "id": "selection-comparison-bar-chart",
+  "dimension": "selection",
+  "intent": "comparison",
+  "profile": "category-metric",
+  "expect": {
+    "winner": "bar-chart",
+    "notEligible": ["histogram-chart"],
+    "rejectedWith": [
+      { "id": "histogram-chart", "reason": "No eligibility rule matched the profile." },
+      { "id": "kpi-widget", "reason": "Component intents do not include this objective." }
+    ]
+  }
+}

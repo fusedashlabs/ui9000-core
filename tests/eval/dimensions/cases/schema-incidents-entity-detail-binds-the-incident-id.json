@@ -1,0 +1,24 @@
+{
+  "id": "schema-incidents-entity-detail-binds-the-incident-id",
+  "dimension": "schema",
+  "intent": "evidence",
+  "profile": "regional-incidents",
+  "expect": {
+    "specValid": true,
+    "component": "entity-detail",
+    "actions": [
+      "select",
+      "resize"
+    ],
+    "bindRoles": [
+      "entity"
+    ],
+    "fieldNames": [
+      "id",
+      "country",
+      "team",
+      "incidents"
+    ],
+    "closedProfileKeys": true
+  }
+}

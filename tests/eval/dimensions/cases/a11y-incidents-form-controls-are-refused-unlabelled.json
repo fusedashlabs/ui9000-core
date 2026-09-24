@@ -1,0 +1,26 @@
+{
+  "id": "a11y-incidents-form-controls-are-refused-unlabelled",
+  "dimension": "a11y",
+  "intent": "form",
+  "profile": "regional-incidents",
+  "expect": {
+    "refusedWith": [
+      {
+        "id": "text-input",
+        "reason": "Unlabelled control is refused."
+      },
+      {
+        "id": "select",
+        "reason": "Unlabelled control is refused."
+      },
+      {
+        "id": "button",
+        "reason": "Unlabelled control is refused."
+      },
+      {
+        "id": "form",
+        "reason": "Unlabelled control is refused."
+      }
+    ]
+  }
+}

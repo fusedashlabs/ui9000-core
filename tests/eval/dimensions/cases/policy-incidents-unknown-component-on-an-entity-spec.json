@@ -1,0 +1,10 @@
+{
+  "id": "policy-incidents-unknown-component-on-an-entity-spec",
+  "dimension": "policy",
+  "intent": "evidence",
+  "profile": "regional-incidents",
+  "expect": {
+    "probe": "unknown-component",
+    "refusalCode": "unknown_component"
+  }
+}

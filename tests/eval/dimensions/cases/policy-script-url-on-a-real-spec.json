@@ -1,0 +1,7 @@
+{
+  "id": "policy-script-url-on-a-real-spec",
+  "dimension": "policy",
+  "intent": "comparison",
+  "profile": "category-metric",
+  "expect": { "probe": "script-url", "refusalCode": "javascript_url" }
+}
