@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { GEOJSON_KEYS as WIDGETS_GEOJSON_KEYS, type RegionKeys as WidgetsRegionKeys } from '../../../../widgets/src/components/map-chart/lib/constants.js';
+import { GEOJSON_KEYS as WIDGETS_GEOJSON_KEYS, type RegionKeys as WidgetsRegionKeys } from '../../../vendor/ui9000-widgets/src/components/map-chart/lib/constants.js';
 import { GEOJSON_KEYS, type RegionKeys } from './geojsonKeys.js';
 
 const REGION_FIELDS: (keyof RegionKeys)[] = ['name', 'code', 'id', 'county', 'state', 'country'];

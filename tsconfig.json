@@ -12,7 +12,7 @@
     "noEmit": true,
     "types": ["node", "vitest/globals", "vite/client", "geojson"],
     "paths": {
-      "@fusedashlabs/widgets/catalog": ["../widgets/src/catalog/index.ts"]
+      "@fusedashlabs/widgets/catalog": ["./vendor/ui9000-widgets/src/catalog/index.ts"]
     }
   },
   "include": ["src/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts"]

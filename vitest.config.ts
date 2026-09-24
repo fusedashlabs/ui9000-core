@@ -5,7 +5,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@fusedashlabs/widgets/catalog': fileURLToPath(
-        new URL('../widgets/src/catalog/index.ts', import.meta.url),
+        new URL('./vendor/ui9000-widgets/src/catalog/index.ts', import.meta.url),
       ),
     },
   },

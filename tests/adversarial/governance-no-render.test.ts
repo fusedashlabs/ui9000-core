@@ -16,7 +16,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { normalizeTrace } from '../../../widgets/src/components/inspector/lib/index.js';
+import { normalizeTrace } from '../../vendor/ui9000-widgets/src/components/inspector/lib/index.js';
 import { VALIDATION_CODES } from '../../src/validate/codes.js';
 import { expectNoRenderPath, hostileSpec } from './harness.js';
 

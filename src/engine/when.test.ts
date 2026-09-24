@@ -13,7 +13,7 @@ function stripImport(source: string): string {
 describe('when parser', () => {
   it('stays in lockstep with widgets catalog/when.ts', () => {
     const core = readFileSync(join(here, 'when.ts'), 'utf8');
-    const widgets = readFileSync(join(here, '../../../widgets/src/catalog/when.ts'), 'utf8');
+    const widgets = readFileSync(join(here, '../../vendor/ui9000-widgets/src/catalog/when.ts'), 'utf8');
     expect(stripImport(core)).toBe(stripImport(widgets));
   });
 });

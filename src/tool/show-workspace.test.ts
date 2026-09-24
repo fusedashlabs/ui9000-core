@@ -242,9 +242,8 @@ describe('show_workspace', () => {
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    const fields = (result.spec.binds ?? []).map((item) =>
-      typeof item === 'object' && item && 'field' in item ? item.field : '',
-    );
+    const binds = result.spec.binds ?? [];
+    const fields = Array.isArray(binds) ? binds.map((item) => item.field) : [];
     expect(new Set(fields).size).toBe(fields.length);
     expect(result.spec.binds).toEqual([
       { role: 'category', field: 'pharmacy' },

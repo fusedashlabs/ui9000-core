@@ -19,7 +19,7 @@ function resolveWidgetsCatalog() {
     return fileURLToPath(import.meta.resolve('@fusedashlabs/widgets/catalog'));
   } catch {
     const sibling = join(
-      fileURLToPath(new URL('../../widgets/dist/catalog/index.js', import.meta.url)),
+      fileURLToPath(new URL('../vendor/ui9000-widgets/dist/catalog/index.js', import.meta.url)),
     );
     return existsSync(sibling) ? sibling : undefined;
   }
