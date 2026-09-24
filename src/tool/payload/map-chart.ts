@@ -10,12 +10,18 @@ export function mapChartPayload(
 ): unknown | null {
   const pair = latLngFields(rows[0]!);
   if (pair) {
+    const metric =
+      fields.metric &&
+      fields.metric !== pair.lat &&
+      fields.metric !== pair.lng
+        ? fields.metric
+        : undefined;
     const markers: Array<{ point: [number, number]; value: number }> = [];
     for (const row of rows) {
       const lat = Number(row[pair.lat]);
       const lng = Number(row[pair.lng]);
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
-      const raw = fields.metric ? Number(row[fields.metric]) : 1;
+      const raw = metric ? Number(row[metric]) : 1;
       markers.push({
         point: [lng, lat],
         value: Number.isFinite(raw) ? raw : 1,
@@ -37,14 +43,25 @@ export function mapChartPayload(
     };
   }
 
-  const points = aggregatePoints(
-    rows,
-    fields.geo ?? fields.category,
-    fields.metric,
-    countryJoinLabel,
-  );
+  const geo = fields.geo ?? fields.category;
+  const metric = fields.metric;
+  if (!geo || !metric || geo === metric) return null;
+  const points = aggregatePoints(rows, geo, metric, countryJoinLabel);
   if (!points) return null;
-  return { chartType, name: 'map-chart', data: points };
+  return {
+    chartType,
+    name: 'map-chart',
+    layers: [
+      {
+        name: 'Map',
+        visualisationType: 'choropleth',
+        geospatialData: ['label'],
+        arrangeByMetric: ['value'],
+        aggregationFunction: 'sum',
+        data: points,
+      },
+    ],
+  };
 }
 
 function latLngFields(

@@ -1,20 +1,53 @@
 import { numericColumn } from './rows.js';
 
+/**
+ * Histogram object from mcp-ui generate_histogram_chart.
+ * yAxe is always empty. xAxe is the one binned column.
+ * groupBy stays empty: a histogram of one variable is not a grouped chart,
+ * and groupBy must not repeat xAxe.
+ * data is one root whose histogramResults use _id as an object, never a string.
+ */
 export function histogramChartPayload(
   chartType: string | undefined,
   fields: Record<string, string>,
   rows: Record<string, unknown>[],
 ): unknown | null {
-  const metricField = fields.distribution ?? fields.metric;
-  const values = numericColumn(rows, metricField);
+  const field = fields.distribution ?? fields.metric;
+  if (!field || field === fields.groupBy || field === fields.series) return null;
+  const values = numericColumn(rows, field);
   if (!values) return null;
-  return { chartType, name: 'histogram-chart', data: histogramBins(values) };
-}
 
-function histogramBins(values: number[]): Array<{ label: string; value: number }> {
+  const bins = histogramBins(values);
+  if (bins.length === 0) return null;
   const min = Math.min(...values);
   const max = Math.max(...values);
-  if (min === max) return [{ label: formatBin(min), value: values.length }];
+
+  return {
+    chartType: chartType || 'histogramChart',
+    name: 'histogram-chart',
+    xAxe: [field],
+    yAxe: [],
+    groupBy: [],
+    uniqueValues: { [field]: bins.map((bin) => bin.label) },
+    data: [
+      {
+        min,
+        max,
+        histogramResults: bins.map((bin, index) => ({
+          _id: { [field]: bin.label },
+          count: bin.count,
+          bucketIndex: index,
+          group: field,
+        })),
+      },
+    ],
+  };
+}
+
+function histogramBins(values: number[]): Array<{ label: string; count: number }> {
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  if (min === max) return [{ label: formatBin(min), count: values.length }];
   const binCount = Math.min(8, Math.max(2, Math.ceil(Math.sqrt(values.length))));
   const width = (max - min) / binCount;
   const counts = Array.from({ length: binCount }, () => 0);
@@ -27,7 +60,7 @@ function histogramBins(values: number[]): Array<{ label: string; value: number }
     if (count === 0) return [];
     const start = min + index * width;
     const end = index === binCount - 1 ? max : min + (index + 1) * width;
-    return [{ label: `${formatBin(start)}–${formatBin(end)}`, value: count }];
+    return [{ label: `${formatBin(start)}–${formatBin(end)}`, count }];
   });
 }
 

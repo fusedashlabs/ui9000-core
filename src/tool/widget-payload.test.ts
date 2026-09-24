@@ -152,9 +152,18 @@ describe('workspaceWidgetPayload', () => {
     ).toEqual({
       chartType: 'mapChart',
       name: 'map-chart',
-      data: [
-        { label: 'France', value: 18 },
-        { label: 'Germany', value: 11 },
+      layers: [
+        {
+          name: 'Map',
+          visualisationType: 'choropleth',
+          geospatialData: ['label'],
+          arrangeByMetric: ['value'],
+          aggregationFunction: 'sum',
+          data: [
+            { label: 'France', value: 18 },
+            { label: 'Germany', value: 11 },
+          ],
+        },
       ],
     });
   });
@@ -197,13 +206,23 @@ describe('workspaceWidgetPayload', () => {
       'histogramChart',
       [{ role: 'distribution', field: 'score' }],
       [{ score: '1' }, { score: '4' }, { score: '4' }],
-    ) as { chartType: string; data: Array<{ label: string; value: number }> };
+    ) as {
+      chartType: string;
+      xAxe: string[];
+      yAxe: string[];
+      groupBy: string[];
+      data: Array<{ histogramResults: Array<{ count: number; _id: Record<string, string> }> }>;
+    };
     expect(payload.chartType).toBe('histogramChart');
-    expect(payload.data.every((bin) => typeof bin.label === 'string')).toBe(true);
-    expect(payload.data.reduce((sum, bin) => sum + bin.value, 0)).toBe(3);
-    expect(payload.data.length).toBeGreaterThan(1);
-    expect(payload.data.length).toBeLessThan(3);
-    expect(payload.data.every((bin) => bin.value > 0)).toBe(true);
+    expect(payload.xAxe).toEqual(['score']);
+    expect(payload.yAxe).toEqual([]);
+    expect(payload.groupBy).toEqual([]);
+    const results = payload.data[0]!.histogramResults;
+    expect(results.every((bin) => typeof bin._id.score === 'string')).toBe(true);
+    expect(results.reduce((sum, bin) => sum + bin.count, 0)).toBe(3);
+    expect(results.length).toBeGreaterThan(1);
+    expect(results.length).toBeLessThan(3);
+    expect(results.every((bin) => bin.count > 0)).toBe(true);
   });
 
   it('drops empty histogram bins', () => {
@@ -212,8 +231,63 @@ describe('workspaceWidgetPayload', () => {
       'histogramChart',
       [{ role: 'distribution', field: 'score' }],
       [{ score: '1' }, { score: '1' }, { score: '1' }, { score: '1' }, { score: '10' }],
-    ) as { data: Array<{ label: string; value: number }> };
-    expect(payload.data.every((bin) => bin.value > 0)).toBe(true);
-    expect(payload.data.reduce((sum, bin) => sum + bin.value, 0)).toBe(5);
+    ) as { data: Array<{ histogramResults: Array<{ count: number }> }> };
+    const results = payload.data[0]!.histogramResults;
+    expect(results.every((bin) => bin.count > 0)).toBe(true);
+    expect(results.reduce((sum, bin) => sum + bin.count, 0)).toBe(5);
+  });
+
+  it('sums a KPI under aggregations_column', () => {
+    expect(
+      workspaceWidgetPayload(
+        'kpi-widget',
+        'KPI',
+        [{ role: 'metric', field: 'count' }],
+        [{ count: '4' }, { count: '9' }],
+      ),
+    ).toEqual({
+      chartType: 'KPI',
+      name: 'count',
+      items: [
+        {
+          type: 'single_value',
+          name: 'count',
+          column: 'count',
+          aggregations: 'sum',
+          data: [{ value: { sum_count: 13 } }],
+        },
+      ],
+    });
+  });
+
+  it('builds a network from two different endpoints and drops a self link', () => {
+    expect(
+      workspaceWidgetPayload(
+        'network-graph',
+        'networkGraphChart',
+        [
+          { role: 'nodes', field: 'source' },
+          { role: 'links', field: 'target' },
+          { role: 'metric', field: 'sessions' },
+        ],
+        [
+          { source: 'web-01', target: 'db-03', sessions: '10' },
+          { source: 'web-01', target: 'web-01', sessions: '99' },
+          { source: 'api-07', target: 'db-03', sessions: '4' },
+        ],
+      ),
+    ).toEqual({
+      chartType: 'networkGraphChart',
+      name: 'network-graph',
+      nodes: [
+        { id: 'web-01', label: 'web-01', type: 'node' },
+        { id: 'db-03', label: 'db-03', type: 'node' },
+        { id: 'api-07', label: 'api-07', type: 'node' },
+      ],
+      links: [
+        { id: 'web-01->db-03', source: 'web-01', target: 'db-03', value: 10 },
+        { id: 'api-07->db-03', source: 'api-07', target: 'db-03', value: 4 },
+      ],
+    });
   });
 });

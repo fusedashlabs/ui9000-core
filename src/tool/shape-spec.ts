@@ -89,7 +89,7 @@ const ROLE_COLUMN: Record<string, readonly ClassifiedColumn['role'][]> = {
   proposal: ['entity', 'claim'],
   claim: ['claim'],
   entity: ['entity'],
-  nodes: ['node'],
+  nodes: ['node', 'link'],
   links: ['link'],
   events: ['event'],
   sources: ['sources'],

@@ -359,10 +359,18 @@ describe('createWorkspaceServer', () => {
     const payload = readDataLink({ dataUrl: body.spec!.dataUrl! }, { env: TEST_ENV, store });
     expect(payload).toMatchObject({
       chartType: 'mapChart',
-      data: expect.arrayContaining([
-        { label: 'France', value: 37 },
-        { label: 'Germany', value: 27 },
-      ]),
+      layers: [
+        expect.objectContaining({
+          visualisationType: 'choropleth',
+          geospatialData: ['label'],
+          arrangeByMetric: ['value'],
+          aggregationFunction: 'sum',
+          data: expect.arrayContaining([
+            { label: 'France', value: 37 },
+            { label: 'Germany', value: 27 },
+          ]),
+        }),
+      ],
     });
   });
 

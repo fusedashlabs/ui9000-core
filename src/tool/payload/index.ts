@@ -5,6 +5,7 @@ import { chartTypeForComponent } from './chart-type.js';
 import { histogramChartPayload } from './histogram-chart.js';
 import { kpiWidgetPayload } from './kpi-widget.js';
 import { mapChartPayload } from './map-chart.js';
+import { networkGraphPayload } from './network-graph.js';
 import { asRowObjects } from './rows.js';
 
 type PayloadBuilder = (
@@ -18,6 +19,7 @@ const PAYLOAD_BY_COMPONENT: Record<string, PayloadBuilder> = {
   'bar-chart': barChartPayload,
   'histogram-chart': histogramChartPayload,
   'map-chart': mapChartPayload,
+  'network-graph': networkGraphPayload,
   'kpi-widget': (chartType, fields, rows) => {
     void chartType;
     return kpiWidgetPayload(fields, rows);
