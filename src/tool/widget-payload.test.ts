@@ -27,11 +27,96 @@ describe('workspaceWidgetPayload', () => {
     ).toEqual({
       chartType: 'barChart',
       name: 'bar-chart',
+      orientation: 'vertical',
+      xAxe: ['team'],
+      yAxe: ['incidents'],
       data: [
-        { label: 'Search', value: 28 },
-        { label: 'Payments', value: 19 },
+        { team: 'Search', incidents: 28 },
+        { team: 'Payments', incidents: 19 },
       ],
     });
+  });
+
+  it('omits groupBy when the series field is the category', () => {
+    expect(
+      workspaceWidgetPayload(
+        'bar-chart',
+        'barChart',
+        [
+          { role: 'category', field: 'pharmacy' },
+          { role: 'metric', field: 'compensated_sum' },
+          { role: 'series', field: 'pharmacy' },
+        ],
+        [
+          { pharmacy: 'A', compensated_sum: 10 },
+          { pharmacy: 'B', compensated_sum: 4 },
+        ],
+      ),
+    ).toEqual({
+      chartType: 'barChart',
+      name: 'bar-chart',
+      orientation: 'vertical',
+      xAxe: ['pharmacy'],
+      yAxe: ['compensated_sum'],
+      data: [
+        { pharmacy: 'A', compensated_sum: 10 },
+        { pharmacy: 'B', compensated_sum: 4 },
+      ],
+    });
+  });
+
+  it('builds a grouped bar when series is a different column', () => {
+    expect(
+      workspaceWidgetPayload(
+        'bar-chart',
+        'barChart',
+        [
+          { role: 'category', field: 'quarter' },
+          { role: 'metric', field: 'revenue' },
+          { role: 'series', field: 'region' },
+        ],
+        [
+          { quarter: 'Q1', region: 'North', revenue: 2 },
+          { quarter: 'Q1', region: 'South', revenue: 3 },
+          { quarter: 'Q2', region: 'North', revenue: 4 },
+          { quarter: 'Q2', region: 'South', revenue: 1 },
+        ],
+      ),
+    ).toEqual({
+      chartType: 'barGrouped',
+      name: 'bar-chart',
+      orientation: 'vertical',
+      xAxe: ['quarter'],
+      yAxe: ['revenue'],
+      groupBy: ['region'],
+      stacked: false,
+      data: [
+        { quarter: 'Q1', region: 'North', revenue: 2 },
+        { quarter: 'Q1', region: 'South', revenue: 3 },
+        { quarter: 'Q2', region: 'North', revenue: 4 },
+        { quarter: 'Q2', region: 'South', revenue: 1 },
+      ],
+    });
+  });
+
+  it('turns a long category list horizontal', () => {
+    const rows = Array.from({ length: 9 }, (_, index) => ({
+      pharmacy: `P${index}`,
+      compensated_sum: index + 1,
+    }));
+    const payload = workspaceWidgetPayload(
+      'bar-chart',
+      'barChart',
+      [
+        { role: 'category', field: 'pharmacy' },
+        { role: 'metric', field: 'compensated_sum' },
+      ],
+      rows,
+    ) as { chartType: string; orientation: string; xAxe: string[]; yAxe: string[] };
+    expect(payload.chartType).toBe('barHorizontal');
+    expect(payload.orientation).toBe('horizontal');
+    expect(payload.xAxe).toEqual(['compensated_sum']);
+    expect(payload.yAxe).toEqual(['pharmacy']);
   });
 
   it('keeps the original payload when bind fields are not on the rows', () => {

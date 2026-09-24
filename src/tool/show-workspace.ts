@@ -242,13 +242,14 @@ export async function handleShowWorkspace(
   );
   if (!shaped.ok) return shaped;
 
-  const chartType = chartTypeForComponent(decision.winner, winner?.chartTypeKeys);
+  const fallbackType = chartTypeForComponent(decision.winner, winner?.chartTypeKeys);
   const payload = workspaceWidgetPayload(
     decision.winner,
-    chartType,
+    fallbackType,
     shaped.spec.binds,
     runtime.payload,
   );
+  const chartType = chartTypeFromPayload(payload) ?? fallbackType;
 
   let spec: WorkspaceSpec;
   try {
@@ -366,4 +367,10 @@ function formatBinds(binds: WorkspaceSpec['binds']): string | undefined {
 
 function fail(code: ShowWorkspaceCode, reason: string): ShowWorkspaceFail {
   return { ok: false, code, reason };
+}
+
+function chartTypeFromPayload(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return undefined;
+  const chartType = (payload as { chartType?: unknown }).chartType;
+  return typeof chartType === 'string' && chartType.trim() ? chartType : undefined;
 }

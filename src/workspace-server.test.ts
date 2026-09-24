@@ -172,11 +172,14 @@ describe('createWorkspaceServer', () => {
     expect(payload).toEqual({
       chartType: 'barChart',
       name: 'bar-chart',
+      orientation: 'vertical',
+      xAxe: ['department'],
+      yAxe: ['revenue'],
       data: [
-        { label: 'Engineering', value: 120.5 },
-        { label: 'Support', value: 98.2 },
-        { label: 'Sales', value: 143.9 },
-        { label: 'Design', value: 77.4 },
+        { department: 'Engineering', revenue: 120.5 },
+        { department: 'Support', revenue: 98.2 },
+        { department: 'Sales', revenue: 143.9 },
+        { department: 'Design', revenue: 77.4 },
       ],
     });
     expect(result._meta).toMatchObject({
@@ -382,7 +385,11 @@ describe('createWorkspaceServer', () => {
     const payload = readDataLink({ dataUrl: body.spec!.dataUrl! }, { env, store: envStore });
     expect(payload).toMatchObject({
       chartType: 'barChart',
-      data: expect.arrayContaining([expect.objectContaining({ label: 'Engineering', value: 120.5 })]),
+      xAxe: ['department'],
+      yAxe: ['revenue'],
+      data: expect.arrayContaining([
+        expect.objectContaining({ department: 'Engineering', revenue: 120.5 }),
+      ]),
     });
     expect(fs.readdirSync(dir).some((name) => name.endsWith('.json'))).toBe(true);
   });
