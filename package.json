@@ -30,7 +30,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "yarn typecheck && yarn test"
+    "prepublishOnly": "yarn typecheck && yarn test",
+    "scorecard": "tsx scripts/scorecard.ts",
+    "scorecard:check": "tsx scripts/scorecard.ts --check"
   },
   "dependencies": {
     "@fusedashlabs/widgets": "0.5.0",

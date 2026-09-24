@@ -29,5 +29,8 @@ jobs:
           cache: yarn
       - run: yarn install --immutable
       - run: yarn typecheck
-      - run: yarn test
+      # One vitest run. The JSON report is what scorecard:check reads, so the
+      # suites are not started a second time.
+      - run: yarn test --reporter=default --reporter=json --outputFile.json=${{ runner.temp }}/core-vitest.json
+      - run: yarn scorecard:check --report ${{ runner.temp }}/core-vitest.json
       - run: node scripts/no-raw-rows.mjs
