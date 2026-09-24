@@ -110,5 +110,8 @@
   "actions": [
     "resize"
   ],
-  "tieBreak": "tied at 12; picked kpi-widget before table by id"
+  "tieBreak": "tied at 12; picked kpi-widget before table by id",
+  "risk": [],
+  "proposal": null,
+  "outcome": "rendered"
 }

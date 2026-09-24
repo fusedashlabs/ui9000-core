@@ -1,7 +1,7 @@
 import { DATA_PROFILE_KEYS } from '../spec/data-profile.js';
 import type { CatalogEntry, CatalogEvalCase, CatalogRule } from '../spec/engine-catalog.js';
 import { SPEC_ACTION_SET } from '../spec/workspace-spec.js';
-import { closedProfile, type Trace } from '../trace/trace.js';
+import { closedProfile, stage4TraceDefaults, type Trace } from '../trace/trace.js';
 import type { DecideInput, EngineCandidate, EngineDecision, EngineRejection } from './types.js';
 import { evalWhen } from './when.js';
 
@@ -51,6 +51,7 @@ export function decide(input: DecideInput): EngineDecision {
     rejections: rejected.map((item) => ({ ...item })),
     actions,
     tieBreak,
+    ...stage4TraceDefaults(),
   };
 
   return { winner: winner?.id ?? null, eligible, rejected, trace };

@@ -1,8 +1,20 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
 import { decide } from '../engine/decide.js';
 import type { EngineCatalog } from '../spec/engine-catalog.js';
-import { assertTraceHasNoRows, closedProfile, type Trace } from './trace.js';
+import {
+  TRACE_OUTCOMES,
+  TRACE_RISK_BANDS,
+  assertTraceHasNoRows,
+  closedProfile,
+  type Trace,
+} from './trace.js';
+
+const TRACE_V2 = JSON.parse(
+  readFileSync(new URL('../../tests/fixtures/inspector/trace.v2.json', import.meta.url), 'utf8'),
+) as Trace;
 
 const catalog: EngineCatalog = [
   {
@@ -33,6 +45,9 @@ describe('Trace', () => {
     expect(JSON.parse(JSON.stringify(trace))).toEqual(trace);
     expect(trace.objective).toBe('summary');
     expect(trace.candidates[0]?.id).toBe('kpi-widget');
+    expect(trace.risk).toEqual([]);
+    expect(trace.proposal).toBeNull();
+    expect(trace.outcome).toBe('rendered');
   });
 
   it('fails when rows are smuggled onto a candidate', () => {
@@ -46,5 +61,53 @@ describe('Trace', () => {
       candidates: [{ ...trace.candidates[0], rows: [{ secret: 1 }] }],
     } as unknown as Trace;
     expect(() => assertTraceHasNoRows(smuggled)).toThrow('trace must not contain rows');
+  });
+
+  it('refuses rows smuggled onto a proposal', () => {
+    const doctored = {
+      ...TRACE_V2,
+      proposal: { ...TRACE_V2.proposal, rows: [{ secret: 1 }] },
+    } as unknown as Trace;
+    expect(() => assertTraceHasNoRows(doctored)).toThrow('trace must not contain rows');
+  });
+});
+
+describe('trace v2 fixture', () => {
+  const stage3Keys = ['objective', 'profile', 'candidates', 'rejections', 'actions', 'tieBreak'] as const;
+
+  it('keeps the stage 3 record and adds risk, proposal, and outcome', () => {
+    for (const key of stage3Keys) {
+      expect(TRACE_V2[key], key).toBeDefined();
+    }
+    expect(TRACE_V2.objective).toBe('form');
+    expect(TRACE_V2.candidates[0]?.id).toBe('approval-bar');
+    expect(TRACE_V2.actions).toEqual(['approve', 'reject']);
+    expect(TRACE_V2.tieBreak).toBe('highest score 12 (approval-bar)');
+  });
+
+  it('lists one risk entry per action, with a closed band', () => {
+    expect(TRACE_V2.risk.map((item) => item.action)).toEqual(TRACE_V2.actions);
+    for (const item of TRACE_V2.risk) {
+      expect(TRACE_RISK_BANDS).toContain(item.band);
+    }
+    expect(TRACE_V2.risk.every((item) => item.band === 'held')).toBe(true);
+  });
+
+  it('carries a preview proposal and a held outcome the inspector can render', () => {
+    expect(TRACE_V2.proposal).toEqual({
+      action: 'approve',
+      preview: 'Preview approve on approval-bar. This record is not an execution.',
+    });
+    expect(TRACE_OUTCOMES).toContain(TRACE_V2.outcome);
+    expect(TRACE_V2.outcome).toBe('held');
+    assertTraceHasNoRows(TRACE_V2);
+    expect(JSON.parse(JSON.stringify(TRACE_V2))).toEqual(TRACE_V2);
+  });
+
+  it('still accepts a trace whose proposal is null', () => {
+    const rendered: Trace = { ...TRACE_V2, proposal: null, outcome: 'rendered', risk: [] };
+    expect(rendered.proposal).toBeNull();
+    expect(rendered.outcome).toBe('rendered');
+    assertTraceHasNoRows(rendered);
   });
 });

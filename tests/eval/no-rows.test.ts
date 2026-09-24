@@ -53,6 +53,7 @@ const DATASET_DIR = fileURLToPath(new URL('../fixtures/datasets/', import.meta.u
 const TRACE_DIRS = [
   fileURLToPath(new URL('./__snapshots__/', import.meta.url)),
   fileURLToPath(new URL('../../scripts/s3-21-demo/', import.meta.url)),
+  fileURLToPath(new URL('../fixtures/inspector/', import.meta.url)),
 ];
 
 /** The token is a host capability, so it is the one axis no column can move. */
@@ -174,7 +175,7 @@ describe('committed trace payloads', () => {
   /** `[label, path]` — the label leads so test names stay machine-independent. */
   const files = TRACE_DIRS.flatMap((dir) =>
     readdirSync(dir)
-      .filter((file) => file.endsWith('.trace.json'))
+      .filter((file) => file.endsWith('.trace.json') || file === 'trace.v2.json')
       .map((file) => [`${relative(EVAL_DIR, dir)}/${file}`, `${dir}${file}`] as const),
   );
 

@@ -12,7 +12,38 @@ export type TraceRejection = {
   reason: string;
 };
 
-/** JSON-serializable decision record. Never includes dataset rows. */
+/** What the host did with the decision. `held` and `rejected` are previews, not blocks. */
+export const TRACE_OUTCOMES = ['rendered', 'held', 'rejected'] as const;
+
+export type TraceOutcome = (typeof TRACE_OUTCOMES)[number];
+
+/**
+ * Closed bands. `low` may run with the workspace. `held` is a preview until
+ * someone approves it. A spec cannot choose either value.
+ */
+export const TRACE_RISK_BANDS = ['low', 'held'] as const;
+
+export type TraceRiskBand = (typeof TRACE_RISK_BANDS)[number];
+
+/** One catalog action. The band is filled by the risk table, never by the spec. */
+export type TraceRisk = {
+  action: string;
+  band: TraceRiskBand;
+};
+
+/**
+ * Preview of a held action. Null when nothing is held.
+ * This is not an execution record and must not carry dataset rows.
+ */
+export type TraceProposal = {
+  action: string;
+  preview: string;
+};
+
+/**
+ * JSON-serializable decision record. Never includes dataset rows.
+ * Stage 3 fields stay required. Stage 4 adds `risk`, `proposal`, and `outcome`.
+ */
 export type Trace = {
   objective: Intent;
   profile: DataProfile;
@@ -20,7 +51,23 @@ export type Trace = {
   rejections: TraceRejection[];
   actions: string[];
   tieBreak: string;
+  risk: TraceRisk[];
+  proposal: TraceProposal | null;
+  outcome: TraceOutcome;
 };
+
+/**
+ * Defaults until the risk table (S4-04) and proposal log (S4-05) fill them.
+ * An empty `risk` is "not classified yet", not "every action is low".
+ * `outcome: rendered` matches today's engine: this call still returns a workspace.
+ */
+export function stage4TraceDefaults(): Pick<Trace, 'risk' | 'proposal' | 'outcome'> {
+  return {
+    risk: [],
+    proposal: null,
+    outcome: 'rendered',
+  };
+}
 
 export function closedProfile(profile: DataProfile): DataProfile {
   const next: DataProfile = {};

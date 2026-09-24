@@ -112,5 +112,8 @@
     "hover",
     "resize"
   ],
-  "tieBreak": "highest score 15 (bar-chart)"
+  "tieBreak": "highest score 15 (bar-chart)",
+  "risk": [],
+  "proposal": null,
+  "outcome": "rendered"
 }

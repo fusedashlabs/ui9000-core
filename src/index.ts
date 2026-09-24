@@ -15,7 +15,16 @@ export type { ValidationCode, ValidationResult } from './validate/validate-spec.
 export { VALIDATION_CODES, validateSpec } from './validate/validate-spec.js';
 export type { EngineDecision, DecideInput } from './engine/types.js';
 export { decide } from './engine/decide.js';
-export type { Trace, TraceCandidate, TraceRejection } from './trace/trace.js';
+export type {
+  Trace,
+  TraceCandidate,
+  TraceOutcome,
+  TraceProposal,
+  TraceRejection,
+  TraceRisk,
+  TraceRiskBand,
+} from './trace/trace.js';
+export { TRACE_OUTCOMES, TRACE_RISK_BANDS, stage4TraceDefaults } from './trace/trace.js';
 export type { SignedLink, SignDataLink, ReadDataLink } from './tool/data-channel.js';
 export { CALL_SERVER_TOOL, attachDataHandle, readViaHandle } from './tool/data-channel.js';
 export type {

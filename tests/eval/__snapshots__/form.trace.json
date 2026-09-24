@@ -108,5 +108,8 @@
     "approve",
     "reject"
   ],
-  "tieBreak": "highest score 12 (approval-bar)"
+  "tieBreak": "highest score 12 (approval-bar)",
+  "risk": [],
+  "proposal": null,
+  "outcome": "rendered"
 }

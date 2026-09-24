@@ -109,7 +109,19 @@
     "reject"
   ],
   "tieBreak": "highest score 12 (approval-bar)",
-  "risk": [],
-  "proposal": null,
-  "outcome": "rendered"
+  "risk": [
+    {
+      "action": "approve",
+      "band": "held"
+    },
+    {
+      "action": "reject",
+      "band": "held"
+    }
+  ],
+  "proposal": {
+    "action": "approve",
+    "preview": "Preview approve on approval-bar. This record is not an execution."
+  },
+  "outcome": "held"
 }
