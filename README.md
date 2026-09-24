@@ -2,7 +2,7 @@
 
 Stage 3 workspace MCP: one tool, `show_workspace`. The model sends a closed `intent`; this package picks the widget from `@fusedashlabs/widgets` and a `DataProfile`. It does **not** call mcp-ui `generate_*`.
 
-**FuseDash client / gateway keep using mcp-ui.** This package is what Cursor and Claude Desktop run as MCP.
+**FuseDash client / gateway keep using mcp-ui.** This package is what Cursor and Claude Desktop run as MCP. In Cursor and Claude, Approve is displayed, not enforced; blocking an unapproved action is Stage 5, on a page we own.
 
 **npm:** [`@fusedashlabs/ui9000-workspace`](https://www.npmjs.com/package/@fusedashlabs/ui9000-workspace)  
 **Server key** in Cursor / Claude: `UI9000-Workspace`
