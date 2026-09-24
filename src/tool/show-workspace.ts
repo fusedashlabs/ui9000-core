@@ -330,26 +330,27 @@ function shapeSpec(
   }
 
   const binds: { role: string; field: string }[] = [];
+  const usedFields = new Set<string>();
   for (let index = 0; index < requiredRoles.length; index += 1) {
     const role = requiredRoles[index]!;
     const field = classified?.length
-      ? fieldForRole(role.id, classified)
-      : (names[index] ?? role.id);
+      ? fieldForRole(role.id, classified, usedFields)
+      : unusedName(names, index, usedFields);
     if (!field) {
       return fail(
         'missing_binds',
-        `No column matches catalog role "${role.id}".`,
+        `No unused column matches catalog role "${role.id}". A field cannot fill two roles.`,
       );
     }
     binds.push({ role: role.id, field });
+    usedFields.add(field);
   }
 
   if (classified?.length) {
     const usedRoles = new Set(binds.map((item) => item.role));
-    const usedFields = new Set(binds.map((item) => item.field));
     for (const role of optionalRoles) {
       if (usedRoles.has(role.id)) continue;
-      const field = fieldForRole(role.id, classified);
+      const field = fieldForRole(role.id, classified, usedFields);
       if (!field || usedFields.has(field)) continue;
       binds.push({ role: role.id, field });
       usedFields.add(field);
@@ -373,6 +374,10 @@ function shapeSpec(
 /** Catalog dataRole id → profiler column roles, first match wins. */
 const ROLE_COLUMN: Record<string, readonly ClassifiedColumn['role'][]> = {
   category: ['category'],
+  // Series is another category column. Never the same field as the x axis.
+  series: ['category'],
+  group: ['category'],
+  groupBy: ['category'],
   metric: ['metric'],
   distribution: ['metric'],
   geo: ['geo'],
@@ -389,13 +394,26 @@ const ROLE_COLUMN: Record<string, readonly ClassifiedColumn['role'][]> = {
 function fieldForRole(
   roleId: string,
   classified: readonly ClassifiedColumn[],
+  used: ReadonlySet<string>,
 ): string | undefined {
   const wanted = ROLE_COLUMN[roleId] ?? [roleId as ClassifiedColumn['role']];
   for (const role of wanted) {
-    const hit = classified.find((entry) => entry.role === role);
+    const hit = classified.find(
+      (entry) => entry.role === role && !used.has(entry.column.name),
+    );
     if (hit) return hit.column.name;
   }
   return undefined;
+}
+
+function unusedName(
+  names: readonly string[],
+  index: number,
+  used: ReadonlySet<string>,
+): string | undefined {
+  const preferred = names[index];
+  if (preferred && !used.has(preferred)) return preferred;
+  return names.find((name) => !used.has(name));
 }
 
 function normalizeFieldNames(

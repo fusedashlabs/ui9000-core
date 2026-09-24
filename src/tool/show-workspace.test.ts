@@ -220,6 +220,61 @@ describe('show_workspace', () => {
     expect(JSON.parse(JSON.stringify(result))).toEqual(result);
   });
 
+  it('does not bind the category field again as series', async () => {
+    const withSeries = catalog.map((entry) =>
+      entry.id === 'bar-chart'
+        ? {
+            ...entry,
+            dataRoles: [
+              { id: 'category', required: true },
+              { id: 'metric', required: true },
+              { id: 'series', required: false },
+            ],
+          }
+        : entry,
+    );
+    const result = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        csv: 'pharmacy,compensated_sum\nA,10\nB,20\n',
+      },
+      context({ catalog: withSeries }),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const fields = (result.spec.binds ?? []).map((item) =>
+      typeof item === 'object' && item && 'field' in item ? item.field : '',
+    );
+    expect(new Set(fields).size).toBe(fields.length);
+    expect(result.spec.binds).toEqual([
+      { role: 'category', field: 'pharmacy' },
+      { role: 'metric', field: 'compensated_sum' },
+    ]);
+  });
+
+  it('refuses a required series role when the only category field is already the x axis', async () => {
+    const withSeries = catalog.map((entry) =>
+      entry.id === 'bar-chart'
+        ? {
+            ...entry,
+            dataRoles: [
+              { id: 'category', required: true },
+              { id: 'series', required: true },
+              { id: 'metric', required: true },
+            ],
+          }
+        : entry,
+    );
+    const result = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        csv: 'pharmacy,compensated_sum\nA,10\nB,20\n',
+      },
+      context({ catalog: withSeries }),
+    );
+    expect(result).toMatchObject({ ok: false, code: 'missing_binds' });
+  });
+
   it('picks different components for four intents without an LLM', async () => {
     const winners = [];
     for (const intent of ['spatial', 'comparison', 'summary', 'form'] as const) {
