@@ -16,6 +16,22 @@ export { VALIDATION_CODES, validateSpec } from './validate/validate-spec.js';
 export type { EngineDecision, DecideInput } from './engine/types.js';
 export { decide } from './engine/decide.js';
 export type {
+  ClassifiedAction,
+  RiskAssessment,
+  RiskEffect,
+  RiskReversibility,
+  RiskScope,
+} from './governance/risk.js';
+export {
+  RISK_EFFECTS,
+  RISK_REVERSIBILITIES,
+  RISK_SCOPES,
+  RISK_TABLE,
+  classifyAction,
+  classifyActions,
+  classifyCatalogActions,
+} from './governance/risk.js';
+export type {
   Trace,
   TraceCandidate,
   TraceOutcome,
