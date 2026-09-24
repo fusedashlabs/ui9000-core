@@ -1,7 +1,8 @@
 import { DATA_PROFILE_KEYS } from '../spec/data-profile.js';
 import type { CatalogEntry, CatalogEvalCase, CatalogRule } from '../spec/engine-catalog.js';
 import { SPEC_ACTION_SET } from '../spec/workspace-spec.js';
-import { closedProfile, stage4TraceDefaults, type Trace } from '../trace/trace.js';
+import { governTrace } from '../governance/govern-trace.js';
+import { closedProfile } from '../trace/trace.js';
 import type { DecideInput, EngineCandidate, EngineDecision, EngineRejection } from './types.js';
 import { evalWhen } from './when.js';
 
@@ -44,15 +45,17 @@ export function decide(input: DecideInput): EngineDecision {
   const winnerEntry = winner ? entries.find((entry) => entry.id === winner.id) : undefined;
   const actions = closedActions(winnerEntry);
 
-  const trace: Trace = {
-    objective: intent,
-    profile,
-    candidates: eligible.map((item) => ({ ...item })),
-    rejections: rejected.map((item) => ({ ...item })),
-    actions,
-    tieBreak,
-    ...stage4TraceDefaults(),
-  };
+  const trace = governTrace(
+    {
+      objective: intent,
+      profile,
+      candidates: eligible.map((item) => ({ ...item })),
+      rejections: rejected.map((item) => ({ ...item })),
+      actions,
+      tieBreak,
+    },
+    winnerEntry?.allowedActions ?? actions,
+  );
 
   return { winner: winner?.id ?? null, eligible, rejected, trace };
 }

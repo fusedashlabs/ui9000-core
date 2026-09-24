@@ -111,7 +111,13 @@
     "resize"
   ],
   "tieBreak": "tied at 12; picked kpi-widget before table by id",
-  "risk": [],
+  "risk": [
+    {
+      "action": "resize",
+      "band": "low"
+    }
+  ],
+  "proposals": [],
   "proposal": null,
   "outcome": "rendered"
 }

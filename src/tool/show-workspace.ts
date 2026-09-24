@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { decide } from '../engine/decide.js';
 import type { EngineCatalog } from '../spec/engine-catalog.js';
 import type { DataProfile } from '../spec/data-profile.js';
@@ -18,6 +20,7 @@ import {
 } from './ingest-table.js';
 import { chartTypeForComponent, workspaceWidgetPayload } from './widget-payload.js';
 import { shapeSpec } from './shape-spec.js';
+import { assertTraceHasNoRows, type Trace, type TraceProposal } from '../trace/trace.js';
 
 export const SHOW_WORKSPACE_NAME = 'show_workspace';
 
@@ -50,6 +53,10 @@ export type ShowWorkspaceOk = {
   datasetId?: string;
   rowCount?: number;
   columns?: string[];
+  trace: Trace;
+  traceId: string;
+  /** Present only when a catalog action is held. A preview, not an execution. */
+  proposal?: TraceProposal;
 };
 
 export type ShowWorkspaceFail = {
@@ -275,11 +282,18 @@ export async function handleShowWorkspace(
   }
 
   const columns = runtime.fields?.filter((name) => name.trim().length > 0);
+  const trace = decision.trace;
+  assertTraceHasNoRows(trace);
+  const proposal = trace.proposal;
+
   return {
     ok: true,
     spec: validated.spec,
     summary: buildSummary(validated.spec, parsed.intent, decision.winner, decision.trace.tieBreak),
     chartType,
+    trace,
+    traceId: randomUUID(),
+    ...(proposal ? { proposal } : {}),
     ...(datasetId ? { datasetId } : {}),
     ...(typeof runtime.profile.rowCount === 'number' ? { rowCount: runtime.profile.rowCount } : {}),
     ...(columns && columns.length > 0 ? { columns: [...columns] } : {}),

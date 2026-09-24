@@ -9,6 +9,7 @@ import {
   TRACE_RISK_BANDS,
   assertTraceHasNoRows,
   closedProfile,
+  stage4TraceDefaults,
   type Trace,
 } from './trace.js';
 
@@ -45,7 +46,7 @@ describe('Trace', () => {
     expect(JSON.parse(JSON.stringify(trace))).toEqual(trace);
     expect(trace.objective).toBe('summary');
     expect(trace.candidates[0]?.id).toBe('kpi-widget');
-    expect(trace.risk).toEqual([]);
+    expect(trace.risk).toEqual([{ action: 'resize', band: 'low' }]);
     expect(trace.proposal).toBeNull();
     expect(trace.outcome).toBe('rendered');
   });
@@ -95,19 +96,33 @@ describe('trace v2 fixture', () => {
 
   it('carries a preview proposal and a held outcome the inspector can render', () => {
     expect(TRACE_V2.proposal).toEqual({
+      id: 'proposal:approve',
       action: 'approve',
       preview: 'Preview approve on approval-bar. This record is not an execution.',
     });
-    expect(TRACE_OUTCOMES).toContain(TRACE_V2.outcome);
+    expect(TRACE_V2.proposal).toEqual(TRACE_V2.proposals[0]);
+    expect(TRACE_V2.proposals.map((item) => item.action)).toEqual(['approve', 'reject']);
     expect(TRACE_V2.outcome).toBe('held');
     assertTraceHasNoRows(TRACE_V2);
     expect(JSON.parse(JSON.stringify(TRACE_V2))).toEqual(TRACE_V2);
   });
 
   it('still accepts a trace whose proposal is null', () => {
-    const rendered: Trace = { ...TRACE_V2, proposal: null, outcome: 'rendered', risk: [] };
+    const rendered: Trace = {
+      ...TRACE_V2,
+      proposal: null,
+      proposals: [],
+      outcome: 'rendered',
+      risk: [],
+    };
     expect(rendered.proposal).toBeNull();
     expect(rendered.outcome).toBe('rendered');
+    expect(stage4TraceDefaults()).toEqual({
+      risk: [],
+      proposals: [],
+      proposal: null,
+      outcome: 'rendered',
+    });
     assertTraceHasNoRows(rendered);
   });
 });

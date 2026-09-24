@@ -110,7 +110,25 @@
     "resize"
   ],
   "tieBreak": "highest score 15 (map-chart)",
-  "risk": [],
+  "risk": [
+    {
+      "action": "hover",
+      "band": "low"
+    },
+    {
+      "action": "pan",
+      "band": "low"
+    },
+    {
+      "action": "zoom",
+      "band": "low"
+    },
+    {
+      "action": "resize",
+      "band": "low"
+    }
+  ],
+  "proposals": [],
   "proposal": null,
   "outcome": "rendered"
 }

@@ -109,7 +109,32 @@
     "reject"
   ],
   "tieBreak": "highest score 12 (approval-bar)",
-  "risk": [],
-  "proposal": null,
-  "outcome": "rendered"
+  "risk": [
+    {
+      "action": "approve",
+      "band": "held"
+    },
+    {
+      "action": "reject",
+      "band": "held"
+    }
+  ],
+  "proposals": [
+    {
+      "id": "proposal:approve",
+      "action": "approve",
+      "preview": "Preview approve. This is not an execution."
+    },
+    {
+      "id": "proposal:reject",
+      "action": "reject",
+      "preview": "Preview reject. This is not an execution."
+    }
+  ],
+  "proposal": {
+    "id": "proposal:approve",
+    "action": "approve",
+    "preview": "Preview approve. This is not an execution."
+  },
+  "outcome": "held"
 }

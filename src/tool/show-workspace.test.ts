@@ -286,6 +286,52 @@ describe('show_workspace', () => {
     expect(form.ok).toBe(true);
     if (form.ok) expect(form.chartType).toBe('customWidget');
   });
+
+  it('holds approval-bar and leaves spatial hover unheld', async () => {
+    const approvalCatalog: EngineCatalog = [
+      ...catalog,
+      {
+        id: 'approval-bar',
+        intents: ['form'],
+        allowedActions: ['approve', 'reject'],
+        dataRoles: [{ id: 'proposal', required: true }],
+        eligibility: [
+          {
+            when: 'profile.hasEntityId',
+            reason: 'Approval bar proposes an action on an entity.',
+          },
+        ],
+      },
+    ];
+    const held = await handleShowWorkspace(
+      { intent: 'form' },
+      context({
+        catalog: approvalCatalog,
+        profile: { ...profile, hasEntityId: true, allControlsLabelled: false, controlCount: 0 },
+        fields: ['claim'],
+      }),
+    );
+    expect(held.ok).toBe(true);
+    if (!held.ok) return;
+    expect(held.spec.component).toBe('approval-bar');
+    expect(held.trace.outcome).toBe('held');
+    expect(held.proposal).toMatchObject({
+      action: 'approve',
+      preview: 'Preview approve. This is not an execution.',
+    });
+    expect(held.proposal?.id).toBe('proposal:approve');
+    expect(held.trace.proposal).toEqual(held.proposal);
+    expect(held.trace.proposals.map((item) => item.action)).toEqual(['approve', 'reject']);
+    expect(JSON.stringify(held.trace)).not.toContain('secret-north');
+
+    const spatial = await handleShowWorkspace({ intent: 'spatial' }, context());
+    expect(spatial.ok).toBe(true);
+    if (!spatial.ok) return;
+    expect(spatial.spec.component).toBe('map-chart');
+    expect(spatial.proposal).toBeUndefined();
+    expect(spatial.trace.outcome).toBe('rendered');
+    expect(spatial.trace.risk.map((item) => item.band)).toEqual(['low', 'low', 'low', 'low']);
+  });
 });
 
 describe('data channel', () => {
