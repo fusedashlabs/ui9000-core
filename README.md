@@ -127,7 +127,7 @@ Yarn rewrites `workspace:*` to the published `@fusedashlabs/widgets` version.
 | `src/interpreter/` | senior | `ui://` receives spec, validates, renders |
 | `src/workspace-server.ts` | senior | `createServer` (tests) + SDK stdio `startWorkspaceServer` |
 | `src/index.ts` | senior | public re-exports |
-| `src/catalog/` | junior | loader over widgets 0.5.0 (`tier: engine` only) |
+| `src/catalog/` | junior | loader over widgets 0.6.0 (`tier: engine` only) |
 | `src/profiler/` | junior | columns → `DataProfile` |
 | `src/server/` | junior | hand-rolled JSON-RPC for in-process tests; MCP SDK + ext-apps for live stdio |
 | `src/migrate/datalink/` | junior | copy from mcp-ui |
