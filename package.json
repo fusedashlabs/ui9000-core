@@ -35,7 +35,7 @@
     "scorecard:check": "tsx scripts/scorecard.ts --check"
   },
   "dependencies": {
-    "@fusedashlabs/widgets": "0.5.0",
+    "@fusedashlabs/widgets": "0.6.0",
     "@modelcontextprotocol/ext-apps": "1.7.5",
     "@modelcontextprotocol/sdk": "1.30.0",
     "tsx": "^4.23.13",
