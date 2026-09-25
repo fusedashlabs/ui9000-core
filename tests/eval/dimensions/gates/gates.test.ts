@@ -24,7 +24,7 @@ describe('eval gates', () => {
     const inspector = JSON.parse(
       readFileSync(
         new URL(
-          '../../../../../ui9000-widgets/src/components/inspector/metadata.json',
+          '../../../../vendor/ui9000-widgets/src/components/inspector/metadata.json',
           import.meta.url,
         ),
         'utf8',
