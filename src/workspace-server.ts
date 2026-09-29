@@ -104,6 +104,7 @@ export function wireWorkspace(options: CreateWorkspaceServerOptions = {}): Wired
   let table =
     options.table ??
     loadWorkspaceTable(options.dataPath ?? env[WORKSPACE_DATA_PATH_ENV], options.root);
+  let selectedColumns: readonly string[] | undefined;
   const catalog = loadWorkspaceCatalog();
   const store = resolveBoundStore(env, options);
   const sign: ShowWorkspaceContext['signDataLink'] = (rows) =>
@@ -126,8 +127,12 @@ export function wireWorkspace(options: CreateWorkspaceServerOptions = {}): Wired
         if (!store) return undefined;
         return datasetFromPayload(store.get(id)?.payload);
       },
+      selectedColumns,
       rememberTable: (next) => {
         table = next;
+      },
+      rememberColumns: (names) => {
+        selectedColumns = names ? [...names] : undefined;
       },
     };
   };

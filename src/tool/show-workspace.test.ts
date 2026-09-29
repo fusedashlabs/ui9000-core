@@ -127,6 +127,19 @@ function context(overrides: Partial<ShowWorkspaceContext> = {}): ShowWorkspaceCo
   };
 }
 
+function columnSession(channel: ReturnType<typeof memoryChannel>) {
+  let selected: readonly string[] | undefined;
+  return () =>
+    context({
+      signDataLink: channel.signDataLink,
+      loadDataset: channel.loadDataset,
+      selectedColumns: selected,
+      rememberColumns: (names) => {
+        selected = names ? [...names] : undefined;
+      },
+    });
+}
+
 function isDrawn(result: ShowWorkspaceResult): result is ShowWorkspaceOk {
   return result.ok === true && result.awaitingUser !== true;
 }
@@ -143,12 +156,25 @@ describe('show_workspace', () => {
     expect(SHOW_WORKSPACE_INPUT_SCHEMA.properties).not.toHaveProperty('data');
     expect(SHOW_WORKSPACE_INPUT_SCHEMA.properties).toHaveProperty('csv');
     expect(SHOW_WORKSPACE_INPUT_SCHEMA.properties).toHaveProperty('datasetId');
+    expect(SHOW_WORKSPACE_INPUT_SCHEMA.properties).toHaveProperty('columns');
     expect(SHOW_WORKSPACE_INPUT_SCHEMA.additionalProperties).toBe(false);
     const bytes = new TextEncoder().encode(SHOW_WORKSPACE_DESCRIPTION).length;
     expect(bytes).toBeGreaterThanOrEqual(2048);
     expect(bytes).toBeLessThanOrEqual(3072);
     expect(SHOW_WORKSPACE_DESCRIPTION.includes('bar-chart')).toBe(false);
     expect(SHOW_WORKSPACE_DESCRIPTION.includes('network-graph')).toBe(false);
+    expect(SHOW_WORKSPACE_DESCRIPTION).toContain('A refusal is not awaitingUser');
+    expect(SHOW_WORKSPACE_DESCRIPTION).toContain('Follow proposedChart when awaitingUser includes it');
+    const step1 = SHOW_WORKSPACE_DESCRIPTION.indexOf('1. Read the table');
+    const step2 = SHOW_WORKSPACE_DESCRIPTION.indexOf('2. Classify the columns');
+    const step3 = SHOW_WORKSPACE_DESCRIPTION.indexOf('3. Compare the chart');
+    const step4 = SHOW_WORKSPACE_DESCRIPTION.indexOf('4. Draw only a chart');
+    const step5 = SHOW_WORKSPACE_DESCRIPTION.indexOf('5. Otherwise return awaitingUser');
+    expect(step1).toBeGreaterThan(-1);
+    expect(step1).toBeLessThan(step2);
+    expect(step2).toBeLessThan(step3);
+    expect(step3).toBeLessThan(step4);
+    expect(step4).toBeLessThan(step5);
   });
 
   it('refuses args that smuggle data rows', async () => {
@@ -546,6 +572,163 @@ describe('show_workspace fail-closed', () => {
     expect(result.spec.component).toBe('histogram-chart');
     expect(result.spec.binds).toEqual([{ role: 'distribution', field: 'score' }]);
     expect(result.chartType).toBe('histogramChart');
+  });
+
+  it('charts message data on the columns the user named', async () => {
+    const channel = memoryChannel();
+    const result = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        requestedChart: 'bar',
+        csv: 'team,score,note\nAlpha,10,ignore\nBeta,4,ignore\n',
+        columns: ['team', 'score'],
+      },
+      context({
+        signDataLink: channel.signDataLink,
+        loadDataset: channel.loadDataset,
+      }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('bar-chart');
+    expect(result.columns).toEqual(['team', 'score']);
+    expect(result.spec.binds).toEqual([
+      { role: 'category', field: 'team' },
+      { role: 'metric', field: 'score' },
+    ]);
+    expect(JSON.stringify(result)).not.toContain('ignore');
+    expect(channel.loadDataset(result.datasetId ?? '')?.columns).toEqual(['team', 'score', 'note']);
+    const widget = await readViaHandle(result.spec, channel.readDataLink);
+    expect(JSON.stringify(widget)).not.toContain('ignore');
+    expect(JSON.stringify(widget)).not.toContain('note');
+  });
+
+  it('keeps named columns when the user confirms with datasetId alone', async () => {
+    const channel = memoryChannel();
+    const session = columnSession(channel);
+    const first = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        requestedChart: 'pie',
+        csv: 'team,score,note\nAlpha,10,ignore\nBeta,4,ignore\n',
+        columns: ['team', 'score'],
+      },
+      session(),
+    );
+    expect(first.ok).toBe(true);
+    if (!first.ok || !first.awaitingUser) return;
+    expect(first.columns).toEqual(['team', 'score']);
+    expect(first.proposedChart).toBe('bar-chart');
+
+    const second = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        requestedChart: first.proposedChart,
+        confirm: true,
+        datasetId: first.datasetId,
+      },
+      session(),
+    );
+    expect(isDrawn(second)).toBe(true);
+    if (!isDrawn(second)) return;
+    expect(second.columns).toEqual(['team', 'score']);
+    expect(second.spec.binds).toEqual([
+      { role: 'category', field: 'team' },
+      { role: 'metric', field: 'score' },
+    ]);
+    const widget = await readViaHandle(second.spec, channel.readDataLink);
+    expect(JSON.stringify(widget)).not.toContain('ignore');
+    expect(JSON.stringify(second)).not.toContain('ignore');
+  });
+
+  it('uses the whole table when a new csv omits columns', async () => {
+    const channel = memoryChannel();
+    const session = columnSession(channel);
+    await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        csv: 'team,score,note\nAlpha,10,x\nBeta,4,y\n',
+        columns: ['team', 'score'],
+      },
+      session(),
+    );
+    const next = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        csv: 'team,score,note\nAlpha,10,x\nBeta,4,y\n',
+      },
+      session(),
+    );
+    expect(isDrawn(next)).toBe(true);
+    if (!isDrawn(next)) return;
+    expect(next.columns).toEqual(['team', 'score', 'note']);
+  });
+
+  it('limits an already loaded table to the named columns', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'comparison', requestedChart: 'bar', columns: ['team', 'score'] },
+      context({
+        payload: [
+          { team: 'Alpha', score: 10, note: 'secret-cell' },
+          { team: 'Beta', score: 4, note: 'other' },
+        ],
+      }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.columns).toEqual(['team', 'score']);
+    expect(result.spec.binds).toEqual([
+      { role: 'category', field: 'team' },
+      { role: 'metric', field: 'score' },
+    ]);
+    expect(JSON.stringify(result)).not.toContain('secret-cell');
+  });
+
+  it('refuses a column the table does not have', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        csv: 'region,sales\nNorth,10\n',
+        columns: ['region', 'missing'],
+      },
+      context(),
+    );
+    expect(result).toMatchObject({ ok: false, code: 'invalid_args' });
+    expect(JSON.stringify(result)).not.toContain('North');
+  });
+
+  it('refuses a name that matches two headers', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        csv: 'Team,team,score\nA,B,1\nC,D,2\n',
+        columns: ['TEAM'],
+      },
+      context(),
+    );
+    expect(result).toMatchObject({ ok: false, code: 'invalid_args' });
+    if (result.ok) return;
+    expect(result.reason).toContain('Team');
+    expect(result.reason).toContain('team');
+  });
+
+  it('keeps the exact header when another header differs only by case', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        requestedChart: 'bar',
+        csv: 'Team,team,score\nA,B,1\nC,D,2\n',
+        columns: ['Team', 'score'],
+      },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.columns).toEqual(['Team', 'score']);
+    expect(result.spec.binds).toEqual([
+      { role: 'category', field: 'Team' },
+      { role: 'metric', field: 'score' },
+    ]);
   });
 
   it('asks before drawing a chart that does not fit the columns', async () => {

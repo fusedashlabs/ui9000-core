@@ -16,6 +16,7 @@ import {
   idFromDataUrl,
   INGEST_KEYS,
   resolveWorkspaceIngest,
+  tableFromRecords,
   type IngestOptions,
   type StoredDataset,
 } from './ingest-table.js';
@@ -114,6 +115,13 @@ export type ShowWorkspaceContext = {
   loadDataset?: (id: string) => StoredDataset | undefined | Promise<StoredDataset | undefined>;
   /** Stdio session: keep the last ingested table for later `{ intent }` calls. */
   rememberTable?: (table: Table) => void;
+  /**
+   * Column names from the previous call on this session. Reapplied when the
+   * caller reuses the table and omits `columns`. A new csv/url/path without
+   * `columns` clears it.
+   */
+  selectedColumns?: readonly string[];
+  rememberColumns?: (names: readonly string[] | undefined) => void;
 };
 
 export const SHOW_WORKSPACE_INPUT_SCHEMA = {
@@ -147,15 +155,21 @@ export const SHOW_WORKSPACE_INPUT_SCHEMA = {
       description:
         'Id returned by an earlier show_workspace on this table. Use instead of csv/url/path.',
     },
+    columns: {
+      type: 'array',
+      items: { type: 'string' },
+      description:
+        'Step 1. Column names the user asked to chart. Omit to use the whole table. Names only, not cell values.',
+    },
     requestedChart: {
       type: 'string',
       description:
-        'The chart the user asked for: their words, or an id from a previous reply. Omit when they did not name a chart.',
+        'Step 3. The chart the user asked for: their words, or an id from a previous reply. Omit when they did not name a chart.',
     },
     confirm: {
       type: 'boolean',
       description:
-        'True only after the user accepts proposedChart. Pass that id as requestedChart. Confirming an unfit chart still does not draw it.',
+        'Step 5. True only after the user accepts proposedChart. Pass that id as requestedChart. An unfit chart still does not draw.',
     },
   },
 } as const;
@@ -165,47 +179,43 @@ export const SHOW_WORKSPACE_INPUT_SCHEMA = {
  * The model may send a CSV source; it must not send chart `data[]` rows.
  */
 export const SHOW_WORKSPACE_DESCRIPTION = [
-  'show_workspace renders one workspace for a tabular dataset. It is the only visualization tool.',
-  'You do not choose a chart. Do not call generate_*.',
-  'Data is classified before a named chart. Pass requestedChart when the user named one.',
-  'awaitingUser with proposedChart: show message and wait. After they accept, call again with that id and confirm true.',
-  'awaitingUser without proposedChart: show message and stop. Do not call again.',
+  'show_workspace is the only visualization tool. You do not choose a chart. Do not call generate_*.',
+  'The server runs these steps in order on every call.',
+  '',
+  '1. Read the table. Pass one source: csv with the header, url, path, or datasetId.',
+  'If the user typed the data in the message, put that table in csv. A chart name is optional.',
+  'If they named columns, pass columns as those header names. The chart uses only those columns until a new csv omits them.',
+  'url and path are local/dev only. Hosted/production accepts csv or datasetId.',
+  'Omit the source to reuse the last table, else the demo CSV. Keep datasetId for the next call.',
+  'Never pass data, rows, points, or series. Do not echo table cells after the tool returns.',
+  '',
+  '2. Classify the columns into a data family before any chart is considered.',
+  'intent is required and closed. It is the question, not a chart name.',
+  '',
+  '3. Compare the chart the user named. Pass it as requestedChart (their words, or an id from a previous reply).',
+  'Omit requestedChart when they did not name a chart.',
+  '',
+  '4. Draw only a chart that fits that family and that this server can draw. It becomes spec.component.',
+  'If they named none, decide() chooses from intent.',
+  'Output is { spec, summary, datasetId, rowCount, columns }. spec.dataUrl is a signed handle. No row objects.',
+  '',
+  '5. Otherwise return awaitingUser and do not draw. Show message, then:',
+  'proposedChart present — wait. After they accept, call again with requestedChart set to that id, confirm true, and the same datasetId. Named columns stay applied.',
+  'proposedChart absent — stop. Do not call again.',
   'confirm true on an unfit chart still does not draw it.',
   '',
-  'intent is required. Optional requestedChart, confirm, and one source: csv, url, path, or datasetId.',
-  'csv — paste the user table including the header (chat attachments / pasted CSV).',
-  'url — http(s) CSV, local/dev only. path — local CSV file, local/dev only.',
-  'Hosted/production accepts csv or datasetId only. url and path are rejected there.',
-  'datasetId — reuse a table from an earlier call on this server. Keep that id.',
-  'Never pass data, rows, points, or series arrays. Those keys are refused.',
-  'If the user gave a table this turn, pass csv (or path/url). Omit the source to reuse',
-  'the last loaded table, else the shipped demo CSV. Do not echo table cells after the tool returns.',
-  '',
-  'intent is a closed enum. Use exactly one of the following values.',
-  '',
-  'spatial — geography: points, regions, choropleth, lat/lng, country, state, city.',
-  'Use spatial when the question is where, which region, which country, or a map join.',
-  'The engine may pick a map only when the profile has geo fields and a map token.',
-  '',
-  'comparison — groups versus a metric: category cardinality, rankings, distributions.',
-  'Use comparison when the question is which group is highest, lowest, or how values spread.',
-  '',
-  'summary — headlines and KPIs for a small set of numeric facts.',
-  'Use summary when the user wants a snapshot, total, count, or a few headline numbers.',
-  '',
-  'form — labelled controls the user should fill in: text, number, select, dates, submit.',
-  'Use form when the user must enter or confirm values, not when they only want a chart.',
-  '',
-  'evidence — claims, sources, entity detail, timelines of supporting facts.',
-  'graph — nodes and links, how things connect, not where they sit on a map.',
-  '',
-  'Output is { spec, summary, datasetId, rowCount, columns }. No row objects.',
-  'A named chart that fits and can be drawn becomes spec.component. Otherwise decide() chooses it.',
-  'spec.dataUrl is a signed widget handle.',
-  'Keep datasetId and pass it with the next intent instead of pasting csv again.',
+  'A refusal is not awaitingUser. Retry a refusal only with a different intent or source.',
+  'Do not invent a 7th intent. Follow proposedChart when awaitingUser includes it.',
   'If intent is missing or not in the enum, the tool refuses.',
   'If no catalog component is eligible, the tool refuses with a written reason.',
-  'Retry only with a different intent or a different source. Do not invent a 7th intent.',
+  '',
+  'intent values:',
+  'spatial — where, which region, country, city, lat/lng, choropleth. A map needs geo fields and a map token.',
+  'comparison — which group is highest or lowest, or how values spread.',
+  'summary — a snapshot, total, count, or a few headline numbers.',
+  'form — the user must enter or confirm labelled values, not only view a chart.',
+  'evidence — claims, sources, entity detail, timelines of supporting facts.',
+  'graph — nodes and links, how things connect, not where they sit on a map.',
 ].join('\n');
 
 export const SHOW_WORKSPACE_TOOL = {
@@ -247,8 +257,10 @@ export async function handleShowWorkspace(
 
   let runtime = context;
   let datasetId: string | undefined;
+  let tableForChart: Table | undefined;
   if (ingested.ok && !('skip' in ingested)) {
     context.rememberTable?.(ingested.table);
+    tableForChart = ingested.table;
     runtime = contextFromTable(ingested.table, context);
     datasetId = ingested.datasetId;
     if (!datasetId && context.signDataLink) {
@@ -261,6 +273,19 @@ export async function handleShowWorkspace(
         datasetId = undefined;
       }
     }
+  }
+
+  const selection = columnSelection(parsed, context);
+  if (selection.clear) context.rememberColumns?.(undefined);
+  if (selection.names) {
+    const source = tableForChart ?? tableFromPayload(runtime.payload);
+    if (!source) {
+      return fail('invalid_args', 'columns need a table. Pass the message data as csv, or a datasetId.');
+    }
+    const selected = selectColumns(source, selection.names);
+    if (!selected.ok) return selected;
+    runtime = contextFromTable(selected.table, runtime);
+    context.rememberColumns?.(selected.table.columns.map((column) => column.name));
   }
 
   const discussion = parsed.requestedChart
@@ -404,7 +429,7 @@ function listedColumns(fields: readonly string[] | undefined): string[] | undefi
 
 function parseArgs(
   args: unknown,
-): { ok: true; intent: Intent; requestedChart?: string; confirm: boolean; raw: Record<string, unknown> } | ShowWorkspaceFail {
+): { ok: true; intent: Intent; requestedChart?: string; columns?: string[]; confirm: boolean; raw: Record<string, unknown> } | ShowWorkspaceFail {
   if (args === null || typeof args !== 'object' || Array.isArray(args)) {
     return fail('invalid_args', 'show_workspace arguments must be an object.');
   }
@@ -415,12 +440,12 @@ function parseArgs(
       'show_workspace refuses dataset rows in arguments. Pass csv, url, path, or datasetId instead.',
     );
   }
-  const allowed = new Set<string>(['intent', 'requestedChart', 'confirm', ...INGEST_KEYS]);
+  const allowed = new Set<string>(['intent', 'requestedChart', 'confirm', 'columns', ...INGEST_KEYS]);
   const keys = Object.keys(raw);
   if (keys.some((key) => !allowed.has(key))) {
     return fail(
       'invalid_args',
-      'show_workspace accepts intent, optional requestedChart and confirm, plus csv, url, path, or datasetId.',
+      'show_workspace accepts intent, optional requestedChart, columns, and confirm, plus csv, url, path, or datasetId.',
     );
   }
   for (const key of INGEST_KEYS) {
@@ -441,13 +466,104 @@ function parseArgs(
     return fail('invalid_args', 'confirm must be a boolean.');
   }
   const requestedChart = typeof raw.requestedChart === 'string' ? raw.requestedChart.trim() : '';
+  const columns = parseColumns(raw.columns);
+  if (!columns.ok) return columns;
   return {
     ok: true,
     intent: raw.intent,
     confirm: raw.confirm === true,
     ...(requestedChart ? { requestedChart } : {}),
+    ...(columns.names ? { columns: columns.names } : {}),
     raw,
   };
+}
+
+function parseColumns(value: unknown): { ok: true; names?: string[] } | ShowWorkspaceFail {
+  if (value === undefined) return { ok: true };
+  if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) {
+    return fail('invalid_args', 'columns must be a list of column names, not cell values.');
+  }
+  const names: string[] = [];
+  for (const item of value) {
+    const name = item.trim();
+    if (!name) return fail('invalid_args', 'columns must be a list of column names, not cell values.');
+    if (!names.includes(name)) names.push(name);
+  }
+  if (names.length === 0) {
+    return fail('invalid_args', 'columns must list at least one column name.');
+  }
+  return { ok: true, names };
+}
+
+function columnSelection(
+  parsed: { columns?: readonly string[]; raw: Record<string, unknown> },
+  context: ShowWorkspaceContext,
+): { names?: readonly string[]; clear: boolean } {
+  if (parsed.columns) return { names: parsed.columns, clear: false };
+  if (freshTableSource(parsed.raw)) return { clear: true };
+  if (context.selectedColumns && context.selectedColumns.length > 0) {
+    return { names: context.selectedColumns, clear: false };
+  }
+  return { clear: false };
+}
+
+function freshTableSource(raw: Record<string, unknown>): boolean {
+  return (['csv', 'url', 'path'] as const).some((key) => {
+    const value = raw[key];
+    return typeof value === 'string' && value.trim().length > 0;
+  });
+}
+
+function selectColumns(table: Table, names: readonly string[]): { ok: true; table: Table } | ShowWorkspaceFail {
+  const missing: string[] = [];
+  const ambiguous: string[] = [];
+  const columns: Table['columns'][number][] = [];
+  const seen = new Set<string>();
+  for (const name of names) {
+    const hit = matchColumn(table, name);
+    if (hit === 'missing') {
+      missing.push(name);
+      continue;
+    }
+    if (hit === 'ambiguous') {
+      const headers = table.columns
+        .filter((column) => column.name.toLowerCase() === name.toLowerCase())
+        .map((column) => column.name);
+      ambiguous.push(`${name} (${headers.join(', ')})`);
+      continue;
+    }
+    if (seen.has(hit.name)) continue;
+    seen.add(hit.name);
+    columns.push(hit);
+  }
+  if (ambiguous.length > 0) {
+    return fail(
+      'invalid_args',
+      `columns match more than one header: ${ambiguous.join(', ')}. Pass the exact header.`,
+    );
+  }
+  if (missing.length > 0) {
+    return fail('invalid_args', `columns not in the table: ${missing.join(', ')}.`);
+  }
+  return { ok: true, table: { columns } };
+}
+
+function matchColumn(table: Table, name: string): Table['columns'][number] | 'missing' | 'ambiguous' {
+  const exact = table.columns.find((column) => column.name === name);
+  if (exact) return exact;
+  const loose = table.columns.filter((column) => column.name.toLowerCase() === name.toLowerCase());
+  if (loose.length === 1) return loose[0]!;
+  if (loose.length > 1) return 'ambiguous';
+  return 'missing';
+}
+
+function tableFromPayload(payload: unknown): Table | undefined {
+  if (!Array.isArray(payload) || payload.length === 0) return undefined;
+  const records = payload.filter(
+    (row): row is Record<string, unknown> => !!row && typeof row === 'object' && !Array.isArray(row),
+  );
+  if (records.length !== payload.length) return undefined;
+  return tableFromRecords(records);
 }
 
 function isIntent(value: string): value is Intent {

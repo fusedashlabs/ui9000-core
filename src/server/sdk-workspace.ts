@@ -35,6 +35,7 @@ const ShowWorkspaceArgsSchema = z
     datasetId: z.string().optional(),
     requestedChart: z.string().optional(),
     confirm: z.boolean().optional(),
+    columns: z.array(z.string()).optional(),
   })
   .strict();
 
