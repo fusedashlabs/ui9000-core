@@ -1,8 +1,8 @@
 {
   "name": "@fusedashlabs/ui9000-workspace",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
-  "description": "UI9000 workspace MCP — one tool, show_workspace. For Cursor and Claude. FuseDash client keeps using mcp-ui.",
+  "description": "UI9000 workspace MCP — one tool, show_workspace. For Cursor and Claude. Set TYPESAFE_API_KEY to let Jev choose the chart. FuseDash client keeps using mcp-ui.",
   "license": "Apache-2.0",
   "bin": {
     "ui9000-workspace": "./bin/ui9000-workspace-server.mjs",

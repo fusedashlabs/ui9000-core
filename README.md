@@ -11,7 +11,9 @@ Stage 3 workspace MCP: one tool, `show_workspace`. The model sends a closed `int
 
 ## Install in Cursor or Claude
 
-Node.js 22+. No env required. Chart JSON is POSTed to `https://mcp.ui9000.com/v1/data-links`.
+Node.js 22+. Chart JSON is POSTed to `https://mcp.ui9000.com/v1/data-links`.
+
+Jev is optional. Without `TYPESAFE_API_KEY` the server still draws a chart. With it, Jev chooses when the user did not name one. Put the key in the MCP `env` block below. Do not commit it.
 
 ### Cursor
 
@@ -22,7 +24,10 @@ Replace `@fusedashlabs/ui9000-mcp` in `~/.cursor/mcp.json` (leave FuseDash's mcp
   "mcpServers": {
     "UI9000-Workspace": {
       "command": "npx",
-      "args": ["-y", "@fusedashlabs/ui9000-workspace"]
+      "args": ["-y", "@fusedashlabs/ui9000-workspace"],
+      "env": {
+        "TYPESAFE_API_KEY": "your-typesafe-key"
+      }
     }
   }
 }
@@ -57,7 +62,10 @@ Edit `claude_desktop_config.json`:
   "mcpServers": {
     "UI9000-Workspace": {
       "command": "npx",
-      "args": ["-y", "@fusedashlabs/ui9000-workspace"]
+      "args": ["-y", "@fusedashlabs/ui9000-workspace"],
+      "env": {
+        "TYPESAFE_API_KEY": "your-typesafe-key"
+      }
     }
   }
 }
@@ -97,6 +105,7 @@ None required to start. Overrides:
 | `MAX_PAYLOAD_SIZE_MB` | `1.5` | Cap on serialized payload bytes. |
 | `STORAGE_DIR` | `<packages/core>/.data` | Local TTL store (also a cache of hosted ids). |
 | `WORKSPACE_DATA_PATH` | shipped demo CSV (`regional-incidents`) | Fallback table when the tool call has no `csv` / `url` / `path` / `datasetId`. |
+| `TYPESAFE_API_KEY` | unset | When set, Jev chooses the chart if the user named none. Omit it and the server draws without Jev. |
 
 `tools/list` is length 1. Pass a table with `csv`, `url`, `path`, or `datasetId` — never `data[]` / `rows`. Dataset rows never appear in the MCP result or the description.
 
