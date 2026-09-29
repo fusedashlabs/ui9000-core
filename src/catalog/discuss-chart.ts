@@ -18,11 +18,12 @@ export type ChartDiscussion = {
   dataFamilies: string[];
   /** Resolved widgets id, when the request named a known chart. */
   requestedChart?: string;
-  /** Family main the columns support. Absent when no family fits. */
+  /**
+   * Chart the user can accept on the next call. Absent when nothing drawable
+   * is on offer — the model must stop, not retry.
+   */
   proposedChart?: string;
   proposedWhy: string;
-  /** A catalog chart we can draw, when the proposal itself is not drawable. */
-  drawableChart?: string;
   /** Set only when the user's chart should be rendered now. */
   drawId?: string;
   awaitingUser: boolean;
@@ -88,7 +89,6 @@ export function discussChart(input: {
     }
     return {
       ...base,
-      proposedChart: resolved,
       proposedWhy: chartWhy,
       awaitingUser: true,
       chartWhy: '',
@@ -96,22 +96,25 @@ export function discussChart(input: {
         `You selected ${resolved} (${chartRole(resolved)?.role ?? 'this chart'}).`,
         `It is in the ${judged.family.id} group for this data, so it stays ${resolved}.`,
         'This workspace cannot draw it yet.',
-        'I am not switching it to another chart.',
+        'I am not switching it to another chart. Do not call again.',
       ].join(' '),
     };
   }
 
+  const askId =
+    proposal && canDraw(proposal.main, input.profile, input.catalogIds) ? proposal.main : drawable;
+
   return {
     ...base,
-    ...(proposal ? { proposedChart: proposal.main } : {}),
+    ...(askId ? { proposedChart: askId } : {}),
     proposedWhy,
-    ...(drawable && drawable !== proposal?.main ? { drawableChart: drawable } : {}),
     awaitingUser: true,
     chartWhy: '',
     message: awaitingMessage({
       raw: input.requestedChart,
       resolved,
-      proposal,
+      proposedChart: askId,
+      ideal: proposal?.main,
       proposedWhy,
       confirm: input.confirm,
     }),
@@ -241,7 +244,8 @@ function whyChart(id: string): string {
 function awaitingMessage(input: {
   raw: string;
   resolved: string | undefined;
-  proposal: ChartFamily | undefined;
+  proposedChart: string | undefined;
+  ideal: string | undefined;
   proposedWhy: string;
   confirm: boolean;
 }): string {
@@ -251,8 +255,13 @@ function awaitingMessage(input: {
     : `You selected "${input.raw.trim()}", which is not a chart I know.`;
 
   const held = input.confirm ? 'You confirmed it, and it still does not fit.' : 'It does not fit this data well.';
-  const ask = input.proposal ? `Do you want ${input.proposal.main}?` : 'Tell me which chart you want.';
-  return [selected, held, input.proposedWhy, 'I am not choosing it for you.', ask].join(' ');
+  const offer =
+    input.proposedChart && input.ideal && input.proposedChart !== input.ideal
+      ? `${input.proposedWhy} This workspace can draw ${input.proposedChart}. Do you want ${input.proposedChart}?`
+      : input.proposedChart
+        ? `${input.proposedWhy} I am not choosing it for you. Do you want ${input.proposedChart}?`
+        : `${input.proposedWhy} This workspace cannot draw a chart for this table. Do not call again.`;
+  return [selected, held, offer].join(' ');
 }
 
 function buildLooseNames(): Map<string, string> {

@@ -62,4 +62,19 @@ describe('discussChart', () => {
     expect(discussion.proposedChart).toBe('line-chart');
     expect(discussion.proposedChart).not.toBe('bar-chart');
   });
+
+  it('does not offer a retry when the in-group chart cannot be drawn', () => {
+    const discussion = discussChart({
+      profile: groups,
+      requestedChart: 'line',
+      confirm: true,
+      intent: 'comparison',
+      catalogIds: new Set(['bar-chart', 'map-chart', 'kpi-widget']),
+    });
+    expect(discussion.awaitingUser).toBe(true);
+    expect(discussion.drawId).toBeUndefined();
+    expect(discussion.proposedChart).toBeUndefined();
+    expect(discussion.message).toContain('stays line-chart');
+    expect(discussion.message).toContain('Do not call again');
+  });
 });

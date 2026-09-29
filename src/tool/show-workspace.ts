@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { decide } from '../engine/decide.js';
+import { governTrace } from '../governance/govern-trace.js';
 import type { EngineCatalog } from '../spec/engine-catalog.js';
 import type { DataProfile } from '../spec/data-profile.js';
 import { INTENTS, type Intent } from '../spec/intent.js';
@@ -20,7 +21,7 @@ import {
 } from './ingest-table.js';
 import { chartTypeForComponent, workspaceWidgetPayload } from './widget-payload.js';
 import { shapeSpec } from './shape-spec.js';
-import { assertTraceHasNoRows, type Trace, type TraceProposal } from '../trace/trace.js';
+import { assertTraceHasNoRows, closedProfile, type Trace, type TraceProposal } from '../trace/trace.js';
 import { chartWhyFor, discussChart } from '../catalog/discuss-chart.js';
 
 export const SHOW_WORKSPACE_NAME = 'show_workspace';
@@ -81,8 +82,6 @@ export type ShowWorkspaceAwaiting = {
   proposedChart?: string;
   proposedWhy: string;
   requestedChart?: string;
-  /** Catalog chart we can draw, when `proposedChart` itself is not drawable. */
-  drawableChart?: string;
   datasetId?: string;
   rowCount?: number;
   columns?: string[];
@@ -166,13 +165,12 @@ export const SHOW_WORKSPACE_INPUT_SCHEMA = {
  * The model may send a CSV source; it must not send chart `data[]` rows.
  */
 export const SHOW_WORKSPACE_DESCRIPTION = [
-  'show_workspace renders one workspace for a tabular dataset.',
-  'Call this tool once per user question. It is the only visualization tool.',
+  'show_workspace renders one workspace for a tabular dataset. It is the only visualization tool.',
   'You do not choose a chart. Do not call generate_*.',
-  'Data is classified before any chart. If the user named one, pass requestedChart.',
-  'When the result has awaitingUser, show message and wait. Do not draw. Do not call again until they answer.',
-  'If they accept the proposal, call again with requestedChart set to proposedChart and confirm true.',
-  'confirm true with the same unfit chart still does not draw it.',
+  'Data is classified before a named chart. Pass requestedChart when the user named one.',
+  'awaitingUser with proposedChart: show message and wait. After they accept, call again with that id and confirm true.',
+  'awaitingUser without proposedChart: show message and stop. Do not call again.',
+  'confirm true on an unfit chart still does not draw it.',
   '',
   'intent is required. Optional requestedChart, confirm, and one source: csv, url, path, or datasetId.',
   'csv — paste the user table including the header (chat attachments / pasted CSV).',
@@ -202,7 +200,8 @@ export const SHOW_WORKSPACE_DESCRIPTION = [
   'graph — nodes and links, how things connect, not where they sit on a map.',
   '',
   'Output is { spec, summary, datasetId, rowCount, columns }. No row objects.',
-  'spec.component is chosen by decide() on the server. spec.dataUrl is a signed widget handle.',
+  'A named chart that fits and can be drawn becomes spec.component. Otherwise decide() chooses it.',
+  'spec.dataUrl is a signed widget handle.',
   'Keep datasetId and pass it with the next intent instead of pasting csv again.',
   'If intent is missing or not in the enum, the tool refuses.',
   'If no catalog component is eligible, the tool refuses with a written reason.',
@@ -287,7 +286,6 @@ export async function handleShowWorkspace(
       proposedWhy: discussion.proposedWhy,
       ...(discussion.proposedChart ? { proposedChart: discussion.proposedChart } : {}),
       ...(discussion.requestedChart ? { requestedChart: discussion.requestedChart } : {}),
-      ...(discussion.drawableChart ? { drawableChart: discussion.drawableChart } : {}),
       ...(datasetId ? { datasetId } : {}),
       ...(typeof runtime.profile.rowCount === 'number' ? { rowCount: runtime.profile.rowCount } : {}),
       ...(columns ? { columns } : {}),
@@ -353,17 +351,27 @@ export async function handleShowWorkspace(
   }
 
   const columns = listedColumns(runtime.fields);
+  const chartWhy = discussion?.chartWhy || chartWhyFor(componentId) || '';
   const trace = discussion?.drawId
-    ? { ...decision.trace, tieBreak: discussion.chartWhy || decision.trace.tieBreak }
+    ? governTrace(
+        {
+          objective: parsed.intent,
+          profile: closedProfile(runtime.profile),
+          candidates: [{ id: componentId, score: 1, reasons: [chartWhy] }],
+          rejections: decision.trace.rejections.filter((item) => item.id !== componentId),
+          actions: allowedActions,
+          tieBreak: chartWhy,
+        },
+        winner?.allowedActions ?? allowedActions,
+      )
     : decision.trace;
   assertTraceHasNoRows(trace);
   const proposal = trace.proposal;
-  const chartWhy = discussion?.chartWhy || chartWhyFor(componentId);
 
   return {
     ok: true,
     spec: validated.spec,
-    summary: buildSummary(validated.spec, parsed.intent, componentId, decision.trace.tieBreak),
+    summary: buildSummary(validated.spec, parsed.intent, componentId, trace.tieBreak),
     ...(chartWhy ? { chartWhy } : {}),
     chartType,
     trace,

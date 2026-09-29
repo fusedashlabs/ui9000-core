@@ -582,18 +582,32 @@ describe('show_workspace fail-closed', () => {
     if (!isDrawn(result)) return;
     expect(result.spec.component).toBe('bar-chart');
     expect(result.chartWhy).toContain('discrete groups');
+    expect(result.trace.candidates[0]?.id).toBe('bar-chart');
+    expect(result.trace.tieBreak).toBe(result.chartWhy);
+    expect(result.summary).toContain('bar-chart');
+    expect(result.trace.candidates.map((item) => item.id)).not.toContain('kpi-widget');
+    expect(result.proposal).toBeUndefined();
   });
 
-  it('keeps a comparison-group chart instead of switching it to bar', async () => {
-    const result = await handleShowWorkspace(
+  it('keeps a comparison-group chart and does not ask for another call', async () => {
+    const first = await handleShowWorkspace(
       { intent: 'comparison', requestedChart: 'lollipop' },
       context(),
     );
-    expect(result.ok).toBe(true);
-    if (!result.ok || !result.awaitingUser) return;
-    expect(result.requestedChart).toBe('lollipop');
-    expect(result.proposedChart).toBe('lollipop');
-    expect(result.message).toContain('stays lollipop');
-    expect(result.message).not.toContain('Do you want bar-chart?');
+    expect(first.ok).toBe(true);
+    if (!first.ok || !first.awaitingUser) return;
+    expect(first.requestedChart).toBe('lollipop');
+    expect(first.proposedChart).toBeUndefined();
+    expect(first.message).toContain('stays lollipop');
+    expect(first.message).toContain('Do not call again');
+
+    const again = await handleShowWorkspace(
+      { intent: 'comparison', requestedChart: 'lollipop', confirm: true },
+      context(),
+    );
+    expect(again.ok).toBe(true);
+    if (!again.ok || !again.awaitingUser) return;
+    expect(again.proposedChart).toBeUndefined();
+    expect(again.message).toContain('Do not call again');
   });
 });
