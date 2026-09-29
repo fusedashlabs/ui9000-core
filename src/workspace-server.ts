@@ -10,6 +10,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { loadWorkspaceCatalog } from './catalog/load-workspace.js';
+import { askJev } from './jev/ask.js';
 import {
   DEFAULT_BASE_URL,
   enableRemotePersist,
@@ -68,6 +69,35 @@ export function applyWorkspaceHostDefaults(env: NodeJS.ProcessEnv): NodeJS.Proce
   return next;
 }
 
+/** Local `.env` only, and only for a real process start. Does not override a key already set. */
+export function readDotEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const file = fileURLToPath(new URL('../.env', import.meta.url));
+  let text: string;
+  try {
+    text = fs.readFileSync(file, 'utf8');
+  } catch {
+    return env;
+  }
+  const next: NodeJS.ProcessEnv = { ...env };
+  for (const line of text.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq <= 0) continue;
+    const name = trimmed.slice(0, eq).trim();
+    if (next[name]) continue;
+    let value = trimmed.slice(eq + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    next[name] = value;
+  }
+  return next;
+}
+
 /** `packages/core` — relative `WORKSPACE_DATA_PATH` resolves here, not cwd. */
 function packageRoot(): string {
   return fileURLToPath(new URL('../', import.meta.url));
@@ -110,6 +140,7 @@ export function wireWorkspace(options: CreateWorkspaceServerOptions = {}): Wired
   const sign: ShowWorkspaceContext['signDataLink'] = (rows) =>
     signDataLink(rows, store !== undefined ? { env, store } : { env });
 
+  const apiKey = env.TYPESAFE_API_KEY?.trim() ?? '';
   const makeContext = (): ShowWorkspaceContext => {
     const profile = profileColumns(table, { hasMapToken: true });
     const payload = tableToRows(table);
@@ -121,6 +152,7 @@ export function wireWorkspace(options: CreateWorkspaceServerOptions = {}): Wired
       payload,
       fields,
       classified,
+      ...(apiKey ? { askJev: (request) => askJev(request, apiKey) } : {}),
       signDataLink: sign,
       allowRemoteSources: !isProductionLikeEnv(env),
       loadDataset: (id) => {
@@ -178,7 +210,7 @@ export async function startWorkspaceServer(
   streams?: StdioStreams,
   options?: CreateWorkspaceServerOptions,
 ): Promise<Disconnect> {
-  const env = applyWorkspaceHostDefaults(options?.env ?? process.env);
+  const env = applyWorkspaceHostDefaults(options?.env ?? readDotEnv(process.env));
   const dataPath =
     options?.table || options?.dataPath
       ? options.dataPath

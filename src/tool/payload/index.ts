@@ -1,9 +1,11 @@
+import { chartRole } from '../../catalog/chart-roles.js';
 import type { WorkspaceSpec } from '../../spec/workspace-spec.js';
 import { bindFieldMap } from './bind-fields.js';
 import { barChartPayload } from './bar-chart.js';
 import { chartTypeForComponent } from './chart-type.js';
 import { histogramChartPayload } from './histogram-chart.js';
 import { kpiWidgetPayload } from './kpi-widget.js';
+import { hostedChartPayload } from './hosted-chart.js';
 import { statusGaugeWidgetPayload } from './status-gauge-widget.js';
 import { mapChartPayload } from './map-chart.js';
 import { networkGraphPayload } from './network-graph.js';
@@ -31,6 +33,13 @@ const PAYLOAD_BY_COMPONENT: Record<string, PayloadBuilder> = {
   },
 };
 
+function builderFor(component: string): PayloadBuilder | undefined {
+  const known = PAYLOAD_BY_COMPONENT[component];
+  if (known) return known;
+  if (!chartRole(component)) return undefined;
+  return (chartType, fields, rows) => hostedChartPayload(component, chartType, fields, rows);
+}
+
 export function workspaceWidgetPayload(
   component: string,
   chartType: string | undefined,
@@ -39,7 +48,7 @@ export function workspaceWidgetPayload(
 ): unknown {
   const rows = asRowObjects(payload);
   if (!rows) return payload;
-  const build = PAYLOAD_BY_COMPONENT[component];
+  const build = builderFor(component);
   if (!build) return payload;
   const built = build(chartType ?? chartTypeForComponent(component), bindFieldMap(binds), rows);
   return built ?? payload;

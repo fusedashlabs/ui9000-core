@@ -21,26 +21,52 @@ describe('discussChart', () => {
     expect(resolveChartName('not-a-chart')).toBeUndefined();
   });
 
-  it('proposes the comparison main and does not draw an unfit chart', () => {
+  it('draws a pie when the share family matches and the catalog can render it', () => {
     const discussion = discussChart({
       profile: groups,
       requestedChart: 'pie',
-      confirm: false,
+      intent: 'comparison',
+      catalogIds: new Set([...catalogIds, 'pie-chart']),
+    });
+    expect(discussion.awaitingUser).toBe(false);
+    expect(discussion.drawId).toBe('pie-chart');
+    expect(discussion.dataFamilies).toContain('part-to-whole');
+  });
+
+  it('suggests the comparison main and does not substitute a chart it cannot draw', () => {
+    const discussion = discussChart({
+      profile: groups,
+      requestedChart: 'sankey',
       intent: 'comparison',
       catalogIds,
     });
     expect(discussion.awaitingUser).toBe(true);
     expect(discussion.drawId).toBeUndefined();
-    expect(discussion.proposedChart).toBe('bar-chart');
+    expect(discussion.suggestion).toBe('bar-chart');
     expect(discussion.dataFamilies).toContain('category-magnitude');
-    expect(discussion.message).toContain('does not fit');
+    expect(discussion.message).toContain('nothing was generated');
+    expect(discussion.message).toContain('suggestion only');
+  });
+
+  it('draws an unfit chart the catalog can render and only suggests the closer one', () => {
+    const discussion = discussChart({
+      profile: groups,
+      requestedChart: 'sankey',
+      intent: 'comparison',
+      catalogIds: new Set([...catalogIds, 'sankey-chart']),
+    });
+    expect(discussion.awaitingUser).toBe(false);
+    expect(discussion.drawId).toBe('sankey-chart');
+    expect(discussion.suggestion).toBe('bar-chart');
+    expect(discussion.chartWhy).toContain('Drawing it');
+    expect(discussion.chartWhy).toContain('stays sankey-chart');
+    expect(discussion.poorFit).toBe(true);
   });
 
   it('draws a requested main that the catalog can render', () => {
     const discussion = discussChart({
       profile: groups,
       requestedChart: 'bar-chart',
-      confirm: false,
       intent: 'summary',
       catalogIds,
     });
@@ -53,27 +79,25 @@ describe('discussChart', () => {
     const discussion = discussChart({
       profile: groups,
       requestedChart: 'line',
-      confirm: false,
       intent: 'comparison',
       catalogIds,
     });
     expect(discussion.awaitingUser).toBe(false);
     expect(discussion.drawId).toBe('line-chart');
-    expect(discussion.proposedChart).toBe('line-chart');
-    expect(discussion.proposedChart).not.toBe('bar-chart');
+    expect(discussion.suggestion).toBeUndefined();
   });
 
   it('does not offer a retry when the in-group chart cannot be drawn', () => {
     const discussion = discussChart({
       profile: groups,
       requestedChart: 'line',
-      confirm: true,
       intent: 'comparison',
       catalogIds: new Set(['bar-chart', 'map-chart', 'kpi-widget']),
     });
     expect(discussion.awaitingUser).toBe(true);
     expect(discussion.drawId).toBeUndefined();
-    expect(discussion.proposedChart).toBeUndefined();
+    expect(discussion.suggestion).toBeUndefined();
+    expect(discussion.keepRequested).toBe(true);
     expect(discussion.message).toContain('stays line-chart');
     expect(discussion.message).toContain('How do discrete groups compare');
     expect(discussion.message).not.toContain('category-magnitude');

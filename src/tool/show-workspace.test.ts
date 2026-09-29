@@ -164,12 +164,12 @@ describe('show_workspace', () => {
     expect(SHOW_WORKSPACE_DESCRIPTION.includes('bar-chart')).toBe(false);
     expect(SHOW_WORKSPACE_DESCRIPTION.includes('network-graph')).toBe(false);
     expect(SHOW_WORKSPACE_DESCRIPTION).toContain('A refusal is not awaitingUser');
-    expect(SHOW_WORKSPACE_DESCRIPTION).toContain('Follow proposedChart when awaitingUser includes it');
+    expect(SHOW_WORKSPACE_DESCRIPTION).toContain('Do not replace their chart with suggestion');
     const step1 = SHOW_WORKSPACE_DESCRIPTION.indexOf('1. Read the table');
     const step2 = SHOW_WORKSPACE_DESCRIPTION.indexOf('2. Classify the columns');
-    const step3 = SHOW_WORKSPACE_DESCRIPTION.indexOf('3. Compare the chart');
-    const step4 = SHOW_WORKSPACE_DESCRIPTION.indexOf('4. Draw only a chart');
-    const step5 = SHOW_WORKSPACE_DESCRIPTION.indexOf('5. Otherwise return awaitingUser');
+    const step3 = SHOW_WORKSPACE_DESCRIPTION.indexOf('3. Pass utterance');
+    const step4 = SHOW_WORKSPACE_DESCRIPTION.indexOf('4. Draw the chart they named');
+    const step5 = SHOW_WORKSPACE_DESCRIPTION.indexOf('5. If the named chart cannot be drawn');
     expect(step1).toBeGreaterThan(-1);
     expect(step1).toBeLessThan(step2);
     expect(step2).toBeLessThan(step3);
@@ -633,13 +633,13 @@ describe('show_workspace fail-closed', () => {
     expect(JSON.stringify(widget)).not.toContain('note');
   });
 
-  it('keeps named columns when the user confirms with datasetId alone', async () => {
+  it('keeps named columns when the next call reuses datasetId', async () => {
     const channel = memoryChannel();
     const session = columnSession(channel);
     const first = await handleShowWorkspace(
       {
         intent: 'comparison',
-        requestedChart: 'pie',
+        requestedChart: 'sankey',
         csv: 'team,score,note\nAlpha,10,ignore\nBeta,4,ignore\n',
         columns: ['team', 'score'],
       },
@@ -648,13 +648,14 @@ describe('show_workspace fail-closed', () => {
     expect(first.ok).toBe(true);
     if (!first.ok || !first.awaitingUser) return;
     expect(first.columns).toEqual(['team', 'score']);
-    expect(first.proposedChart).toBe('bar-chart');
+    expect(first).not.toHaveProperty('spec');
+    expect(first.suggestion).toBe('bar-chart');
+    expect(first.message).toContain('nothing was generated');
 
     const second = await handleShowWorkspace(
       {
         intent: 'comparison',
-        requestedChart: first.proposedChart,
-        confirm: true,
+        requestedChart: first.suggestion,
         datasetId: first.datasetId,
       },
       session(),
@@ -761,29 +762,70 @@ describe('show_workspace fail-closed', () => {
     ]);
   });
 
-  it('asks before drawing a chart that does not fit the columns', async () => {
+  it('draws a pie when the user asks for shares of a small category table', async () => {
     const result = await handleShowWorkspace(
-      { intent: 'comparison', requestedChart: 'pie' },
+      {
+        intent: 'comparison',
+        requestedChart: 'pie',
+        csv: 'team,score\nAlpha,10\nBeta,4\nGamma,6\n',
+      },
       context(),
     );
-    expect(result.ok).toBe(true);
-    if (!result.ok || !result.awaitingUser) return;
-    expect(result.proposedChart).toBe('bar-chart');
-    expect(result.message).toContain('pie-chart');
-    expect(result.message).toContain('does not fit');
-    expect(result.message).toContain('not choosing');
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('pie-chart');
+    expect(result.chartType).toBe('pieChart');
+    expect(result.spec.binds).toEqual([
+      { role: 'label', field: 'team' },
+      { role: 'y', field: 'score' },
+    ]);
+  });
+
+  it('draws the chart the user named and only suggests a closer fit', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        requestedChart: 'sankey',
+        csv: 'from_team,to_team,moves\nA,B,10\nB,C,4\n',
+      },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('sankey-chart');
+    expect(result.suggestion).toBe('bar-chart');
+    expect(result.chartWhy).toContain('Drawing it');
+    expect(result.chartWhy).toContain('suggestion');
     expect(hasRowObjects(result)).toBe(false);
   });
 
-  it('still does not draw an unfit chart after the user confirms it', async () => {
+  it('still draws the named chart when confirm is set', async () => {
     const result = await handleShowWorkspace(
-      { intent: 'comparison', requestedChart: 'pie', confirm: true },
+      {
+        intent: 'comparison',
+        requestedChart: 'sankey',
+        confirm: true,
+        csv: 'from_team,to_team,moves\nA,B,10\nB,C,4\n',
+      },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('sankey-chart');
+    expect(result.suggestion).toBe('bar-chart');
+  });
+
+  it('does not generate a substitute when the named chart is unknown', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'comparison', requestedChart: 'not-a-chart' },
       context(),
     );
     expect(result.ok).toBe(true);
     if (!result.ok || !result.awaitingUser) return;
-    expect(result.proposedChart).toBe('bar-chart');
-    expect(result.message).toContain('still does not fit');
+    expect(result).not.toHaveProperty('spec');
+    expect(result.suggestion).toBe('bar-chart');
+    expect(result.message).toContain('nothing was generated');
+    expect(result.message).toContain('not-a-chart');
   });
 
   it('draws the chart the user asked for when it is the main fit', async () => {
@@ -802,25 +844,258 @@ describe('show_workspace fail-closed', () => {
     expect(result.proposal).toBeUndefined();
   });
 
-  it('keeps a comparison-group chart and does not ask for another call', async () => {
-    const first = await handleShowWorkspace(
-      { intent: 'comparison', requestedChart: 'lollipop' },
+  it('draws a lollipop when the user asks for that mark on a comparison', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        requestedChart: 'lollipop',
+        csv: 'team,score\nAlpha,10\nBeta,4\n',
+      },
       context(),
     );
-    expect(first.ok).toBe(true);
-    if (!first.ok || !first.awaitingUser) return;
-    expect(first.requestedChart).toBe('lollipop');
-    expect(first.proposedChart).toBeUndefined();
-    expect(first.message).toContain('stays lollipop');
-    expect(first.message).toContain('Do not call again');
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('lollipop');
+    expect(result.chartType).toBe('lollipopChart');
+    expect(result.spec.binds).toEqual([
+      { role: 'label', field: 'team' },
+      { role: 'y', field: 'score' },
+    ]);
+  });
 
-    const again = await handleShowWorkspace(
-      { intent: 'comparison', requestedChart: 'lollipop', confirm: true },
+  it('draws a grouped line when the user asks for a line over time', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        requestedChart: 'line',
+        csv: 'team,month,incidents\nAlpha,2024-01,10\nAlpha,2024-02,12\nBeta,2024-01,4\nBeta,2024-02,9\n',
+      },
       context(),
     );
-    expect(again.ok).toBe(true);
-    if (!again.ok || !again.awaitingUser) return;
-    expect(again.proposedChart).toBeUndefined();
-    expect(again.message).toContain('Do not call again');
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('line-chart');
+    expect(result.chartType).toBe('lineGroupedChart');
+    expect(result.spec.binds).toEqual([
+      { role: 'x', field: 'month' },
+      { role: 'y', field: 'incidents' },
+      { role: 'series', field: 'team' },
+    ]);
+  });
+
+  it('draws the chart Jev selects when the user did not name one', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'comparison', utterance: 'Compare incident counts by team over months.' },
+      context({
+        askJev: async () => ({
+          answers: {
+            chart: { type: 'choice', choice: 'line-chart', confidence: 0.99 },
+          },
+        }),
+      }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('line-chart');
+    expect(result.suggestion).toBeUndefined();
+    expect(result.chartWhy).toContain('Jev selected line-chart');
+  });
+
+  it('stays silent when Jev picks another chart in the same family', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        utterance: 'Show teams as a bar.',
+        requestedChart: 'bar',
+        csv: 'team,score\nAlpha,10\nBeta,4\n',
+      },
+      context({
+        askJev: async () => ({
+          answers: {
+            chart: { type: 'choice', choice: 'line-chart', confidence: 0.9 },
+          },
+        }),
+      }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('bar-chart');
+    expect(result.suggestion).toBeUndefined();
+    expect(result.chartWhy).not.toContain('Jev selected');
+  });
+
+  it('reports Jev as a suggestion when the named chart is outside Jev\'s family', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        utterance: 'Show the moves as a sankey.',
+        requestedChart: 'sankey',
+        csv: 'from_team,to_team,moves\nA,B,10\nB,C,4\n',
+      },
+      context({
+        askJev: async () => ({
+          answers: {
+            chart: { type: 'choice', choice: 'line-chart', confidence: 0.9 },
+          },
+        }),
+      }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('sankey-chart');
+    expect(result.suggestion).toBe('line-chart');
+    expect(result.suggestionWhy).toContain('That is a suggestion');
+    expect(result.suggestionWhy).toContain('stays sankey-chart');
+  });
+
+  it('draws with decide when Jev does not answer', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'comparison', utterance: 'Compare teams.' },
+      context({
+        askJev: async () => {
+          throw new Error('down');
+        },
+      }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('bar-chart');
+    expect(result.chartWhy).toContain('Jev did not select');
+    expect(result.chartWhy).toContain("not Jev's");
+  });
+
+  it('does not draw Jev when the utterance names a chart and requestedChart is missing', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'comparison', utterance: 'Compare incidents as a line, not a bar.' },
+      context({
+        askJev: async () => ({
+          answers: {
+            chart: { type: 'choice', choice: 'bar-chart', confidence: 0.99 },
+            named_chart: { type: 'noul', noul: 0.98 },
+          },
+        }),
+      }),
+    );
+    expect(result.ok && result.awaitingUser).toBe(true);
+    if (!result.ok || !result.awaitingUser) return;
+    expect(result).not.toHaveProperty('spec');
+    expect(result.suggestion).toBeUndefined();
+    expect(result.message).toContain('requestedChart');
+    expect(result.message).toContain('names a chart');
+  });
+
+  it('uses Jev as the suggestion when the named chart cannot be drawn', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'comparison', utterance: 'Show a sankey.', requestedChart: 'not-a-chart' },
+      context({
+        askJev: async () => ({
+          answers: {
+            chart: { type: 'choice', choice: 'line-chart', confidence: 0.9 },
+            named_chart: { type: 'noul', noul: 0.2 },
+          },
+        }),
+      }),
+    );
+    expect(result.ok && result.awaitingUser).toBe(true);
+    if (!result.ok || !result.awaitingUser) return;
+    expect(result).not.toHaveProperty('spec');
+    expect(result.suggestion).toBe('line-chart');
+    expect(result.message).toContain('Jev selected line-chart');
+    expect(result.message).not.toContain('bar-chart');
+  });
+
+  it('says Jev selected a chart this workspace cannot draw', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'comparison', utterance: 'Show incidents on a map.' },
+      context({
+        profile: { ...profile, hasMapToken: false },
+        askJev: async () => ({
+          answers: {
+            chart: { type: 'choice', choice: 'map-chart', confidence: 0.99 },
+            named_chart: { type: 'noul', noul: 0.1 },
+          },
+        }),
+      }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('bar-chart');
+    expect(result.chartWhy).toContain('Jev selected map-chart');
+    expect(result.chartWhy).toContain('cannot be drawn');
+    expect(result.chartWhy).toContain("not Jev's");
+    expect(result.chartWhy).not.toContain('Jev did not select');
+  });
+
+  it('reports Jev when an undrawable named chart is outside Jev\'s family', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'spatial', utterance: 'Show a map.', requestedChart: 'map' },
+      context({
+        profile: { ...profile, hasMapToken: false },
+        askJev: async () => ({
+          answers: {
+            chart: { type: 'choice', choice: 'bar-chart', confidence: 0.9 },
+            named_chart: { type: 'noul', noul: 0.2 },
+          },
+        }),
+      }),
+    );
+    expect(result.ok && result.awaitingUser).toBe(true);
+    if (!result.ok || !result.awaitingUser) return;
+    expect(result).not.toHaveProperty('spec');
+    expect(result.suggestion).toBe('bar-chart');
+    expect(result.message).toContain('Jev selected bar-chart');
+    expect(result.message).toContain('nothing was generated');
+    expect(result.message).not.toContain('I am not switching');
+    expect(result.message.match(/Call again with it only if the user asks/g)).toHaveLength(1);
+  });
+
+  it('stays silent when an undrawable named chart shares Jev\'s family', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'spatial', utterance: 'Show a map.', requestedChart: 'map' },
+      context({
+        profile: { ...profile, hasMapToken: false },
+        askJev: async () => ({
+          answers: {
+            chart: { type: 'choice', choice: 'map-chart', confidence: 0.9 },
+            named_chart: { type: 'noul', noul: 0.2 },
+          },
+        }),
+      }),
+    );
+    expect(result.ok && result.awaitingUser).toBe(true);
+    if (!result.ok || !result.awaitingUser) return;
+    expect(result).not.toHaveProperty('spec');
+    expect(result.suggestion).toBeUndefined();
+    expect(result.message).toContain('stays map-chart');
+    expect(result.message).toContain('I am not switching');
+    expect(result.message).not.toContain('Jev selected');
+  });
+
+  it('does not repeat Jev when the named chart cannot bind', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        utterance: 'Show a sankey of team scores.',
+        requestedChart: 'sankey',
+        csv: 'team,score\nAlpha,10\nBeta,4\n',
+      },
+      context({
+        askJev: async () => ({
+          answers: {
+            chart: { type: 'choice', choice: 'line-chart', confidence: 0.9 },
+            named_chart: { type: 'noul', noul: 0.2 },
+          },
+        }),
+      }),
+    );
+    expect(result.ok && result.awaitingUser).toBe(true);
+    if (!result.ok || !result.awaitingUser) return;
+    expect(result).not.toHaveProperty('spec');
+    expect(result.suggestion).toBe('line-chart');
+    expect(result.message).toContain('do not fill');
+    expect(result.message).toContain('Jev selected line-chart');
+    expect(result.message).not.toContain('A closer chart would be');
+    expect(result.message.match(/Call again with it only if the user asks/g)).toHaveLength(1);
+    expect(result.suggestionWhy.match(/Call again with it only if the user asks/g)).toHaveLength(1);
   });
 });

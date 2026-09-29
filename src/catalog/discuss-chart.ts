@@ -1,17 +1,16 @@
 /**
  * Data first, then the chart the user asked for.
  *
- * The profile decides which families the columns can support. A requested
- * chart that sits in one of those families stays — a line in the comparison
- * group is not replaced with the group's main. A chart outside the group
- * waits: the tool explains the fit and the proposal, and does not pick for
- * the user.
+ * The profile describes which families the columns support, and may name a
+ * closer chart. That name is a suggestion. A requested chart this workspace
+ * can draw is the one that is drawn, including a poor fit. Nothing is
+ * generated in its place.
  */
 
 import type { ClassifiedColumn } from '../profiler/roles.js';
 import type { DataProfile } from '../spec/data-profile.js';
 import type { Intent } from '../spec/intent.js';
-import { CHART_FAMILIES, CHART_ROLES, type ChartFamily, type ChartId, chartRole } from './chart-roles.js';
+import { CHART_FAMILIES, CHART_ROLES, type ChartFamily, type ChartId, chartRole, familiesForChart } from './chart-roles.js';
 
 export type ChartDiscussion = {
   /** Family ids the columns can support, most specific first. */
@@ -19,12 +18,25 @@ export type ChartDiscussion = {
   /** Resolved widgets id, when the request named a known chart. */
   requestedChart?: string;
   /**
-   * Chart the user can accept on the next call. Absent when nothing drawable
-   * is on offer — the model must stop, not retry.
+   * Closer chart from the column reading. A description, not a replacement.
+   * Absent when the drawn chart is already in a supported family, or when
+   * nothing drawable is worth naming.
    */
-  proposedChart?: string;
-  proposedWhy: string;
-  /** Set only when the user's chart should be rendered now. */
+  suggestion?: string;
+  suggestionWhy: string;
+  /**
+   * The named chart fits the columns and must stay, even when this workspace
+   * cannot draw it. Jev must not replace it with another chart.
+   */
+  keepRequested?: boolean;
+  /**
+   * The drawn chart is outside the supported families, so chartWhy still
+   * names the local suggestion. Jev replaces that sentence with its own.
+   */
+  poorFit?: boolean;
+  /** suggestionWhy is already Jev's offer. Do not append another closer sentence. */
+  suggestionFromJev?: boolean;
+  /** Set when the user's chart should be rendered now. */
   drawId?: string;
   awaitingUser: boolean;
   /** Sentence the model must show the user. */
@@ -56,7 +68,6 @@ export function discussChart(input: {
   profile: DataProfile;
   columns?: readonly ClassifiedColumn[];
   requestedChart: string;
-  confirm: boolean;
   intent: Intent;
   catalogIds: ReadonlySet<string>;
 }): ChartDiscussion {
@@ -66,30 +77,40 @@ export function discussChart(input: {
   const judged = resolved ? judgeRequest(resolved, families) : undefined;
   const proposal = pickProposal(families, input.intent);
   const drawable = proposal ? firstDrawable(proposal, families, input.profile, input.catalogIds) : undefined;
-  const proposedWhy = proposal ? whyFamily(proposal) : 'These columns do not match a chart category.';
+  const suggestionWhy = proposal ? whyFamily(proposal) : 'These columns do not match a chart category.';
   const inGroup = judged?.kind === 'main' || judged?.kind === 'alternative';
+  const askId =
+    proposal && canDraw(proposal.main, input.profile, input.catalogIds) ? proposal.main : drawable;
+  const suggestion = askId && askId !== resolved ? askId : undefined;
 
   const base = {
     dataFamilies: families.map((family) => family.id),
     ...(resolved ? { requestedChart: resolved } : {}),
   };
 
-  if (inGroup && resolved && judged.family) {
-    const chartWhy = whyInFamily(resolved, judged.family);
-    if (canDraw(resolved, input.profile, input.catalogIds)) {
-      return {
-        ...base,
-        proposedChart: resolved,
-        proposedWhy: chartWhy,
-        drawId: resolved,
-        awaitingUser: false,
-        message: chartWhy,
-        chartWhy,
-      };
-    }
+  if (resolved && canDraw(resolved, input.profile, input.catalogIds)) {
+    const family = inGroup ? judged?.family : undefined;
+    const chartWhy = family
+      ? whyInFamily(resolved, family)
+      : whyDrawnAnyway(resolved, suggestionWhy);
     return {
       ...base,
-      proposedWhy: chartWhy,
+      ...(!inGroup && suggestion ? { suggestion } : {}),
+      suggestionWhy: !inGroup && suggestion ? suggestionWhy : chartWhy,
+      ...(family ? {} : { poorFit: true }),
+      drawId: resolved,
+      awaitingUser: false,
+      message: chartWhy,
+      chartWhy,
+    };
+  }
+
+  if (inGroup && resolved && judged.family) {
+    const chartWhy = whyInFamily(resolved, judged.family);
+    return {
+      ...base,
+      suggestionWhy: chartWhy,
+      keepRequested: true,
       awaitingUser: true,
       chartWhy: '',
       message: [
@@ -101,22 +122,17 @@ export function discussChart(input: {
     };
   }
 
-  const askId =
-    proposal && canDraw(proposal.main, input.profile, input.catalogIds) ? proposal.main : drawable;
-
   return {
     ...base,
-    ...(askId ? { proposedChart: askId } : {}),
-    proposedWhy,
+    ...(suggestion ? { suggestion } : {}),
+    suggestionWhy,
     awaitingUser: true,
     chartWhy: '',
-    message: awaitingMessage({
+    message: cannotDrawMessage({
       raw: input.requestedChart,
       resolved,
-      proposedChart: askId,
-      ideal: proposal?.main,
-      proposedWhy,
-      confirm: input.confirm,
+      suggestion,
+      suggestionWhy,
     }),
   };
 }
@@ -132,6 +148,29 @@ export function resolveChartName(name: string): ChartId | undefined {
 
 export function chartWhyFor(componentId: string): string | undefined {
   return chartRole(componentId) ? whyChart(componentId) : undefined;
+}
+
+/** Families whose data shape the profile can support. Same gates as discussChart. */
+export function chartFamiliesFor(
+  profile: DataProfile,
+  columns?: readonly { role: string }[],
+): ChartFamily[] {
+  return eligibleFamilies(profile, columnCounts(profile, columns));
+}
+
+/** Both ids are the main or an alternative of one family the columns support. */
+export function sharesEligibleFamily(
+  left: string,
+  right: string,
+  familyIds: readonly string[],
+): boolean {
+  const eligible = new Set(familyIds);
+  const rightIds = new Set(
+    familiesForChart(right)
+      .map((family) => family.id)
+      .filter((id) => eligible.has(id)),
+  );
+  return familiesForChart(left).some((family) => rightIds.has(family.id));
 }
 
 function eligibleFamilies(
@@ -150,6 +189,12 @@ function eligibleFamilies(
   if (profile.hasCategory && profile.hasNumericMetric && card > 0 && card <= 40) {
     ids.push('category-magnitude');
   }
+  if (profile.hasCategory && profile.hasNumericMetric && card >= 2 && card <= 8) {
+    ids.push('part-to-whole');
+  }
+  if (profile.hasCategory && profile.hasNumericMetric && card >= 2 && card <= 24) {
+    ids.push('contribution');
+  }
   if (profile.hasNumericMetric && !profile.hasCategory && (profile.rowCount ?? 0) >= 8) {
     ids.push('distribution');
   }
@@ -166,7 +211,7 @@ function eligibleFamilies(
 
 type ColumnCounts = { metrics: number; categories: number };
 
-function columnCounts(profile: DataProfile, columns?: readonly ClassifiedColumn[]): ColumnCounts {
+function columnCounts(profile: DataProfile, columns?: readonly { role: string }[]): ColumnCounts {
   if (!columns?.length) {
     return {
       metrics: profile.hasNumericMetric ? 1 : 0,
@@ -203,7 +248,7 @@ function judgeRequest(
   return { kind: 'unfit' };
 }
 
-function canDraw(id: string, profile: DataProfile, catalogIds: ReadonlySet<string>): boolean {
+export function canDraw(id: string, profile: DataProfile, catalogIds: ReadonlySet<string>): boolean {
   if (!catalogIds.has(id)) return false;
   if (id === 'map-chart' && profile.hasMapToken !== true) return false;
   return true;
@@ -241,26 +286,25 @@ function whyChart(id: string): string {
   return `${id}: ${role.role} The columns answer "${family.question}" (${family.data}).`;
 }
 
-function awaitingMessage(input: {
+function whyDrawnAnyway(id: string, suggestionWhy: string): string {
+  const role = chartRole(id);
+  return `You asked for ${id} (${role?.role ?? 'this chart'}). Drawing it. ${suggestionWhy} That is a suggestion. This chart stays ${id}.`;
+}
+
+function cannotDrawMessage(input: {
   raw: string;
   resolved: string | undefined;
-  proposedChart: string | undefined;
-  ideal: string | undefined;
-  proposedWhy: string;
-  confirm: boolean;
+  suggestion: string | undefined;
+  suggestionWhy: string;
 }): string {
   const asked = input.resolved ? chartRole(input.resolved) : undefined;
   const selected = asked
     ? `You selected ${input.resolved} (${asked.role}).`
     : `You selected "${input.raw.trim()}", which is not a chart I know.`;
-
-  const held = input.confirm ? 'You confirmed it, and it still does not fit.' : 'It does not fit this data well.';
-  const offer =
-    input.proposedChart && input.ideal && input.proposedChart !== input.ideal
-      ? `${input.proposedWhy} This workspace can draw ${input.proposedChart}. Do you want ${input.proposedChart}?`
-      : input.proposedChart
-        ? `${input.proposedWhy} I am not choosing it for you. Do you want ${input.proposedChart}?`
-        : `${input.proposedWhy} This workspace cannot draw a chart for this table. Do not call again.`;
+  const held = 'This workspace cannot draw it, so nothing was generated in its place.';
+  const offer = input.suggestion
+    ? `${input.suggestionWhy} A closer chart would be ${input.suggestion}. That is a suggestion only. Call again with it only if the user asks for that chart.`
+    : `${input.suggestionWhy} This workspace cannot draw a chart for this table. Do not call again.`;
   return [selected, held, offer].join(' ');
 }
 

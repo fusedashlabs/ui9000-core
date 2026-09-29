@@ -8,6 +8,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 
 import {
   applyWorkspaceHostDefaults,
+  readDotEnv,
   resolveWorkspaceDataPath,
   wireWorkspace,
   workspaceDemoCsvPath,
@@ -118,7 +119,7 @@ async function dispatchWorkspaceMcp(
 export async function startWorkspaceHttpServer(
   options: WorkspaceHttpListenOptions = {},
 ): Promise<WorkspaceHttpServer> {
-  const env = applyWorkspaceHostDefaults(options.env ?? process.env);
+  const env = applyWorkspaceHostDefaults(options.env ?? readDotEnv(process.env));
   const wired = wireWorkspaceHttp({ ...options, env });
   const mcpPath = options.path ?? WORKSPACE_HTTP_PATH;
   const host = options.host ?? '0.0.0.0';

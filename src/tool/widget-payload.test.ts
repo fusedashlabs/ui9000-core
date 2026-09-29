@@ -337,4 +337,55 @@ describe('workspaceWidgetPayload', () => {
       ],
     });
   });
+
+  it('draws a grouped line from a time axis, a metric, and a series', () => {
+    expect(
+      workspaceWidgetPayload(
+        'line-chart',
+        'lineChart',
+        [
+          { role: 'x', field: 'month' },
+          { role: 'y', field: 'incidents' },
+          { role: 'series', field: 'team' },
+        ],
+        [
+          { team: 'Alpha', month: '2024-01', incidents: 10 },
+          { team: 'Alpha', month: '2024-02', incidents: 12 },
+          { team: 'Beta', month: '2024-01', incidents: 4 },
+        ],
+      ),
+    ).toMatchObject({
+      chartType: 'lineGroupedChart',
+      xAxe: ['month'],
+      yAxe: ['incidents'],
+      groupBy: ['team'],
+    });
+  });
+
+  it('draws a pie from a category and a metric', () => {
+    expect(
+      workspaceWidgetPayload(
+        'pie-chart',
+        'pieChart',
+        [
+          { role: 'label', field: 'team' },
+          { role: 'y', field: 'score' },
+        ],
+        [
+          { team: 'Alpha', score: 10 },
+          { team: 'Alpha', score: 2 },
+          { team: 'Beta', score: 4 },
+        ],
+      ),
+    ).toEqual({
+      chartType: 'pieChart',
+      name: 'pie-chart',
+      xAxe: ['team'],
+      yAxe: ['score'],
+      data: [
+        { team: 'Alpha', score: 12 },
+        { team: 'Beta', score: 4 },
+      ],
+    });
+  });
 });

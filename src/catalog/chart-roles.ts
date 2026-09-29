@@ -1,10 +1,13 @@
 /**
  * Visual families for the widgets charts.
  *
- * `show_workspace` still selects one engine component (the family `main`).
- * Many widgets draw the same columns with a different mark. This file records
- * that: bar is the comparison main, and the same category + metric can also
- * be a lollipop, a line, or an area when the `when` holds.
+ * `show_workspace` draws the chart the user named when it can. Jev's choice
+ * is the suggestion when it sits outside that chart's family, and the drawing
+ * when the user named none. The family `main` is the local reading when Jev
+ * does not answer. Many widgets draw the same columns
+ * with a different mark. This file records that: bar is the comparison main,
+ * and the same category + metric can also be a lollipop, a line, or an area
+ * when the `when` holds.
  *
  * It does not add charts to the frozen 20-id engine catalog.
  */

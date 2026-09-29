@@ -83,6 +83,16 @@ const ROLE_COLUMN: Record<string, readonly ClassifiedColumn['role'][]> = {
   series: ['category'],
   group: ['category'],
   groupBy: ['category'],
+  /** Ordered axis first, then a category, for line and area. */
+  x: ['temporal', 'category'],
+  /** Category first, then time, for pie, lollipop, and the other discrete marks. */
+  label: ['category', 'temporal'],
+  y: ['metric'],
+  /** Two numeric axes. Each bind takes the next unused metric. */
+  mx: ['metric'],
+  my: ['metric'],
+  source: ['link', 'category'],
+  target: ['link', 'category'],
   metric: ['metric'],
   distribution: ['metric'],
   geo: ['geo'],

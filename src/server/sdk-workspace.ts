@@ -33,6 +33,7 @@ const ShowWorkspaceArgsSchema = z
     url: z.string().optional(),
     path: z.string().optional(),
     datasetId: z.string().optional(),
+    utterance: z.string().optional(),
     requestedChart: z.string().optional(),
     confirm: z.boolean().optional(),
     columns: z.array(z.string()).optional(),
