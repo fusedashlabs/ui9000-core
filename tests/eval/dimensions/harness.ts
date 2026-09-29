@@ -150,7 +150,7 @@ export async function runEvalCase(evalCase: EvalCase): Promise<EvalRun> {
     profile,
     decision,
     shown,
-    ...(shown.ok ? { spec: shown.spec } : {}),
+    ...(shown.ok && !shown.awaitingUser ? { spec: shown.spec } : {}),
   };
 }
 
@@ -235,14 +235,17 @@ function checkSchema(run: EvalRun): string[] {
   if (!shown) return ['show_workspace did not run; a schema case needs a named profile fixture'];
 
   if (!wantValid) {
-    if (shown.ok) problems.push(`show_workspace returned a spec for ${shown.spec.component}, expected a refusal`);
-    else if (expect.failCode !== undefined && shown.code !== expect.failCode) {
+    if (shown.ok && !shown.awaitingUser) {
+      problems.push(`show_workspace returned a spec for ${shown.spec.component}, expected a refusal`);
+    }
+    else if (!shown.ok && expect.failCode !== undefined && shown.code !== expect.failCode) {
       problems.push(`refused with ${quote(shown.code)}, expected ${quote(expect.failCode)} (${shown.reason})`);
     }
     return problems;
   }
 
   if (!shown.ok) return [`show_workspace refused with ${shown.code}: ${shown.reason}`];
+  if (shown.awaitingUser) return ['show_workspace asked the user instead of returning a spec'];
 
   const spec = shown.spec;
   const revalidated = validateSpec(spec, catalog);
@@ -319,10 +322,10 @@ function checkDataAccuracy(run: EvalRun): string[] {
 
   const shown = run.shown;
   if (expect.rowCount !== undefined || expect.columns !== undefined || expect.noRowsInSpec || expect.hasDataUrl) {
-    if (!shown?.ok) {
+    if (!shown?.ok || shown.awaitingUser) {
       return [
         ...problems,
-        `show_workspace did not return a spec: ${shown ? `${shown.code} (${shown.reason})` : 'not run'}`,
+        `show_workspace did not return a spec: ${shown && !shown.ok ? `${shown.code} (${shown.reason})` : 'not run'}`,
       ];
     }
 
@@ -367,10 +370,10 @@ function checkA11y(run: EvalRun): string[] {
   if (!needsSpec) return problems;
 
   const shown = run.shown;
-  if (!shown?.ok) {
+  if (!shown?.ok || shown.awaitingUser) {
     return [
       ...problems,
-      `show_workspace did not return a spec: ${shown ? `${shown.code} (${shown.reason})` : 'not run'}`,
+      `show_workspace did not return a spec: ${shown && !shown.ok ? `${shown.code} (${shown.reason})` : 'not run'}`,
     ];
   }
   const spec = shown.spec;
@@ -413,6 +416,7 @@ function checkPolicy(run: EvalRun): string[] {
   const shown = run.shown;
   if (!shown) return ['show_workspace did not run; a policy case needs a named profile fixture'];
   if (!shown.ok) return [`show_workspace refused before the probe: ${shown.code} (${shown.reason})`];
+  if (shown.awaitingUser) return ['show_workspace asked the user instead of returning a spec'];
 
   const probed = PROBES[expect.probe](structuredClone(shown.spec) as WorkspaceSpec);
   const result = validateSpec(probed, catalog);

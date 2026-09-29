@@ -4,7 +4,7 @@ import { decide } from '../engine/decide.js';
 import type { EngineCatalog } from '../spec/engine-catalog.js';
 import type { DataProfile } from '../spec/data-profile.js';
 import { INTENTS, type Intent } from '../spec/intent.js';
-import type { WorkspaceSpec } from '../spec/workspace-spec.js';
+import { SPEC_ACTION_SET, type WorkspaceSpec } from '../spec/workspace-spec.js';
 import { validateSpec } from '../validate/validate-spec.js';
 import { profileColumns } from '../profiler/profile-columns.js';
 import { classifyColumns, type ClassifiedColumn } from '../profiler/roles.js';
@@ -21,6 +21,7 @@ import {
 import { chartTypeForComponent, workspaceWidgetPayload } from './widget-payload.js';
 import { shapeSpec } from './shape-spec.js';
 import { assertTraceHasNoRows, type Trace, type TraceProposal } from '../trace/trace.js';
+import { chartWhyFor, discussChart } from '../catalog/discuss-chart.js';
 
 export const SHOW_WORKSPACE_NAME = 'show_workspace';
 
@@ -45,8 +46,11 @@ export type ShowWorkspaceCode = (typeof SHOW_WORKSPACE_CODES)[number];
 
 export type ShowWorkspaceOk = {
   ok: true;
+  awaitingUser?: undefined;
   spec: WorkspaceSpec;
   summary: string;
+  /** Why this chart fits the columns. The model should say it to the user. */
+  chartWhy?: string;
   /** FuseDash chartType for the hosted MCP App. Absent when the View cannot render. */
   chartType?: string;
   /** Opaque id for the ingested table. Pass it on the next intent instead of csv. */
@@ -65,7 +69,26 @@ export type ShowWorkspaceFail = {
   reason: string;
 };
 
-export type ShowWorkspaceResult = ShowWorkspaceOk | ShowWorkspaceFail;
+/**
+ * Data was classified and the requested chart does not get drawn.
+ * The model shows `message` and waits. The next call carries the user's answer.
+ */
+export type ShowWorkspaceAwaiting = {
+  ok: true;
+  awaitingUser: true;
+  message: string;
+  dataFamilies: readonly string[];
+  proposedChart?: string;
+  proposedWhy: string;
+  requestedChart?: string;
+  /** Catalog chart we can draw, when `proposedChart` itself is not drawable. */
+  drawableChart?: string;
+  datasetId?: string;
+  rowCount?: number;
+  columns?: string[];
+};
+
+export type ShowWorkspaceResult = ShowWorkspaceOk | ShowWorkspaceAwaiting | ShowWorkspaceFail;
 
 export type ShowWorkspaceContext = {
   catalog: EngineCatalog;
@@ -125,6 +148,16 @@ export const SHOW_WORKSPACE_INPUT_SCHEMA = {
       description:
         'Id returned by an earlier show_workspace on this table. Use instead of csv/url/path.',
     },
+    requestedChart: {
+      type: 'string',
+      description:
+        'The chart the user asked for: their words, or an id from a previous reply. Omit when they did not name a chart.',
+    },
+    confirm: {
+      type: 'boolean',
+      description:
+        'True only after the user accepts proposedChart. Pass that id as requestedChart. Confirming an unfit chart still does not draw it.',
+    },
   },
 } as const;
 
@@ -135,9 +168,13 @@ export const SHOW_WORKSPACE_INPUT_SCHEMA = {
 export const SHOW_WORKSPACE_DESCRIPTION = [
   'show_workspace renders one workspace for a tabular dataset.',
   'Call this tool once per user question. It is the only visualization tool.',
-  'You do not choose a chart type, widget id, or catalog component. Do not call generate_*.',
+  'You do not choose a chart. Do not call generate_*.',
+  'Data is classified before any chart. If the user named one, pass requestedChart.',
+  'When the result has awaitingUser, show message and wait. Do not draw. Do not call again until they answer.',
+  'If they accept the proposal, call again with requestedChart set to proposedChart and confirm true.',
+  'confirm true with the same unfit chart still does not draw it.',
   '',
-  'intent is required. Optional source — exactly one of csv, url, path, or datasetId.',
+  'intent is required. Optional requestedChart, confirm, and one source: csv, url, path, or datasetId.',
   'csv — paste the user table including the header (chat attachments / pasted CSV).',
   'url — http(s) CSV, local/dev only. path — local CSV file, local/dev only.',
   'Hosted/production accepts csv or datasetId only. url and path are rejected there.',
@@ -227,21 +264,55 @@ export async function handleShowWorkspace(
     }
   }
 
+  const discussion = parsed.requestedChart
+    ? discussChart({
+        profile: runtime.profile,
+        columns: runtime.classified,
+        requestedChart: parsed.requestedChart,
+        confirm: parsed.confirm,
+        intent: parsed.intent,
+        catalogIds: new Set(
+          runtime.catalog.map((entry) => entry.id).filter((id): id is string => typeof id === 'string'),
+        ),
+      })
+    : undefined;
+
+  if (discussion?.awaitingUser) {
+    const columns = listedColumns(runtime.fields);
+    return {
+      ok: true,
+      awaitingUser: true,
+      message: discussion.message,
+      dataFamilies: discussion.dataFamilies,
+      proposedWhy: discussion.proposedWhy,
+      ...(discussion.proposedChart ? { proposedChart: discussion.proposedChart } : {}),
+      ...(discussion.requestedChart ? { requestedChart: discussion.requestedChart } : {}),
+      ...(discussion.drawableChart ? { drawableChart: discussion.drawableChart } : {}),
+      ...(datasetId ? { datasetId } : {}),
+      ...(typeof runtime.profile.rowCount === 'number' ? { rowCount: runtime.profile.rowCount } : {}),
+      ...(columns ? { columns } : {}),
+    };
+  }
+
   const decision = decide({
     intent: parsed.intent,
     profile: runtime.profile,
     catalog: runtime.catalog,
   });
-  if (!decision.winner) {
+  const componentId = discussion?.drawId ?? decision.winner;
+  if (!componentId) {
     const reason = decision.rejected[0]?.reason ?? decision.trace.tieBreak;
     return fail('no_winner', reason || 'No eligible catalog component for this intent and profile.');
   }
 
-  const winner = runtime.catalog.find((item) => item.id === decision.winner);
+  const winner = runtime.catalog.find((item) => item.id === componentId);
+  const allowedActions = discussion?.drawId
+    ? (winner?.allowedActions ?? []).filter((action) => SPEC_ACTION_SET.has(action))
+    : decision.trace.actions;
   const shaped = shapeSpec(
     {
-      component: decision.winner,
-      allowedActions: decision.trace.actions,
+      component: componentId,
+      allowedActions,
     },
     winner,
     runtime.fields,
@@ -249,9 +320,9 @@ export async function handleShowWorkspace(
   );
   if (!shaped.ok) return shaped;
 
-  const fallbackType = chartTypeForComponent(decision.winner, winner?.chartTypeKeys);
+  const fallbackType = chartTypeForComponent(componentId, winner?.chartTypeKeys);
   const payload = workspaceWidgetPayload(
-    decision.winner,
+    componentId,
     fallbackType,
     shaped.spec.binds,
     runtime.payload,
@@ -281,15 +352,19 @@ export async function handleShowWorkspace(
     return fail('invalid_spec', validated.reason);
   }
 
-  const columns = runtime.fields?.filter((name) => name.trim().length > 0);
-  const trace = decision.trace;
+  const columns = listedColumns(runtime.fields);
+  const trace = discussion?.drawId
+    ? { ...decision.trace, tieBreak: discussion.chartWhy || decision.trace.tieBreak }
+    : decision.trace;
   assertTraceHasNoRows(trace);
   const proposal = trace.proposal;
+  const chartWhy = discussion?.chartWhy || chartWhyFor(componentId);
 
   return {
     ok: true,
     spec: validated.spec,
-    summary: buildSummary(validated.spec, parsed.intent, decision.winner, decision.trace.tieBreak),
+    summary: buildSummary(validated.spec, parsed.intent, componentId, decision.trace.tieBreak),
+    ...(chartWhy ? { chartWhy } : {}),
     chartType,
     trace,
     traceId: randomUUID(),
@@ -314,9 +389,14 @@ function contextFromTable(
   };
 }
 
+function listedColumns(fields: readonly string[] | undefined): string[] | undefined {
+  const columns = fields?.filter((name) => name.trim().length > 0);
+  return columns && columns.length > 0 ? [...columns] : undefined;
+}
+
 function parseArgs(
   args: unknown,
-): { ok: true; intent: Intent; raw: Record<string, unknown> } | ShowWorkspaceFail {
+): { ok: true; intent: Intent; requestedChart?: string; confirm: boolean; raw: Record<string, unknown> } | ShowWorkspaceFail {
   if (args === null || typeof args !== 'object' || Array.isArray(args)) {
     return fail('invalid_args', 'show_workspace arguments must be an object.');
   }
@@ -327,12 +407,12 @@ function parseArgs(
       'show_workspace refuses dataset rows in arguments. Pass csv, url, path, or datasetId instead.',
     );
   }
-  const allowed = new Set<string>(['intent', ...INGEST_KEYS]);
+  const allowed = new Set<string>(['intent', 'requestedChart', 'confirm', ...INGEST_KEYS]);
   const keys = Object.keys(raw);
   if (keys.some((key) => !allowed.has(key))) {
     return fail(
       'invalid_args',
-      'show_workspace accepts intent plus optional csv, url, path, or datasetId.',
+      'show_workspace accepts intent, optional requestedChart and confirm, plus csv, url, path, or datasetId.',
     );
   }
   for (const key of INGEST_KEYS) {
@@ -346,7 +426,20 @@ function parseArgs(
       `intent must be one of ${INTENTS.join(', ')}.`,
     );
   }
-  return { ok: true, intent: raw.intent, raw };
+  if ('requestedChart' in raw && raw.requestedChart !== undefined && typeof raw.requestedChart !== 'string') {
+    return fail('invalid_args', 'requestedChart must be a string.');
+  }
+  if ('confirm' in raw && raw.confirm !== undefined && typeof raw.confirm !== 'boolean') {
+    return fail('invalid_args', 'confirm must be a boolean.');
+  }
+  const requestedChart = typeof raw.requestedChart === 'string' ? raw.requestedChart.trim() : '';
+  return {
+    ok: true,
+    intent: raw.intent,
+    confirm: raw.confirm === true,
+    ...(requestedChart ? { requestedChart } : {}),
+    raw,
+  };
 }
 
 function isIntent(value: string): value is Intent {

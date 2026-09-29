@@ -18,6 +18,8 @@ import {
   SHOW_WORKSPACE_NAME,
   handleShowWorkspace,
   type ShowWorkspaceContext,
+  type ShowWorkspaceOk,
+  type ShowWorkspaceResult,
 } from './show-workspace.js';
 
 const catalog: EngineCatalog = [
@@ -125,6 +127,10 @@ function context(overrides: Partial<ShowWorkspaceContext> = {}): ShowWorkspaceCo
   };
 }
 
+function isDrawn(result: ShowWorkspaceResult): result is ShowWorkspaceOk {
+  return result.ok === true && result.awaitingUser !== true;
+}
+
 function hasRowObjects(value: unknown): boolean {
   const json = JSON.stringify(value);
   return json.includes('secret-north') || json.includes('"value":99');
@@ -165,7 +171,7 @@ describe('show_workspace', () => {
       }),
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!isDrawn(result)) return;
     expect(result.spec.component).toBe('bar-chart');
     expect(result.spec.binds).toEqual([
       { role: 'category', field: 'team' },
@@ -184,14 +190,14 @@ describe('show_workspace', () => {
       { intent: 'comparison', csv: 'team,score\nAlpha,10\nBeta,20\n' },
       ctx,
     );
-    expect(first.ok).toBe(true);
-    if (!first.ok) return;
+    expect(isDrawn(first)).toBe(true);
+    if (!isDrawn(first)) return;
     const second = await handleShowWorkspace(
       { intent: 'summary', datasetId: first.datasetId },
       ctx,
     );
-    expect(second.ok).toBe(true);
-    if (!second.ok) return;
+    expect(isDrawn(second)).toBe(true);
+    if (!isDrawn(second)) return;
     expect(second.spec.component).toBe('kpi-widget');
     expect(second.columns).toEqual(['team', 'score']);
     expect(JSON.stringify(second)).not.toContain('Alpha');
@@ -208,7 +214,7 @@ describe('show_workspace', () => {
   it('returns spec and summary without row objects', async () => {
     const result = await handleShowWorkspace({ intent: 'comparison' }, context());
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!isDrawn(result)) return;
     expect(result.spec.component).toBe('bar-chart');
     expect(result.chartType).toBe('barChart');
     expect(result.spec.binds).toEqual([
@@ -241,7 +247,7 @@ describe('show_workspace', () => {
       context({ catalog: withSeries }),
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!isDrawn(result)) return;
     const binds = result.spec.binds ?? [];
     const fields = Array.isArray(binds) ? binds.map((item) => item.field) : [];
     expect(new Set(fields).size).toBe(fields.length);
@@ -278,13 +284,13 @@ describe('show_workspace', () => {
     const winners = [];
     for (const intent of ['spatial', 'comparison', 'summary', 'form'] as const) {
       const result = await handleShowWorkspace({ intent }, context());
-      expect(result.ok).toBe(true);
-      if (result.ok) winners.push(result.spec.component);
+      expect(isDrawn(result)).toBe(true);
+      if (isDrawn(result)) winners.push(result.spec.component);
     }
     expect(winners).toEqual(['map-chart', 'bar-chart', 'kpi-widget', 'form']);
     const form = await handleShowWorkspace({ intent: 'form' }, context());
-    expect(form.ok).toBe(true);
-    if (form.ok) expect(form.chartType).toBe('customWidget');
+    expect(isDrawn(form)).toBe(true);
+    if (isDrawn(form)) expect(form.chartType).toBe('customWidget');
   });
 
   it('holds approval-bar and leaves spatial hover unheld', async () => {
@@ -311,8 +317,8 @@ describe('show_workspace', () => {
         fields: ['claim'],
       }),
     );
-    expect(held.ok).toBe(true);
-    if (!held.ok) return;
+    expect(isDrawn(held)).toBe(true);
+    if (!isDrawn(held)) return;
     expect(held.spec.component).toBe('approval-bar');
     expect(held.trace.outcome).toBe('held');
     expect(held.proposal).toMatchObject({
@@ -325,8 +331,8 @@ describe('show_workspace', () => {
     expect(JSON.stringify(held.trace)).not.toContain('secret-north');
 
     const spatial = await handleShowWorkspace({ intent: 'spatial' }, context());
-    expect(spatial.ok).toBe(true);
-    if (!spatial.ok) return;
+    expect(isDrawn(spatial)).toBe(true);
+    if (!isDrawn(spatial)) return;
     expect(spatial.spec.component).toBe('map-chart');
     expect(spatial.proposal).toBeUndefined();
     expect(spatial.trace.outcome).toBe('rendered');
@@ -342,7 +348,7 @@ describe('data channel', () => {
       context({ signDataLink: channel.signDataLink, payload: secretRows }),
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!isDrawn(result)) return;
     expect(result.spec.dataUrl).toMatch(/^https:\/\/workspace\.local\/v1\/data-links\//);
     expect(result.spec.callServerTool).toBe(CALL_SERVER_TOOL);
     expect(result.spec).not.toHaveProperty('data');
@@ -402,7 +408,7 @@ describe('data channel', () => {
       }),
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!isDrawn(result)) return;
     expect(result.spec.dataUrl).toBe('https://workspace.local/v1/data-links/abc?sig=deadbeef&exp=1');
   });
 });
@@ -449,7 +455,7 @@ describe('show_workspace fail-closed', () => {
       context({ fields: ['severity', 'count'] }),
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!isDrawn(result)) return;
     expect(result.spec.binds).toEqual([
       { role: 'category', field: 'severity' },
       { role: 'metric', field: 'count' },
@@ -475,7 +481,7 @@ describe('show_workspace fail-closed', () => {
       }),
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!isDrawn(result)) return;
     expect(result.spec.binds).toEqual([
       { role: 'category', field: 'team' },
       { role: 'metric', field: 'incidents' },
@@ -497,7 +503,7 @@ describe('show_workspace fail-closed', () => {
       }),
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!isDrawn(result)) return;
     expect(result.spec.component).toBe('map-chart');
     expect(result.spec.binds).toEqual([
       { role: 'geo', field: 'country' },
@@ -536,9 +542,58 @@ describe('show_workspace fail-closed', () => {
       }),
     );
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
+    if (!isDrawn(result)) return;
     expect(result.spec.component).toBe('histogram-chart');
     expect(result.spec.binds).toEqual([{ role: 'distribution', field: 'score' }]);
     expect(result.chartType).toBe('histogramChart');
+  });
+
+  it('asks before drawing a chart that does not fit the columns', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'comparison', requestedChart: 'pie' },
+      context(),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok || !result.awaitingUser) return;
+    expect(result.proposedChart).toBe('bar-chart');
+    expect(result.message).toContain('pie-chart');
+    expect(result.message).toContain('does not fit');
+    expect(result.message).toContain('not choosing');
+    expect(hasRowObjects(result)).toBe(false);
+  });
+
+  it('still does not draw an unfit chart after the user confirms it', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'comparison', requestedChart: 'pie', confirm: true },
+      context(),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok || !result.awaitingUser) return;
+    expect(result.proposedChart).toBe('bar-chart');
+    expect(result.message).toContain('still does not fit');
+  });
+
+  it('draws the chart the user asked for when it is the main fit', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'summary', requestedChart: 'bar' },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('bar-chart');
+    expect(result.chartWhy).toContain('discrete groups');
+  });
+
+  it('keeps a comparison-group chart instead of switching it to bar', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'comparison', requestedChart: 'lollipop' },
+      context(),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok || !result.awaitingUser) return;
+    expect(result.requestedChart).toBe('lollipop');
+    expect(result.proposedChart).toBe('lollipop');
+    expect(result.message).toContain('stays lollipop');
+    expect(result.message).not.toContain('Do you want bar-chart?');
   });
 });
