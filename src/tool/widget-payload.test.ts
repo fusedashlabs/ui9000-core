@@ -237,6 +237,53 @@ describe('workspaceWidgetPayload', () => {
     expect(results.reduce((sum, bin) => sum + bin.count, 0)).toBe(5);
   });
 
+  it('draws a health score as the dial and the other measures as cards', () => {
+    expect(
+      workspaceWidgetPayload(
+        'status-gauge-widget',
+        'statusGaugeWidget',
+        [],
+        [
+          { unitHealth: 72.8, txPower: 28, temp: 68 },
+        ],
+      ),
+    ).toMatchObject({
+      chartType: 'statusGaugeWidget',
+      data: [
+        { key: 'unitHealth', role: 'gauge', value: 72.8 },
+        { key: 'txPower', role: 'metric', value: 28 },
+        { key: 'temp', role: 'metric', value: 68 },
+      ],
+    });
+  });
+
+  it('keeps status rows as cards when no health score is present', () => {
+    expect(
+      workspaceWidgetPayload(
+        'status-gauge-widget',
+        'statusGaugeWidget',
+        [],
+        [
+          { key: 'Tx Power', value: 28, unit: 'dBm', min: 0, max: 40 },
+          { key: 'Temp', value: 68, unit: '°C' },
+        ],
+      ),
+    ).toMatchObject({
+      data: [
+        { key: 'txPower', role: 'metric', value: 28, min: 0, max: 40 },
+        { key: 'temp', role: 'metric', value: 68 },
+      ],
+    });
+  });
+
+  it('does not invent a dial from a single score column', () => {
+    expect(
+      workspaceWidgetPayload('status-gauge-widget', 'statusGaugeWidget', [], [{ score: 10 }, { score: 12 }]),
+    ).toMatchObject({
+      data: [{ key: 'score', role: 'metric', value: 10 }],
+    });
+  });
+
   it('sums a KPI under aggregations_column', () => {
     expect(
       workspaceWidgetPayload(

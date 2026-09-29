@@ -220,9 +220,9 @@ export const CHART_ROLES = {
   'status-gauge-widget': {
     id: 'status-gauge-widget',
     chartTypeKeys: ['statusGaugeWidget'],
-    role: 'State one health number as a dial, plus status cards.',
-    data: 'One gauge row and any number of status rows.',
-    visual: 'Semicircular gauge and a card grid.',
+    role: 'State one health score as a dial, plus the measures behind it.',
+    data: 'A health or condition score that already exists, plus at least one other measure. Optional unit, status, min, and max.',
+    visual: 'Semicircular health gauge and KPI cards with ticked range bars.',
   },
   'step-line-chart': {
     id: 'step-line-chart',
@@ -399,7 +399,7 @@ export const CHART_FAMILIES = [
     data: 'One or a few headline metrics.',
     main: 'kpi-widget',
     alternatives: [
-      { id: 'status-gauge-widget', when: 'One of the numbers is a health dial, and the rest are status cards.' },
+      { id: 'status-gauge-widget', when: 'At least two measures, and one of them is already a health or condition score. The dial is that score. Do not invent it.' },
     ],
   },
   {

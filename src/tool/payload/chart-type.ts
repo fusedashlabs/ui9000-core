@@ -3,6 +3,7 @@ const CHART_TYPE_BY_COMPONENT: Record<string, string> = {
   'histogram-chart': 'histogramChart',
   'map-chart': 'mapChart',
   'kpi-widget': 'KPI',
+  'status-gauge-widget': 'statusGaugeWidget',
   'network-graph': 'networkGraphChart',
   table: 'customWidget',
   text: 'customWidget',

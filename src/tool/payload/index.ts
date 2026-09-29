@@ -4,6 +4,7 @@ import { barChartPayload } from './bar-chart.js';
 import { chartTypeForComponent } from './chart-type.js';
 import { histogramChartPayload } from './histogram-chart.js';
 import { kpiWidgetPayload } from './kpi-widget.js';
+import { statusGaugeWidgetPayload } from './status-gauge-widget.js';
 import { mapChartPayload } from './map-chart.js';
 import { networkGraphPayload } from './network-graph.js';
 import { asRowObjects } from './rows.js';
@@ -23,6 +24,10 @@ const PAYLOAD_BY_COMPONENT: Record<string, PayloadBuilder> = {
   'kpi-widget': (chartType, fields, rows) => {
     void chartType;
     return kpiWidgetPayload(fields, rows);
+  },
+  'status-gauge-widget': (chartType, fields, rows) => {
+    void chartType;
+    return statusGaugeWidgetPayload(fields, rows);
   },
 };
 

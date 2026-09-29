@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto';
 
+import { catalogTierOf, collectPortMetadata } from '@fusedashlabs/widgets/catalog';
+
 import { decide } from '../engine/decide.js';
 import { governTrace } from '../governance/govern-trace.js';
-import type { EngineCatalog } from '../spec/engine-catalog.js';
+import type { CatalogEntry, EngineCatalog } from '../spec/engine-catalog.js';
 import type { DataProfile } from '../spec/data-profile.js';
 import { INTENTS, type Intent } from '../spec/intent.js';
 import { SPEC_ACTION_SET, type WorkspaceSpec } from '../spec/workspace-spec.js';
@@ -21,8 +23,10 @@ import {
   type StoredDataset,
 } from './ingest-table.js';
 import { chartTypeForComponent, workspaceWidgetPayload } from './widget-payload.js';
+import { statusGaugeFits } from './payload/status-gauge-widget.js';
 import { shapeSpec } from './shape-spec.js';
 import { assertTraceHasNoRows, closedProfile, type Trace, type TraceProposal } from '../trace/trace.js';
+import { CHART_ROLES } from '../catalog/chart-roles.js';
 import { chartWhyFor, discussChart } from '../catalog/discuss-chart.js';
 
 export const SHOW_WORKSPACE_NAME = 'show_workspace';
@@ -288,6 +292,7 @@ export async function handleShowWorkspace(
     context.rememberColumns?.(selected.table.columns.map((column) => column.name));
   }
 
+  const drawingCatalog = catalogWithHostDrawings(runtime.catalog);
   const discussion = parsed.requestedChart
     ? discussChart({
         profile: runtime.profile,
@@ -296,7 +301,7 @@ export async function handleShowWorkspace(
         confirm: parsed.confirm,
         intent: parsed.intent,
         catalogIds: new Set(
-          runtime.catalog.map((entry) => entry.id).filter((id): id is string => typeof id === 'string'),
+          drawingCatalog.map((entry) => entry.id).filter((id): id is string => typeof id === 'string'),
         ),
       })
     : undefined;
@@ -322,13 +327,20 @@ export async function handleShowWorkspace(
     profile: runtime.profile,
     catalog: runtime.catalog,
   });
-  const componentId = discussion?.drawId ?? decision.winner;
+  let componentId = discussion?.drawId ?? decision.winner;
+  if (
+    !discussion?.drawId &&
+    componentId === 'kpi-widget' &&
+    statusGaugeFits(runtime.payload)
+  ) {
+    componentId = 'status-gauge-widget';
+  }
   if (!componentId) {
     const reason = decision.rejected[0]?.reason ?? decision.trace.tieBreak;
     return fail('no_winner', reason || 'No eligible catalog component for this intent and profile.');
   }
 
-  const winner = runtime.catalog.find((item) => item.id === componentId);
+  const winner = drawingCatalog.find((item) => item.id === componentId);
   const allowedActions = discussion?.drawId
     ? (winner?.allowedActions ?? []).filter((action) => SPEC_ACTION_SET.has(action))
     : decision.trace.actions;
@@ -370,7 +382,7 @@ export async function handleShowWorkspace(
     return fail('signer_failed', 'signDataLink threw before returning a handle.');
   }
 
-  const validated = validateSpec(spec, runtime.catalog);
+  const validated = validateSpec(spec, drawingCatalog);
   if (!validated.ok) {
     return fail('invalid_spec', validated.reason);
   }
@@ -406,6 +418,29 @@ export async function handleShowWorkspace(
     ...(typeof runtime.profile.rowCount === 'number' ? { rowCount: runtime.profile.rowCount } : {}),
     ...(columns && columns.length > 0 ? { columns: [...columns] } : {}),
   };
+}
+
+/** Engine catalog plus host charts that chart-roles can already name. decide() stays on the engine set. */
+function catalogWithHostDrawings(catalog: EngineCatalog): EngineCatalog {
+  const ids = new Set(
+    catalog.map((entry) => entry.id).filter((id): id is string => typeof id === 'string'),
+  );
+  const extra: CatalogEntry[] = [];
+  for (const meta of collectPortMetadata()) {
+    if (!meta.id || ids.has(meta.id) || !(meta.id in CHART_ROLES)) continue;
+    if (catalogTierOf(meta) === 'engine') continue;
+    extra.push({
+      id: meta.id,
+      allowedActions: stringList(meta.allowedActions).filter((action) => SPEC_ACTION_SET.has(action)),
+      chartTypeKeys: stringList(meta.chartTypeKeys),
+    });
+  }
+  return extra.length === 0 ? catalog : [...catalog, ...extra];
+}
+
+function stringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
 }
 
 function contextFromTable(

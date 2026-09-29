@@ -229,6 +229,36 @@ describe('show_workspace', () => {
     expect(JSON.stringify(second)).not.toContain('Alpha');
   });
 
+  it('draws a status gauge when a health score sits beside other measures', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'summary', csv: 'unitHealth,txPower,temp\n72.8,28,68\n' },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('status-gauge-widget');
+  });
+
+  it('keeps a KPI when the only number is not a health score', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'summary', csv: 'txPower,temp\n28,68\n' },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('kpi-widget');
+  });
+
+  it('draws status cards when the gauge is requested without a health score', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'summary', requestedChart: 'statusGaugeWidget', csv: 'txPower,temp\n28,68\n' },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('status-gauge-widget');
+  });
+
   it('refuses csv and datasetId together', async () => {
     const result = await handleShowWorkspace(
       { intent: 'comparison', csv: 'a,b\n1,2\n', datasetId: 'x' },
