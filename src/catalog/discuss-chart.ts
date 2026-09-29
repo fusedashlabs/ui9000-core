@@ -94,7 +94,7 @@ export function discussChart(input: {
       chartWhy: '',
       message: [
         `You selected ${resolved} (${chartRole(resolved)?.role ?? 'this chart'}).`,
-        `It is in the ${judged.family.id} group for this data, so it stays ${resolved}.`,
+        `It fits this data: ${judged.family.question} It stays ${resolved}.`,
         'This workspace cannot draw it yet.',
         'I am not switching it to another chart. Do not call again.',
       ].join(' '),

@@ -75,6 +75,8 @@ describe('discussChart', () => {
     expect(discussion.drawId).toBeUndefined();
     expect(discussion.proposedChart).toBeUndefined();
     expect(discussion.message).toContain('stays line-chart');
+    expect(discussion.message).toContain('How do discrete groups compare');
+    expect(discussion.message).not.toContain('category-magnitude');
     expect(discussion.message).toContain('Do not call again');
   });
 });
