@@ -837,10 +837,15 @@ describe('show_workspace fail-closed', () => {
     if (!isDrawn(result)) return;
     expect(result.spec.component).toBe('bar-chart');
     expect(result.chartWhy).toContain('discrete groups');
-    expect(result.trace.candidates[0]?.id).toBe('bar-chart');
+    expect(result.trace.chosen).toEqual({
+      id: 'bar-chart',
+      by: 'named',
+      why: result.chartWhy,
+    });
     expect(result.trace.tieBreak).toBe(result.chartWhy);
     expect(result.summary).toContain('bar-chart');
-    expect(result.trace.candidates.map((item) => item.id)).not.toContain('kpi-widget');
+    expect(result.trace.candidates.map((item) => item.id)).toContain('kpi-widget');
+    expect(result.trace.rejections.map((item) => item.id)).not.toContain('bar-chart');
     expect(result.proposal).toBeUndefined();
   });
 
@@ -898,6 +903,8 @@ describe('show_workspace fail-closed', () => {
     if (!isDrawn(result)) return;
     expect(result.spec.component).toBe('line-chart');
     expect(result.suggestion).toBeUndefined();
+    expect(result.trace.chosen).toMatchObject({ id: 'line-chart', by: 'jev' });
+    expect(result.trace.candidates.some((item) => item.id !== 'line-chart')).toBe(true);
     expect(result.chartWhy).toContain('Jev selected line-chart');
   });
 

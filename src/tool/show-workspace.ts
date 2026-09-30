@@ -25,7 +25,13 @@ import {
 import { chartTypeForComponent, workspaceWidgetPayload } from './widget-payload.js';
 import { statusGaugeFits } from './payload/status-gauge-widget.js';
 import { shapeSpec } from './shape-spec.js';
-import { assertTraceHasNoRows, closedProfile, type Trace, type TraceProposal } from '../trace/trace.js';
+import {
+  assertTraceHasNoRows,
+  closedProfile,
+  type Trace,
+  type TraceChooser,
+  type TraceProposal,
+} from '../trace/trace.js';
 import { CHART_ROLES } from '../catalog/chart-roles.js';
 import { dataRolesForChart } from './payload/hosted-chart.js';
 import { canDraw, chartFamiliesFor, chartWhyFor, discussChart, sharesEligibleFamily, type ChartDiscussion } from '../catalog/discuss-chart.js';
@@ -492,12 +498,12 @@ export async function handleShowWorkspace(
         .join(' ')
     : '';
   const chartWhy = discussion?.chartWhy || jevWhy || undrawableWhy || missedWhy || engineWhy;
-  const trace = chosenByJev
+  const recorded = chosenByJev
     ? governTrace(
         {
           objective: parsed.intent,
           profile: closedProfile(runtime.profile),
-          candidates: [{ id: componentId, score: 1, reasons: [chartWhy] }],
+          candidates: decision.trace.candidates,
           rejections: decision.trace.rejections.filter((item) => item.id !== componentId),
           actions: allowedActions,
           tieBreak: chartWhy,
@@ -505,6 +511,15 @@ export async function handleShowWorkspace(
         winner?.allowedActions ?? allowedActions,
       )
     : decision.trace;
+  const by: TraceChooser = discussion?.drawId ? 'named' : jevDraw ? 'jev' : 'engine';
+  const trace: Trace = {
+    ...recorded,
+    chosen: {
+      id: componentId,
+      by,
+      why: chartWhy || recorded.tieBreak,
+    },
+  };
   assertTraceHasNoRows(trace);
   const proposal = trace.proposal;
 

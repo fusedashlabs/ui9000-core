@@ -17,6 +17,18 @@ export const TRACE_OUTCOMES = ['rendered', 'held', 'rejected'] as const;
 
 export type TraceOutcome = (typeof TRACE_OUTCOMES)[number];
 
+/** Who picked the chart that was drawn. */
+export const TRACE_CHOOSERS = ['jev', 'engine', 'named'] as const;
+
+export type TraceChooser = (typeof TRACE_CHOOSERS)[number];
+
+/** The drawing, separate from the engine's candidate list. */
+export type TraceChoice = {
+  id: string;
+  by: TraceChooser;
+  why: string;
+};
+
 /**
  * Closed bands. `low` may run with the workspace. `held` is a preview until
  * someone approves it. A spec cannot choose either value.
@@ -59,6 +71,8 @@ export type Trace = {
   /** First held action. Same object as `proposals[0]`, null when the list is empty. */
   proposal: TraceProposal | null;
   outcome: TraceOutcome;
+  /** The chart that was drawn, and who picked it. Absent on older traces. */
+  chosen?: TraceChoice;
 };
 
 /**
