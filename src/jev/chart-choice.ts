@@ -1,25 +1,14 @@
 /**
  * Jev question pack. The options are chart ids from chart-roles, never free text.
  *
- * show_workspace asks this on each draw. Jev's chart is the one rendered when
- * the user named none, and only a suggestion when they named one.
+ * Step 1 asks which class fits. Step 2 asks which drawing inside that class fits.
  */
 
 import { chartFamiliesFor } from '../catalog/discuss-chart.js';
 import { chartRole, type ChartFamily } from '../catalog/chart-roles.js';
-import { INTENTS, type Intent } from '../spec/intent.js';
 import type { DataProfile } from '../spec/data-profile.js';
 
 export const JEV_MODEL = 'jev-latest';
-
-const INTENT_CRITERIA: Record<Intent, string> = {
-  spatial: 'Place a metric on a map.',
-  comparison: 'Compare groups, a series, a distribution, or two measures.',
-  summary: 'State one or a few headline numbers.',
-  form: 'Collect or confirm a value.',
-  evidence: 'Show a claim, a table, or an event timeline.',
-  graph: 'Show what is connected to what, or how much flows from source to target.',
-};
 
 export type JevColumn = {
   name: string;
@@ -29,6 +18,10 @@ export type JevColumn = {
 export type JevChartState = {
   utterance: string;
   columns: JevColumn[];
+  categoryCardinality: number;
+  rowCount: number;
+  /** The tool's classification. Context for Jev, not a filter on the options. */
+  intent: string;
 };
 
 export type JevChoiceQuestion = {
@@ -46,47 +39,72 @@ export type JevChartRequest = {
   state: JevChartState;
   model: typeof JEV_MODEL;
   questions: {
-    intent: JevChoiceQuestion;
     chart: JevChoiceQuestion;
-    named_chart: JevNoulQuestion;
+    /** Present on the class question only, and only when the tool call omitted requestedChart. */
+    named_chart?: JevNoulQuestion;
   };
 };
 
-export function chartChoiceRequest(input: {
+const NAMED_CHART: JevNoulQuestion = {
+  type: 'noul',
+  instructions: 'The utterance names a specific chart drawing, such as line, bar, pie, or map.',
+};
+
+/** Step 1. One option per eligible family: its main chart, described by the family question. */
+export function classChoiceRequest(input: {
   utterance: string;
   columns: readonly JevColumn[];
   profile: DataProfile;
+  intent: string;
+  askNamedChart: boolean;
 }): JevChartRequest {
   const families = chartFamiliesFor(input.profile, input.columns);
-  const criteria = chartCriteria(families);
+  const criteria: Record<string, string> = {};
+  for (const family of families) {
+    if (!criteria[family.main]) criteria[family.main] = family.question;
+  }
   if (Object.keys(criteria).length === 0) {
     throw new Error('No chart family matches this profile, so Jev has no options.');
   }
-
   return {
-    state: {
-      utterance: input.utterance.trim(),
-      columns: input.columns.map((column) => ({
-        name: column.name,
-        role: column.role,
-      })),
-    },
+    state: jevState(input),
     model: JEV_MODEL,
     questions: {
-      intent: {
-        type: 'choice',
-        instructions: 'Which intent matches the utterance?',
-        criteria: intentCriteria(),
-      },
       chart: {
         type: 'choice',
         instructions:
-          'Which of these charts best fits the columns and the utterance? Use only these options. Choose the best reading of the data, even when the utterance names a different drawing.',
+          'Which of these classes fits the columns and the utterance? Use only these options.',
         criteria,
       },
-      named_chart: {
-        type: 'noul',
-        instructions: 'The utterance names a specific chart drawing, such as line, bar, pie, or map.',
+      ...(input.askNamedChart ? { named_chart: NAMED_CHART } : {}),
+    },
+  };
+}
+
+/** Step 2. Only the drawings of the class Jev already chose. */
+export function markChoiceRequest(input: {
+  utterance: string;
+  columns: readonly JevColumn[];
+  profile: DataProfile;
+  intent: string;
+  family: ChartFamily;
+}): JevChartRequest {
+  const criteria: Record<string, string> = {};
+  criteria[input.family.main] = input.family.question;
+  for (const alt of input.family.alternatives) {
+    const role = chartRole(alt.id);
+    const base = role ? `${role.role} ${role.data}` : input.family.question;
+    criteria[alt.id] = `${base} ${alt.when}`;
+  }
+  return {
+    state: jevState(input),
+    model: JEV_MODEL,
+    questions: {
+      chart: {
+        type: 'choice',
+        instructions:
+          'Which of these drawings of the chosen class fits best? Use only these options.',
+        criteria,
       },
     },
   };
@@ -112,34 +130,54 @@ export type JevChartResponse = {
   };
 };
 
-export type AcceptedChart = {
-  chart: string | null;
-  intent: string | null;
+export const JEV_MIN_CONFIDENCE = 0.5;
+export const JEV_MIN_LEAD = 0.15;
+
+export type AcceptedReading = {
+  /** Offered id Jev named. Null when that id was not one of the options. */
+  top: string | null;
+  runnerUp: string | null;
   confidence: number;
+  /** Top probability minus the runner-up. Zero when probabilities were not sent. */
+  lead: number;
+  /**
+   * Confidence clears the gate, the id was offered, and either there is one
+   * option or the lead clears the gate. Missing probabilities do not fail the lead.
+   */
+  clear: boolean;
   namedChart: boolean;
-  probabilities: Record<string, number>;
 };
 
-/** Trust only an id we offered, and only when confidence clears the gate. */
-export function acceptChartChoice(
+/** Trust only an id we offered, and only when confidence and lead both clear. */
+export function acceptReading(
   response: JevChartResponse,
   allowed: readonly string[],
-  minConfidence = 0.5,
-): AcceptedChart {
+  minConfidence = JEV_MIN_CONFIDENCE,
+  minLead = JEV_MIN_LEAD,
+): AcceptedReading {
   const chart = response.answers?.chart;
-  const intent = response.answers?.intent;
   const allowedSet = new Set(allowed);
-  const intentSet = new Set<string>(INTENTS);
   const confidence = typeof chart?.confidence === 'number' ? chart.confidence : 0;
   const choice = chart?.choice ?? '';
-  const intentChoice = intent?.choice ?? '';
+  const top = allowedSet.has(choice) ? choice : null;
+  const probabilities = chart?.probabilities ?? {};
+  const ranked = allowed
+    .filter((id) => id !== top)
+    .map((id) => ({ id, p: typeof probabilities[id] === 'number' ? probabilities[id] : 0 }))
+    .sort((a, b) => b.p - a.p || a.id.localeCompare(b.id));
+  const runner = ranked[0];
+  const hasProbabilities = allowed.some((id) => typeof probabilities[id] === 'number');
+  const topP = top && typeof probabilities[top] === 'number' ? probabilities[top] : confidence;
+  const lead = top ? topP - (runner?.p ?? 0) : 0;
   const named = response.answers?.named_chart?.noul;
+  const leadOk = !hasProbabilities || allowed.length <= 1 || lead >= minLead;
   return {
-    chart: allowedSet.has(choice) && confidence >= minConfidence ? choice : null,
-    intent: intentSet.has(intentChoice) ? intentChoice : null,
+    top,
+    runnerUp: runner && (runner.p > 0 || !hasProbabilities) ? runner.id : null,
     confidence,
+    lead,
+    clear: top !== null && confidence >= minConfidence && leadOk,
     namedChart: typeof named === 'number' && named >= 0.5,
-    probabilities: chart?.probabilities ?? {},
   };
 }
 
@@ -147,30 +185,17 @@ export function offeredChartIds(request: JevChartRequest): string[] {
   return Object.keys(request.questions.chart.criteria);
 }
 
-function intentCriteria(): Record<string, string> {
-  const criteria: Record<string, string> = {};
-  for (const intent of INTENTS) criteria[intent] = INTENT_CRITERIA[intent];
-  return criteria;
-}
-
-function chartCriteria(families: readonly ChartFamily[]): Record<string, string> {
-  const criteria: Record<string, string> = {};
-  for (const family of families) {
-    note(criteria, family.main, family);
-    for (const alt of family.alternatives) note(criteria, alt.id, family);
-  }
-  return criteria;
-}
-
-function note(criteria: Record<string, string>, id: string, family: ChartFamily): void {
-  const role = chartRole(id);
-  const base = role ? `${role.role} ${role.data}` : family.question;
-  const alt = family.alternatives.find((item) => item.id === id);
-  const sentence = alt ? `${base} ${alt.when}` : base;
-  const prev = criteria[id];
-  if (!prev) {
-    criteria[id] = sentence;
-    return;
-  }
-  if (alt && !prev.includes(alt.when)) criteria[id] = `${prev} ${alt.when}`;
+function jevState(input: {
+  utterance: string;
+  columns: readonly JevColumn[];
+  profile: DataProfile;
+  intent: string;
+}): JevChartState {
+  return {
+    utterance: input.utterance.trim(),
+    columns: input.columns.map((column) => ({ name: column.name, role: column.role })),
+    categoryCardinality: input.profile.categoryCardinality ?? 0,
+    rowCount: input.profile.rowCount ?? 0,
+    intent: input.intent,
+  };
 }

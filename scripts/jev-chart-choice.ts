@@ -15,8 +15,8 @@ import { fileURLToPath } from 'node:url';
 import type { DataProfile } from '../src/spec/data-profile.js';
 import { askJev } from '../src/jev/ask.js';
 import {
-  acceptChartChoice,
-  chartChoiceRequest,
+  acceptReading,
+  classChoiceRequest,
   offeredChartIds,
   type JevColumn,
 } from '../src/jev/chart-choice.js';
@@ -99,7 +99,7 @@ async function main(): Promise<void> {
   loadLocalEnv();
   const apiKey = process.env.TYPESAFE_API_KEY?.trim() ?? '';
   for (const scenario of SCENARIOS) {
-    const request = chartChoiceRequest(scenario);
+    const request = classChoiceRequest({ ...scenario, intent: 'comparison', askNamedChart: true });
     const allowed = offeredChartIds(request);
     console.log('\n---');
     console.log(scenario.utterance);
@@ -109,7 +109,7 @@ async function main(): Promise<void> {
       continue;
     }
     const response = await askJev(request, apiKey);
-    const accepted = acceptChartChoice(response, allowed);
+    const accepted = acceptReading(response, allowed);
     console.log(
       JSON.stringify(
         {

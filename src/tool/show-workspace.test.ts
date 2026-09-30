@@ -892,11 +892,15 @@ describe('show_workspace fail-closed', () => {
     const result = await handleShowWorkspace(
       { intent: 'comparison', utterance: 'Compare incident counts by team over months.' },
       context({
-        askJev: async () => ({
-          answers: {
-            chart: { type: 'choice', choice: 'line-chart', confidence: 0.99 },
-          },
-        }),
+        askJev: async (request) => {
+          const offered = Object.keys(request.questions.chart.criteria);
+          const choice = offered.includes('lollipop') ? 'line-chart' : 'bar-chart';
+          return {
+            answers: {
+              chart: { type: 'choice', choice, confidence: 0.9 },
+            },
+          };
+        },
       }),
     );
     expect(isDrawn(result)).toBe(true);
@@ -906,9 +910,10 @@ describe('show_workspace fail-closed', () => {
     expect(result.trace.chosen).toMatchObject({ id: 'line-chart', by: 'jev' });
     expect(result.trace.candidates.some((item) => item.id !== 'line-chart')).toBe(true);
     expect(result.chartWhy).toContain('Jev selected line-chart');
+    expect(result.chartWhy).toContain('because');
   });
 
-  it('stays silent when Jev picks another chart in the same family', async () => {
+  it('keeps the named chart when it sits in the class Jev chose', async () => {
     const result = await handleShowWorkspace(
       {
         intent: 'comparison',
@@ -919,7 +924,7 @@ describe('show_workspace fail-closed', () => {
       context({
         askJev: async () => ({
           answers: {
-            chart: { type: 'choice', choice: 'line-chart', confidence: 0.9 },
+            chart: { type: 'choice', choice: 'bar-chart', confidence: 0.9 },
           },
         }),
       }),
@@ -928,10 +933,12 @@ describe('show_workspace fail-closed', () => {
     if (!isDrawn(result)) return;
     expect(result.spec.component).toBe('bar-chart');
     expect(result.suggestion).toBeUndefined();
-    expect(result.chartWhy).not.toContain('Jev selected');
+    expect(result.chartWhy).toContain('same class');
+    expect(result.chartWhy).toContain('stays');
+    expect(result.trace.chosen).toMatchObject({ id: 'bar-chart', by: 'named' });
   });
 
-  it('reports Jev as a suggestion when the named chart is outside Jev\'s family', async () => {
+  it('waits when the named chart sits in another class', async () => {
     const result = await handleShowWorkspace(
       {
         intent: 'comparison',
@@ -942,17 +949,67 @@ describe('show_workspace fail-closed', () => {
       context({
         askJev: async () => ({
           answers: {
-            chart: { type: 'choice', choice: 'line-chart', confidence: 0.9 },
+            chart: { type: 'choice', choice: 'bar-chart', confidence: 0.9 },
           },
         }),
       }),
     );
+    expect(result.ok && result.awaitingUser).toBe(true);
+    if (!result.ok || !result.awaitingUser) return;
+    expect(result).not.toHaveProperty('spec');
+    expect(result.suggestion).toBe('bar-chart');
+    expect(result.message).toContain('Source, target, and a value');
+    expect(result.message).toContain('Jev would draw bar-chart');
+    expect(result.message).toContain('Nothing was generated');
+    expect(result.message).toContain('Say which of the two you want');
+  });
+
+  it('draws the class main when the mark call fails', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'comparison', utterance: 'Compare incident counts by team.' },
+      context({
+        askJev: async (request) => {
+          if (Object.keys(request.questions.chart.criteria).includes('lollipop')) {
+            throw new Error('mark down');
+          }
+          return {
+            answers: {
+              chart: { type: 'choice', choice: 'bar-chart', confidence: 0.9 },
+            },
+          };
+        },
+      }),
+    );
     expect(isDrawn(result)).toBe(true);
     if (!isDrawn(result)) return;
-    expect(result.spec.component).toBe('sankey-chart');
-    expect(result.suggestion).toBe('line-chart');
-    expect(result.suggestionWhy).toContain('That is a suggestion');
-    expect(result.suggestionWhy).toContain('stays sankey-chart');
+    expect(result.spec.component).toBe('bar-chart');
+    expect(result.chartWhy).toContain('Jev selected bar-chart');
+    expect(result.chartWhy).not.toContain('Jev did not select');
+    expect(result.trace.chosen).toMatchObject({ by: 'jev' });
+  });
+
+  it('waits when Jev cannot separate two classes', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'comparison', utterance: 'Compare incidents by city.' },
+      context({
+        askJev: async () => ({
+          answers: {
+            chart: {
+              type: 'choice',
+              choice: 'bar-chart',
+              confidence: 0.52,
+              probabilities: { 'bar-chart': 0.52, 'map-chart': 0.48 },
+            },
+          },
+        }),
+      }),
+    );
+    expect(result.ok && result.awaitingUser).toBe(true);
+    if (!result.ok || !result.awaitingUser) return;
+    expect(result).not.toHaveProperty('spec');
+    expect(result.suggestion).toBeUndefined();
+    expect(result.message).toContain('hesitated between bar-chart and map-chart');
+    expect(result.message).toContain('Nothing was generated');
   });
 
   it('draws with decide when Jev does not answer', async () => {
@@ -997,8 +1054,7 @@ describe('show_workspace fail-closed', () => {
       context({
         askJev: async () => ({
           answers: {
-            chart: { type: 'choice', choice: 'line-chart', confidence: 0.9 },
-            named_chart: { type: 'noul', noul: 0.2 },
+            chart: { type: 'choice', choice: 'bar-chart', confidence: 0.9 },
           },
         }),
       }),
@@ -1006,12 +1062,13 @@ describe('show_workspace fail-closed', () => {
     expect(result.ok && result.awaitingUser).toBe(true);
     if (!result.ok || !result.awaitingUser) return;
     expect(result).not.toHaveProperty('spec');
-    expect(result.suggestion).toBe('line-chart');
-    expect(result.message).toContain('Jev selected line-chart');
-    expect(result.message).not.toContain('bar-chart');
+    expect(result.suggestion).toBe('bar-chart');
+    expect(result.message).toContain('not a chart I know');
+    expect(result.message).toContain('Jev would draw bar-chart');
+    expect(result.message).toContain('Nothing was generated');
   });
 
-  it('says Jev selected a chart this workspace cannot draw', async () => {
+  it('does not draw when Jev selects a chart this workspace cannot draw', async () => {
     const result = await handleShowWorkspace(
       { intent: 'comparison', utterance: 'Show incidents on a map.' },
       context({
@@ -1024,16 +1081,18 @@ describe('show_workspace fail-closed', () => {
         }),
       }),
     );
-    expect(isDrawn(result)).toBe(true);
-    if (!isDrawn(result)) return;
-    expect(result.spec.component).toBe('bar-chart');
-    expect(result.chartWhy).toContain('Jev selected map-chart');
-    expect(result.chartWhy).toContain('cannot be drawn');
-    expect(result.chartWhy).toContain("not Jev's");
-    expect(result.chartWhy).not.toContain('Jev did not select');
+    expect(result.ok && result.awaitingUser).toBe(true);
+    if (!result.ok || !result.awaitingUser) return;
+    expect(result).not.toHaveProperty('spec');
+    expect(result.suggestion).toBeUndefined();
+    expect(result.message).toContain('Jev selected map-chart');
+    expect(result.message).toContain('cannot draw');
+    expect(result.message).toContain('Nothing was generated');
+    expect(result.message).not.toContain("not Jev's");
+    expect(result.message).not.toContain('Jev did not select');
   });
 
-  it('reports Jev when an undrawable named chart is outside Jev\'s family', async () => {
+  it('recommends Jev when an undrawable named chart is outside Jev\'s class', async () => {
     const result = await handleShowWorkspace(
       { intent: 'spatial', utterance: 'Show a map.', requestedChart: 'map' },
       context({
@@ -1041,7 +1100,6 @@ describe('show_workspace fail-closed', () => {
         askJev: async () => ({
           answers: {
             chart: { type: 'choice', choice: 'bar-chart', confidence: 0.9 },
-            named_chart: { type: 'noul', noul: 0.2 },
           },
         }),
       }),
@@ -1050,13 +1108,14 @@ describe('show_workspace fail-closed', () => {
     if (!result.ok || !result.awaitingUser) return;
     expect(result).not.toHaveProperty('spec');
     expect(result.suggestion).toBe('bar-chart');
-    expect(result.message).toContain('Jev selected bar-chart');
-    expect(result.message).toContain('nothing was generated');
+    expect(result.message).toContain('Region id or lat/lng');
+    expect(result.message).toContain('Jev would draw bar-chart');
+    expect(result.message).toContain('Nothing was generated');
+    expect(result.message).toContain('Say which of the two you want');
     expect(result.message).not.toContain('I am not switching');
-    expect(result.message.match(/Call again with it only if the user asks/g)).toHaveLength(1);
   });
 
-  it('stays silent when an undrawable named chart shares Jev\'s family', async () => {
+  it('argues an undrawable named chart that shares Jev\'s class', async () => {
     const result = await handleShowWorkspace(
       { intent: 'spatial', utterance: 'Show a map.', requestedChart: 'map' },
       context({
@@ -1064,7 +1123,6 @@ describe('show_workspace fail-closed', () => {
         askJev: async () => ({
           answers: {
             chart: { type: 'choice', choice: 'map-chart', confidence: 0.9 },
-            named_chart: { type: 'noul', noul: 0.2 },
           },
         }),
       }),
@@ -1073,12 +1131,15 @@ describe('show_workspace fail-closed', () => {
     if (!result.ok || !result.awaitingUser) return;
     expect(result).not.toHaveProperty('spec');
     expect(result.suggestion).toBeUndefined();
-    expect(result.message).toContain('stays map-chart');
-    expect(result.message).toContain('I am not switching');
-    expect(result.message).not.toContain('Jev selected');
+    expect(result.message).toContain('Region id or lat/lng');
+    expect(result.message).toContain('Jev selected map-chart');
+    expect(result.message).toContain('cannot draw');
+    expect(result.message).toContain('Nothing was generated');
+    expect(result.message).not.toContain('I am not switching');
+    expect(result.message).not.toContain('Jev would draw');
   });
 
-  it('does not repeat Jev when the named chart cannot bind', async () => {
+  it('does not draw a named chart that the columns do not support', async () => {
     const result = await handleShowWorkspace(
       {
         intent: 'comparison',
@@ -1089,8 +1150,7 @@ describe('show_workspace fail-closed', () => {
       context({
         askJev: async () => ({
           answers: {
-            chart: { type: 'choice', choice: 'line-chart', confidence: 0.9 },
-            named_chart: { type: 'noul', noul: 0.2 },
+            chart: { type: 'choice', choice: 'bar-chart', confidence: 0.9 },
           },
         }),
       }),
@@ -1098,11 +1158,10 @@ describe('show_workspace fail-closed', () => {
     expect(result.ok && result.awaitingUser).toBe(true);
     if (!result.ok || !result.awaitingUser) return;
     expect(result).not.toHaveProperty('spec');
-    expect(result.suggestion).toBe('line-chart');
-    expect(result.message).toContain('do not fill');
-    expect(result.message).toContain('Jev selected line-chart');
+    expect(result.suggestion).toBe('bar-chart');
+    expect(result.message).toContain('Source, target, and a value');
+    expect(result.message).toContain('Jev would draw bar-chart');
     expect(result.message).not.toContain('A closer chart would be');
-    expect(result.message.match(/Call again with it only if the user asks/g)).toHaveLength(1);
-    expect(result.suggestionWhy.match(/Call again with it only if the user asks/g)).toHaveLength(1);
+    expect(result.message.match(/Jev would draw/g)).toHaveLength(1);
   });
 });

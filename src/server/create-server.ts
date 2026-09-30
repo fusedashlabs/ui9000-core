@@ -71,6 +71,7 @@ export const WORKSPACE_INSTRUCTIONS = [
   "Do not draw that chart with the chat's built-in tools.",
   "Pass the user's words as utterance.",
   'Pass requestedChart only when they named a chart.',
+  'If the result is awaitingUser, show the argument, do not draw a substitute, and call again only with the chart the user picks and the same datasetId.',
 ].join(' ');
 
 const DEFAULT_INPUT_SCHEMA: Record<string, unknown> = { type: 'object' };
