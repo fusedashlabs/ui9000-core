@@ -3,6 +3,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
 import { SHOW_WORKSPACE_NAME } from '../tool/show-workspace.js';
+import { WORKSPACE_INSTRUCTIONS } from './create-server.js';
 import { startWorkspaceHttpServer } from './http-workspace.js';
 
 const HTML = '<!doctype html><html><body>ui9000-chart</body></html>';
@@ -24,6 +25,8 @@ describe('workspace Streamable HTTP', () => {
     await client.connect(transport);
 
     try {
+      expect(client.getInstructions()).toBe(WORKSPACE_INSTRUCTIONS);
+
       const tools = await client.listTools();
       expect(tools.tools).toHaveLength(1);
       expect(tools.tools[0]?.name).toBe(SHOW_WORKSPACE_NAME);

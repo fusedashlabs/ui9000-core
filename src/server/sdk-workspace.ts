@@ -19,6 +19,7 @@ import {
 } from '../tool/show-workspace.js';
 import {
   SERVER_INFO,
+  WORKSPACE_INSTRUCTIONS,
   workspaceToolResult,
   type ShowWorkspaceHandler,
   type ShowWorkspaceToolInfo,
@@ -52,6 +53,7 @@ export function createSdkWorkspaceServer(
 
   const server = new McpServer(SERVER_INFO, {
     capabilities: { tools: {}, resources: {} },
+    instructions: WORKSPACE_INSTRUCTIONS,
   });
 
   registerAppResource(

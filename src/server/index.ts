@@ -9,6 +9,7 @@ export type {
 export {
   PROTOCOL_VERSION,
   SERVER_INFO,
+  WORKSPACE_INSTRUCTIONS,
   SHOW_WORKSPACE_NAME,
   createServer,
   workspaceToolResult,

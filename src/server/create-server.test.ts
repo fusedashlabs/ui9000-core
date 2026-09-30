@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { SHOW_WORKSPACE_NAME } from '../tool/show-workspace.js';
 import {
   PROTOCOL_VERSION,
+  WORKSPACE_INSTRUCTIONS,
   createServer,
   type JsonRpcResponse,
   type ShowWorkspaceHandler,
@@ -121,6 +122,7 @@ describe('createServer', () => {
 
     expect(result.protocolVersion).toBe(PROTOCOL_VERSION);
     expect(result.capabilities).toEqual({ tools: {} });
+    expect(result.instructions).toBe(WORKSPACE_INSTRUCTIONS);
   });
 
   it('advertises resources when an MCP App is attached', async () => {

@@ -20,6 +20,8 @@ The tool call must not include the table cells as `data`, `rows`, `points`, or `
 
 Node.js 20 or newer for the `npx` install. Jev is optional. Without `TYPESAFE_API_KEY` the server still draws a chart. Put the key only in the `env` block below. Do not commit it.
 
+On connect the server returns `instructions` for Cursor, Claude Desktop, and Claude.ai. The host puts that text in context before it picks a tool: for a table or a chart, call `show_workspace` and do not draw with the chat's built-in chart tools. Those other tools stay available. A host that ignores server instructions can still use them.
+
 ### Cursor
 
 `~/.cursor/mcp.json`:

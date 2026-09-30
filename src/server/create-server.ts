@@ -62,6 +62,17 @@ export const PROTOCOL_VERSION = '2025-06-18';
 
 export const SERVER_INFO = { name: 'ui9000-core', version: '0.0.0' } as const;
 
+/**
+ * Returned on initialize. Hosts such as Claude put this in context before they
+ * pick a tool. It does not remove the host's own chart tools.
+ */
+export const WORKSPACE_INSTRUCTIONS = [
+  'For any table or chart, call show_workspace.',
+  "Do not draw that chart with the chat's built-in tools.",
+  "Pass the user's words as utterance.",
+  'Pass requestedChart only when they named a chart.',
+].join(' ');
+
 const DEFAULT_INPUT_SCHEMA: Record<string, unknown> = { type: 'object' };
 
 const PARSE_ERROR = -32700;
@@ -132,6 +143,7 @@ export function createServer(
               }
             : { tools: {} },
           serverInfo: SERVER_INFO,
+          instructions: WORKSPACE_INSTRUCTIONS,
         });
       case 'ping':
         return okResponse(id, {});

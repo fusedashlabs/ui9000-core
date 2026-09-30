@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { INTENTS } from '../spec/intent.js';
 import { SHOW_WORKSPACE_INPUT_SCHEMA, SHOW_WORKSPACE_NAME } from '../tool/show-workspace.js';
+import { WORKSPACE_INSTRUCTIONS } from './create-server.js';
 import { createSdkWorkspaceServer } from './sdk-workspace.js';
 import { workspaceChartAppResource } from './mcp-app.js';
 
@@ -33,6 +34,8 @@ describe('createSdkWorkspaceServer', () => {
     await Promise.all([mcp.connect(serverTransport), client.connect(clientTransport)]);
 
     try {
+      expect(client.getInstructions()).toBe(WORKSPACE_INSTRUCTIONS);
+
       const tools = await client.listTools();
       expect(tools.tools).toHaveLength(1);
       expect(tools.tools[0]?.name).toBe(SHOW_WORKSPACE_NAME);
