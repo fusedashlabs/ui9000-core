@@ -5,7 +5,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { parseCsvTable, tableRowCount } from '../profiler/table.js';
 import {
+  blockedDatasetUrl,
   isSensitiveDatasetFileName,
+  isSensitiveDatasetPath,
   resolveWorkspaceIngest,
   tableFromRecords,
 } from './ingest-table.js';
@@ -97,6 +99,12 @@ describe('ingest helpers', () => {
     expect(isSensitiveDatasetFileName('/tmp/.env')).toBe(true);
     expect(isSensitiveDatasetFileName('/tmp/env.prod')).toBe(true);
     expect(isSensitiveDatasetFileName('/tmp/sales.csv')).toBe(false);
+    expect(isSensitiveDatasetFileName('/Users/x/.ssh/id_rsa')).toBe(true);
+    expect(isSensitiveDatasetPath('/etc/passwd')).toBe(true);
+    expect(blockedDatasetUrl('http://169.254.169.254/latest/meta-data/')).toBe(
+      'url host is not allowed.',
+    );
+    expect(blockedDatasetUrl('https://example.com/a.csv')).toBeUndefined();
   });
 
   it('builds a table from record objects', () => {

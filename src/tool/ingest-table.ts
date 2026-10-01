@@ -4,6 +4,7 @@
  */
 
 import * as fs from 'node:fs';
+import { isIP } from 'node:net';
 import * as path from 'node:path';
 
 import {
@@ -32,7 +33,7 @@ export type IngestOptions = {
   cwd?: string;
   fetchImpl?: (
     input: string,
-    init?: { method?: string },
+    init?: { method?: string; redirect?: 'error' | 'follow' | 'manual' },
   ) => Promise<Pick<Response, 'ok' | 'status' | 'text'>>;
   loadDataset?: (id: string) => StoredDataset | undefined | Promise<StoredDataset | undefined>;
 };
@@ -60,10 +61,38 @@ const REMOTE_SOURCE_DISABLED =
 
 const SENSITIVE_PATH = 'path cannot be a hidden, env, or secrets file.';
 
+const SENSITIVE_BASES = new Set([
+  'id_rsa',
+  'id_dsa',
+  'id_ecdsa',
+  'id_ed25519',
+  'credentials',
+  'credentials.json',
+  'secrets',
+  'secrets.json',
+  'env.prod',
+  'env.local',
+]);
+
+const SENSITIVE_DIRS = new Set(['.ssh', '.aws', '.gnupg', '.kube']);
+
+/** Hidden files, key material, and well-known secret directories. Checks the whole path, not only the basename. */
 export function isSensitiveDatasetFileName(fileName: string): boolean {
-  const base = path.basename(fileName).toLowerCase();
-  if (base.startsWith('.')) return true;
-  return base === 'env.prod' || base === 'env.local';
+  const parts = fileName.replace(/\\/g, '/').toLowerCase().split('/').filter(Boolean);
+  if (parts.some((part) => SENSITIVE_DIRS.has(part))) return true;
+  const base = parts[parts.length - 1] ?? '';
+  if (base.startsWith('.') && base !== '.' && base !== '..') return true;
+  if (base.endsWith('.pem') || base.endsWith('.key')) return true;
+  return SENSITIVE_BASES.has(base);
+}
+
+/** System trees a chart table must not read, even when the basename looks harmless. */
+export function isSensitiveDatasetPath(filePath: string): boolean {
+  if (isSensitiveDatasetFileName(filePath)) return true;
+  const norm = path.resolve(filePath).replace(/\\/g, '/').toLowerCase();
+  return ['/etc/', '/proc/', '/sys/', '/private/etc/'].some(
+    (prefix) => norm === prefix.slice(0, -1) || norm.startsWith(prefix),
+  );
 }
 
 export function isDatasetPayload(value: unknown): value is {
@@ -242,9 +271,14 @@ async function resolveCsvText(
     if (!/^https?:\/\//i.test(source.url)) {
       return fail('invalid_ingest', 'url must start with http:// or https://.');
     }
+    const blocked = blockedDatasetUrl(source.url);
+    if (blocked) return fail('invalid_ingest', blocked);
     try {
       const fetchImpl = options.fetchImpl ?? fetch;
-      const res = await fetchImpl(source.url);
+      const res = await fetchImpl(source.url, { method: 'GET', redirect: 'error' });
+      if (res.status >= 300 && res.status < 400) {
+        return fail('invalid_ingest', 'url redirects are refused.');
+      }
       if (!res.ok) {
         return fail('invalid_ingest', `Failed to fetch url (HTTP ${res.status}).`);
       }
@@ -266,7 +300,7 @@ async function resolveCsvText(
     if (relative && resolved !== cwd && !resolved.startsWith(cwd + path.sep)) {
       return fail('invalid_ingest', 'Relative path must stay inside the working directory.');
     }
-    if (isSensitiveDatasetFileName(resolved)) {
+    if (isSensitiveDatasetPath(resolved)) {
       return fail('invalid_ingest', SENSITIVE_PATH);
     }
     if (!fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) {
@@ -277,6 +311,54 @@ async function resolveCsvText(
   }
 
   return fail('invalid_ingest', 'Provide exactly one of: csv, url, path, or datasetId.');
+}
+
+const BLOCKED_URL_HOSTS = new Set([
+  'localhost',
+  'metadata.google.internal',
+]);
+
+/** Refuse loopback, link-local, private, and cloud-metadata hosts before fetch. */
+export function blockedDatasetUrl(raw: string): string | undefined {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return 'url is not a valid http(s) URL.';
+  }
+  if (url.username || url.password) return 'url must not include credentials.';
+  const host = url.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+  if (
+    BLOCKED_URL_HOSTS.has(host) ||
+    host.endsWith('.local') ||
+    host.endsWith('.internal') ||
+    isBlockedIp(host)
+  ) {
+    return 'url host is not allowed.';
+  }
+  return undefined;
+}
+
+function isBlockedIp(host: string): boolean {
+  const kind = isIP(host);
+  if (kind === 4) {
+    const [a = -1, b = -1] = host.split('.').map((part) => Number(part));
+    if (a === 0 || a === 10 || a === 127) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true;
+    if (a >= 224) return true;
+    return false;
+  }
+  if (kind === 6) {
+    const lower = host.toLowerCase();
+    if (lower === '::1' || lower === '::') return true;
+    if (lower.startsWith('fe80') || lower.startsWith('fc') || lower.startsWith('fd')) return true;
+    if (lower.startsWith('::ffff:')) return isBlockedIp(lower.slice('::ffff:'.length));
+    return false;
+  }
+  return false;
 }
 
 function capCsv(
