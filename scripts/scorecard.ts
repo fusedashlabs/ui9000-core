@@ -31,8 +31,8 @@
 
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join } from 'node:path';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { VALIDATION_CODES } from '../src/validate/codes.js';
@@ -52,6 +52,7 @@ const CORE_DIR = fileURLToPath(new URL('../', import.meta.url));
 const EVAL_DIR = join(CORE_DIR, 'tests/eval/dimensions');
 const EVAL_CASES_DIR = join(EVAL_DIR, 'cases');
 const ADVERSARIAL_DIR = join(CORE_DIR, 'tests/adversarial');
+const GOVERNANCE_DIR = join(CORE_DIR, 'src/governance');
 const EVAL_TEST_FILE = 'dimensions.test.ts';
 const ADVERSARIAL_GUARD_FILE = 'suite.test.ts';
 
@@ -125,6 +126,8 @@ export type Scorecard = {
   adversarial: AdversarialTally;
   /** Governance suites found on disk. Non-empty means this generator owes a row. */
   governance: string[];
+  /** Pass counts from the vitest report. Absent means the row has not been tallied. */
+  governanceRun?: { passed: number; total: number };
 };
 
 /* ------------------------------------------------------------------ vitest */
@@ -145,7 +148,7 @@ export function runVitestJson(targets: readonly string[]): VitestReport {
 
   const run = spawnSync(
     process.execPath,
-    [vitestBin, 'run', ...targets, '--reporter=json', '--silent'],
+    [vitestBin, 'run', ...targets, GOVERNANCE_DIR, '--reporter=json', '--silent'],
     { cwd: CORE_DIR, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
   );
 
@@ -302,7 +305,8 @@ const TESTS_DIR = join(CORE_DIR, 'tests');
  * generator is out of date by definition — it has no row for it — and saying so
  * is a breach rather than a paragraph that quietly goes stale.
  */
-export function governanceSuites(dir: string = TESTS_DIR): string[] {
+function walkGovernance(dir: string, base: string): string[] {
+  if (!existsSync(dir)) return [];
   const found: string[] = [];
   const walk = (at: string): void => {
     for (const entry of readdirSync(at, { withFileTypes: true })) {
@@ -314,14 +318,51 @@ export function governanceSuites(dir: string = TESTS_DIR): string[] {
         continue;
       }
       if (!entry.name.endsWith('.test.ts')) continue;
-      const relative = next.slice(dir.length + 1);
-      const parts = relative.split(/[/\\]/);
+      const rel = relative(base, next);
+      const parts = rel.split(/[/\\]/);
       const inGovernanceDir = parts.slice(0, -1).some((part) => part.toLowerCase() === 'governance');
-      if (inGovernanceDir || /governance/i.test(entry.name)) found.push(relative);
+      if (inGovernanceDir || /governance/i.test(entry.name)) found.push(rel);
     }
   };
   walk(dir);
-  return found.sort();
+  return found;
+}
+
+/**
+ * Governance suites under `tests/` and `src/governance/`.
+ * A directory argument walks only that tree, so the unit test can use a temp dir.
+ */
+export function governanceSuites(dir?: string): string[] {
+  if (dir !== undefined) return walkGovernance(dir, dir).sort();
+  return [
+    ...walkGovernance(TESTS_DIR, CORE_DIR),
+    ...walkGovernance(GOVERNANCE_DIR, CORE_DIR),
+  ].sort();
+}
+
+/** Count the report's assertions for each governance file. A missing file counts as a miss. */
+function tallyGovernance(
+  report: VitestReport,
+  files: readonly string[],
+): { passed: number; total: number } {
+  let passed = 0;
+  let total = 0;
+  for (const file of files) {
+    const needle = file.replaceAll('\\', '/');
+    const match = (report.testResults ?? []).find((item) =>
+      item.name.replaceAll('\\', '/').endsWith(needle),
+    );
+    const assertions = match?.assertionResults ?? [];
+    if (assertions.length === 0) {
+      total += 1;
+      continue;
+    }
+    for (const assertion of assertions) {
+      total += 1;
+      if (assertion.status === 'passed') passed += 1;
+    }
+  }
+  return { passed, total };
 }
 
 /* ------------------------------------------------------------------- card */
@@ -341,10 +382,12 @@ export function collectScorecard(options: CollectOptions = {}): Scorecard {
     options.report === undefined
       ? runVitestJson([EVAL_DIR, ADVERSARIAL_DIR])
       : (JSON.parse(readFileSync(options.report, 'utf8')) as VitestReport);
+  const governance = governanceSuites();
   return {
     ...collectEval(report, options.cases),
     adversarial: collectAdversarial(report),
-    governance: governanceSuites(),
+    governance,
+    ...(governance.length > 0 ? { governanceRun: tallyGovernance(report, governance) } : {}),
   };
 }
 
@@ -397,10 +440,14 @@ export function floorViolations(card: Scorecard): string[] {
   problems.push(...codeCoverageViolations(adversarial));
   problems.push(...guardViolations('adversarial suite', adversarial.guards));
 
-  if (card.governance.length > 0) {
+  if (card.governance.length > 0 && card.governanceRun === undefined) {
     problems.push(
       `governance suites have landed (${card.governance.join(', ')}) but this generator has no row ` +
         `for them; the scorecard must stop claiming they are unmeasured`,
+    );
+  } else if (card.governanceRun && card.governanceRun.passed !== card.governanceRun.total) {
+    problems.push(
+      `governance suite is ${card.governanceRun.passed}/${card.governanceRun.total}; every governance test must pass`,
     );
   }
 
@@ -573,24 +620,35 @@ export function renderScorecard(card: Scorecard): string {
     lines.push('');
   }
 
-  lines.push('## Not measured here');
-  lines.push('');
-  if (card.governance.length === 0) {
+  if (card.governanceRun !== undefined) {
+    lines.push('## Governance');
+    lines.push('');
     lines.push(
-      '- **Governance (S4-11).** No governance numbers are reported, because no governance',
-      '  suite exists in `tests/` yet — the generator checks, rather than assuming. They are',
-      '  absent rather than estimated. When S4-11 lands, this scorecard fails until it grows',
-      '  a row for it, so the claim cannot go stale quietly.',
+      `- **Governance unit tests.** ${card.governanceRun.passed}/${card.governanceRun.total} pass in`,
+      `  ${card.governance.map((file) => `\`${file}\``).join(', ')}.`,
+      '  This counts the suites on disk. It is not an S4-11 eval row.',
     );
+    lines.push('');
   } else {
-    lines.push(
-      `- **Governance (S4-11) has landed** (${card.governance
-        .map((file) => `\`${file}\``)
-        .join(', ')}) **and is not yet tallied here.** That is why this scorecard fails: the`,
-      '  generator must grow a row for it rather than leave the suite unreported.',
-    );
+    lines.push('## Not measured here');
+    lines.push('');
+    if (card.governance.length === 0) {
+      lines.push(
+        '- **Governance (S4-11).** No governance numbers are reported, because no governance',
+        '  suite exists in `tests/` or `src/governance/` yet — the generator checks, rather than',
+        '  assuming. They are absent rather than estimated. When S4-11 lands, this scorecard',
+        '  fails until it grows a row for it, so the claim cannot go stale quietly.',
+      );
+    } else {
+      lines.push(
+        `- **Governance (S4-11) has landed** (${card.governance
+          .map((file) => `\`${file}\``)
+          .join(', ')}) **and is not yet tallied here.** That is why this scorecard fails: the`,
+        '  generator must grow a row for it rather than leave the suite unreported.',
+      );
+    }
+    lines.push('');
   }
-  lines.push('');
 
   return `${lines.join('\n')}\n`;
 }

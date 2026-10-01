@@ -43,10 +43,9 @@ each refused with the exact code before any render path is touched.
 Suite guards on the adversarial set itself (one case per code, a fixture per case,
 no skips, no render path): 5/5 pass.
 
-## Not measured here
+## Governance
 
-- **Governance (S4-11).** No governance numbers are reported, because no governance
-  suite exists in `tests/` yet — the generator checks, rather than assuming. They are
-  absent rather than estimated. When S4-11 lands, this scorecard fails until it grows
-  a row for it, so the claim cannot go stale quietly.
+- **Governance unit tests.** 9/9 pass in
+  `src/governance/proposal.test.ts`, `src/governance/risk.test.ts`.
+  This counts the suites on disk. It is not an S4-11 eval row.
 

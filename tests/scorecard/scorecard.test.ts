@@ -133,6 +133,16 @@ function reportFor(
         status: 'passed',
         assertionResults: [{ title: 'refuses', status: 'passed' }],
       })),
+      {
+        name: '/repo/src/governance/proposal.test.ts',
+        status: 'passed',
+        assertionResults: [{ title: 'proposal', status: 'passed' }],
+      },
+      {
+        name: '/repo/src/governance/risk.test.ts',
+        status: 'passed',
+        assertionResults: [{ title: 'risk', status: 'passed' }],
+      },
     ],
   };
 }
@@ -438,8 +448,24 @@ describe('governance cannot go stale quietly', () => {
     ]);
   });
 
-  it('reports none while none has landed — checked, not assumed', () => {
-    expect(governanceSuites()).toEqual([]);
+  it('sees the governance unit tests under src', () => {
+    expect(governanceSuites()).toEqual([
+      join('src', 'governance', 'proposal.test.ts'),
+      join('src', 'governance', 'risk.test.ts'),
+    ]);
+  });
+
+  it('counts a tallied governance suite as measured', () => {
+    const card = healthy({
+      governance: ['src/governance/risk.test.ts'],
+      governanceRun: { passed: 2, total: 2 },
+    });
+    expect(floorViolations(card)).toEqual([]);
+    expect(renderScorecard(card)).toContain('2/2 pass');
+    expect(renderScorecard(card)).toContain('Governance unit tests');
+    expect(renderScorecard(card)).toContain('not an S4-11 eval row');
+    expect(renderScorecard(card)).not.toContain('Governance (S4-11)');
+    expect(renderScorecard(card)).not.toContain('not yet tallied');
   });
 });
 
