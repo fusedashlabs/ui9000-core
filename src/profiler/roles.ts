@@ -150,12 +150,16 @@ function isTemporal(key: string, column: TableColumn): boolean {
   return values.length > 0 && values.every((value) => ISO_DATE_PATTERN.test(value));
 }
 
+const NON_NUMBER = new Set(['n/a', 'na', 'null', 'none', 'nan', '-']);
+
+/** A column is numeric when at least 90% of its filled cells are numbers. Sentinels such as n/a do not count. */
 function isNumeric(column: TableColumn): boolean {
-  const values = filled(column);
-  return (
-    values.length > 0 &&
-    values.every((value) => NUMBER_PATTERN.test(value) && Number.isFinite(Number(value)))
+  const values = filled(column).filter((value) => !NON_NUMBER.has(value.toLowerCase()));
+  if (values.length === 0) return false;
+  const numeric = values.filter(
+    (value) => NUMBER_PATTERN.test(value) && Number.isFinite(Number(value)),
   );
+  return numeric.length / values.length >= 0.9;
 }
 
 function hasUniqueValues(column: TableColumn): boolean {
