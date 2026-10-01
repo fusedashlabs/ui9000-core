@@ -9,6 +9,8 @@ import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
+import { bindChildSignals } from './forward-signals.mjs';
+
 function resolveWidgetsCatalog() {
   try {
     return fileURLToPath(import.meta.resolve('@fusedashlabs/widgets/catalog'));
@@ -37,15 +39,4 @@ if (!existsSync(entry)) {
 const child = spawn(process.execPath, [entry, ...process.argv.slice(2)], {
   stdio: 'inherit',
 });
-
-for (const signal of ['SIGINT', 'SIGTERM']) {
-  process.on(signal, () => child.kill(signal));
-}
-
-child.on('exit', (code, signal) => {
-  if (signal) {
-    process.kill(process.pid, signal);
-    return;
-  }
-  process.exit(code ?? 1);
-});
+bindChildSignals(child);

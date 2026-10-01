@@ -1,5 +1,5 @@
 import { PassThrough } from 'node:stream';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -568,5 +568,48 @@ describe('startWorkspaceServer', () => {
       { encoding: 'utf8', cwd: fileURLToPath(new URL('..', import.meta.url)) },
     );
     expect(catalog).toMatch(/catalog/);
+  });
+
+  it('exits 143 when SIGTERM reaches the wrapper', async () => {
+    const helper = fileURLToPath(new URL('../bin/forward-signals.mjs', import.meta.url));
+    const wrapper = spawn(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        [
+          "import { spawn } from 'node:child_process';",
+          `import { bindChildSignals } from ${JSON.stringify(helper)};`,
+          "const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000000)'], { stdio: 'ignore' });",
+          'bindChildSignals(child);',
+          "process.stdout.write('ready\\n');",
+        ].join('\n'),
+      ],
+      { stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+
+    let ready = false;
+    const exitCode = await new Promise<number | null>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        wrapper.kill('SIGKILL');
+        reject(new Error('wrapper did not become ready'));
+      }, 5000);
+      wrapper.stdout?.on('data', (chunk: Buffer) => {
+        if (ready || !String(chunk).includes('ready')) return;
+        ready = true;
+        wrapper.once('exit', (code) => {
+          clearTimeout(timer);
+          resolve(code);
+        });
+        wrapper.kill('SIGTERM');
+      });
+      wrapper.once('exit', (code) => {
+        if (ready) return;
+        clearTimeout(timer);
+        reject(new Error(`wrapper exited before ready (${code})`));
+      });
+    });
+
+    expect(exitCode).toBe(143);
   });
 });
