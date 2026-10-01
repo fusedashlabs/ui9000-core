@@ -50,7 +50,8 @@ export function isUnsafeDataLinkSecret(secret: string): boolean {
 
 /**
  * Fail closed in production-like envs when the secret is missing or a known
- * default. Local/dev keeps working with defaults so tests stay simple.
+ * default. Local/dev mints a per-install secret when the env value is missing
+ * or unsafe.
  */
 export function assertSafeDataLinkSecret(
   env: NodeJS.ProcessEnv = process.env,
@@ -97,21 +98,41 @@ const INSTALL_SECRET_NAME = 'data-link.secret';
  */
 function installSecret(env: NodeJS.ProcessEnv): string {
   const file = path.join(resolveDataLinkStorageDir(env), INSTALL_SECRET_NAME);
-  try {
-    const existing = fs.readFileSync(file, 'utf8').trim();
+  if (fs.existsSync(file)) {
+    let existing = '';
+    try {
+      existing = fs.readFileSync(file, 'utf8').trim();
+    } catch {
+      throw new Error(
+        `Refusing to replace an unreadable data-link secret (${INSTALL_SECRET_NAME}).`,
+      );
+    }
     if (existing.length >= 32 && !isUnsafeDataLinkSecret(existing)) return existing;
-  } catch {
-    // Missing or unreadable. Mint below.
   }
   const secret = randomBytes(32).toString('base64url');
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, `${secret}\n`, { mode: 0o600 });
+  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
+  const flag = fs.existsSync(file) ? 'w' : 'wx';
+  try {
+    fs.writeFileSync(file, `${secret}\n`, { mode: 0o600, flag });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') return installSecret(env);
+    throw error;
+  }
+  assertSecretFileMode(file);
+  return secret;
+}
+
+function assertSecretFileMode(file: string): void {
+  if (process.platform === 'win32') return;
   try {
     fs.chmodSync(file, 0o600);
+    const groupOrOther = fs.statSync(file).mode & 0o077;
+    if (groupOrOther === 0) return;
   } catch {
-    // chmod is best-effort; the secret is still unguessable.
+    // Fall through and delete.
   }
-  return secret;
+  fs.rmSync(file, { force: true });
+  throw new Error('Refusing to keep a data-link secret that is not owner-readable only.');
 }
 
 /** Throwing wrapper for the signing path — never sign with an unsafe secret. */

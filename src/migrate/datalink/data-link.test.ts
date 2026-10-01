@@ -242,6 +242,19 @@ describe('secret handling', () => {
       verifyDataLinkSignature(id, 4_000_000_000, params.searchParams.get('sig') ?? '', first.secret),
     ).toBe(false);
   });
+
+  it('does not replace an unreadable install secret', () => {
+    const file = path.join(dir, 'data-link.secret');
+    const original = 'a'.repeat(40);
+    fs.writeFileSync(file, `${original}\n`, { mode: 0o600 });
+    fs.chmodSync(file, 0o000);
+    try {
+      expect(() => assertSafeDataLinkSecret({ STORAGE_DIR: dir })).toThrow(/unreadable/);
+    } finally {
+      fs.chmodSync(file, 0o600);
+    }
+    expect(fs.readFileSync(file, 'utf8').trim()).toBe(original);
+  });
 });
 
 describe('hosted remote persist', () => {
