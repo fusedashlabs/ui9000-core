@@ -12,8 +12,9 @@ import {
   signDataLink,
   type SignedLink,
 } from './data-link.js';
+import { assertSafeDataLinkSecret } from './secret.js';
 import { TtlStore } from './store.js';
-import { createSignedDataUrl } from './signature.js';
+import { createSignedDataUrl, verifyDataLinkSignature } from './signature.js';
 
 // The secret always comes from the environment; tests supply their own env
 // object so no production default is ever baked into the suite.
@@ -218,6 +219,28 @@ describe('secret handling', () => {
         store,
       }),
     ).toThrow(/known development default/);
+  });
+
+  it('mints a per-install secret instead of the published constant', () => {
+    const env = { STORAGE_DIR: dir };
+    const first = assertSafeDataLinkSecret(env);
+    const second = assertSafeDataLinkSecret(env);
+    expect(first.ok).toBe(true);
+    expect(second.ok).toBe(true);
+    if (!first.ok || !second.ok) return;
+    expect(first.secret).toBe(second.secret);
+    expect(first.secret).not.toBe('dev-secret-key-for-testing');
+    expect(first.secret.length).toBeGreaterThanOrEqual(32);
+    expect(fs.readFileSync(path.join(dir, 'data-link.secret'), 'utf8').trim()).toBe(first.secret);
+
+    const link = signDataLink(rows, { env, store, baseUrl: 'https://workspace.local' }) as SignedLink;
+    expect(readDataLink(link, { env, store })).toEqual(rows);
+    const forged = createSignedDataUrl('https://workspace.local', 'forged', 4_000_000_000, 'dev-secret-key-for-testing');
+    const params = new URL(forged);
+    const id = params.pathname.split('/').pop() ?? '';
+    expect(
+      verifyDataLinkSignature(id, 4_000_000_000, params.searchParams.get('sig') ?? '', first.secret),
+    ).toBe(false);
   });
 });
 

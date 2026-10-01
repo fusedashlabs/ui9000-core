@@ -3,8 +3,16 @@
  *
  * The secret comes from the environment, never from source. Production-like
  * environments fail closed when it is missing, a known dev default, or too
- * short; local and test keep the dev fallback so stdio and vitest stay simple.
+ * short. A local install with no secret mints a random one and keeps it next
+ * to the data-link store, so the published package never signs with a constant
+ * an attacker can read out of npm.
  */
+
+import { randomBytes } from 'node:crypto';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+
+import { resolveDataLinkStorageDir } from './store.js';
 
 /** Known unsafe defaults that must never ship in production (FUS-3988 / MVP-P04). */
 export const DEV_DATA_LINK_SECRETS = new Set([
@@ -51,7 +59,10 @@ export function assertSafeDataLinkSecret(
   const productionLike = isProductionLikeEnv(env);
 
   if (!productionLike) {
-    return { ok: true, secret: secret || 'dev-secret-key-for-testing' };
+    if (secret && !isUnsafeDataLinkSecret(secret) && secret.length >= 16) {
+      return { ok: true, secret };
+    }
+    return { ok: true, secret: installSecret(env) };
   }
 
   if (!secret) {
@@ -76,6 +87,31 @@ export function assertSafeDataLinkSecret(
   }
 
   return { ok: true, secret };
+}
+
+const INSTALL_SECRET_NAME = 'data-link.secret';
+
+/**
+ * One random secret per storage directory. Created on first use, mode 0600,
+ * reused so sign and read agree across restarts of the same install.
+ */
+function installSecret(env: NodeJS.ProcessEnv): string {
+  const file = path.join(resolveDataLinkStorageDir(env), INSTALL_SECRET_NAME);
+  try {
+    const existing = fs.readFileSync(file, 'utf8').trim();
+    if (existing.length >= 32 && !isUnsafeDataLinkSecret(existing)) return existing;
+  } catch {
+    // Missing or unreadable. Mint below.
+  }
+  const secret = randomBytes(32).toString('base64url');
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, `${secret}\n`, { mode: 0o600 });
+  try {
+    fs.chmodSync(file, 0o600);
+  } catch {
+    // chmod is best-effort; the secret is still unguessable.
+  }
+  return secret;
 }
 
 /** Throwing wrapper for the signing path — never sign with an unsafe secret. */
