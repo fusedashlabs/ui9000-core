@@ -29,15 +29,33 @@ import type { Disconnect, StdioStreams } from './stdio.js';
 /** Same closed enum as SHOW_WORKSPACE_INPUT_SCHEMA (`additionalProperties: false`). */
 const ShowWorkspaceArgsSchema = z
   .object({
-    intent: z.enum(INTENTS),
-    csv: z.string().optional(),
-    url: z.string().optional(),
-    path: z.string().optional(),
-    datasetId: z.string().optional(),
-    utterance: z.string().optional(),
-    requestedChart: z.string().optional(),
-    confirm: z.boolean().optional(),
-    columns: z.array(z.string()).optional(),
+    intent: z.enum(INTENTS).describe(
+      'Closed objective. One of spatial, comparison, summary, form, evidence, graph. Do not invent values.',
+    ),
+    csv: z.string().optional().describe(
+      'Pasted CSV including the header row. Empty string means omit.',
+    ),
+    url: z.string().optional().describe(
+      'http(s) URL to a CSV. Local/dev only — rejected on hosted/production. Empty string means omit.',
+    ),
+    path: z.string().optional().describe(
+      'Local CSV path. Local/dev only. Empty string means omit.',
+    ),
+    datasetId: z.string().optional().describe(
+      'Id returned by an earlier show_workspace on this table. Use instead of csv/url/path.',
+    ),
+    utterance: z.string().optional().describe(
+      "The user's words, for Jev. Empty string means omit.",
+    ),
+    requestedChart: z.string().optional().describe(
+      'The chart the user asked for. Omit when they did not name a chart.',
+    ),
+    confirm: z.boolean().optional().describe(
+      'Ignored. The next call draws the chart the user picks.',
+    ),
+    columns: z.array(z.string()).optional().describe(
+      'Column names the user asked to chart. Names only, not cell values.',
+    ),
   })
   .strict();
 
