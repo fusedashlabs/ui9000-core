@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, develop, 'feat/**', 'feature/**']
+    branches: [main, develop, 'feat/**', 'feature/**', 'fix/**', 'chore/**', 'refactor/**']
   pull_request:
     branches: [main, develop]
 
@@ -17,6 +17,7 @@ jobs:
           repository: fusedashlabs/ui9000-widgets
           path: vendor/ui9000-widgets
           token: ${{ secrets.WIDGETS_CHECKOUT_TOKEN }}
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:
