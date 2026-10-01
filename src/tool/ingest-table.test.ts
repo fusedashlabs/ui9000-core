@@ -52,6 +52,20 @@ describe('resolveWorkspaceIngest', () => {
     expect(tableRowCount(result.table)).toBe(2);
   });
 
+  it('keeps an absolute path inside the dataset root', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ui9000-root-'));
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'ui9000-out-'));
+    tmpDirs.push(root, outside);
+    const inside = path.join(root, 'sales.csv');
+    const leaked = path.join(outside, 'sales.csv');
+    fs.writeFileSync(inside, 'dept,n\nA,1\n');
+    fs.writeFileSync(leaked, 'dept,n\nA,1\n');
+    const allowed = await resolveWorkspaceIngest({ path: inside }, { datasetRoot: root });
+    expect(allowed.ok).toBe(true);
+    const refused = await resolveWorkspaceIngest({ path: leaked }, { datasetRoot: root });
+    expect(refused).toMatchObject({ ok: false, code: 'invalid_ingest' });
+  });
+
   it('rejects url/path when remote sources are disabled', async () => {
     const url = await resolveWorkspaceIngest(
       { url: 'https://example.com/a.csv' },
@@ -108,6 +122,8 @@ describe('ingest helpers', () => {
       'url host is not allowed.',
     );
     expect(await blockedDatasetUrl('http://[::127.0.0.1]/')).toBe('url host is not allowed.');
+    expect(await blockedDatasetUrl('http://[2002:7f00:1::]/')).toBe('url host is not allowed.');
+    expect(await blockedDatasetUrl('http://[2002:808:808::]/')).toBeUndefined();
     expect(await blockedDatasetUrl('http://2130706433/')).toBe('url host is not allowed.');
     expect(
       await blockedDatasetUrl('https://evil.example/a.csv', async () => [

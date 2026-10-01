@@ -140,6 +140,8 @@ export type ShowWorkspaceContext = {
   allowRemoteSources?: boolean;
   maxBytes?: number;
   cwd?: string;
+  /** Optional jail for csv paths. See MCP_DATASET_ROOT. */
+  datasetRoot?: string;
   fetchImpl?: IngestOptions['fetchImpl'];
   loadDataset?: (id: string) => StoredDataset | undefined | Promise<StoredDataset | undefined>;
   /** Stdio session: keep the last ingested table for later `{ intent }` calls. */
@@ -293,6 +295,7 @@ export async function handleShowWorkspace(
     allowRemoteSources: context.allowRemoteSources,
     maxBytes: context.maxBytes,
     cwd: context.cwd,
+    datasetRoot: context.datasetRoot,
     fetchImpl: context.fetchImpl,
     loadDataset: context.loadDataset,
   });

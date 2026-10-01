@@ -32,6 +32,11 @@ export type IngestOptions = {
   allowRemoteSources?: boolean;
   maxBytes?: number;
   cwd?: string;
+  /**
+   * When set, the real path must stay inside this directory. Unset keeps the
+   * documented absolute-path read, still subject to the sensitive-path gate.
+   */
+  datasetRoot?: string;
   fetchImpl?: (
     input: string,
     init?: { method?: string; redirect?: 'error' | 'follow' | 'manual' },
@@ -315,6 +320,18 @@ async function resolveCsvText(
     if (isSensitiveDatasetPath(real)) {
       return fail('invalid_ingest', SENSITIVE_PATH);
     }
+    const datasetRoot = options.datasetRoot?.trim();
+    if (datasetRoot) {
+      let realRoot: string;
+      try {
+        realRoot = fs.realpathSync(path.resolve(datasetRoot));
+      } catch {
+        return fail('invalid_ingest', 'Dataset root is not a directory.');
+      }
+      if (real !== realRoot && !real.startsWith(realRoot + path.sep)) {
+        return fail('invalid_ingest', 'Path must stay inside the dataset root.');
+      }
+    }
     let stat: fs.Stats;
     try {
       stat = fs.statSync(real);
@@ -419,6 +436,12 @@ function isBlockedIpv6(host: string): boolean {
   if (parts.every((part) => part === 0)) return true;
   if (parts[7] === 1 && parts.slice(0, 7).every((part) => part === 0)) return true;
   const first = parts[0] ?? 0;
+  // 6to4 embeds an IPv4 in the 32 bits after 2002:.
+  if (first === 0x2002) {
+    const hi = parts[1] ?? 0;
+    const lo = parts[2] ?? 0;
+    return isBlockedIp(`${(hi >> 8) & 0xff}.${hi & 0xff}.${(lo >> 8) & 0xff}.${lo & 0xff}`);
+  }
   if ((first & 0xfe00) === 0xfc00) return true;
   if ((first & 0xffc0) === 0xfe80) return true;
   if ((first & 0xff00) === 0xff00) return true;

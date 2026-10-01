@@ -160,6 +160,7 @@ export function wireWorkspace(options: CreateWorkspaceServerOptions = {}): Wired
       ...(apiKey ? { askJev: (request) => askJev(request, apiKey) } : {}),
       signDataLink: sign,
       allowRemoteSources: options.allowRemoteSources ?? !isProductionLikeEnv(env),
+      ...(env.MCP_DATASET_ROOT?.trim() ? { datasetRoot: env.MCP_DATASET_ROOT.trim() } : {}),
       loadDataset: (id) => {
         if (!store) return undefined;
         return datasetFromPayload(store.get(id)?.payload);

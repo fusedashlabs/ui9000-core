@@ -144,6 +144,44 @@ describe('createWorkspaceServer', () => {
     });
   });
 
+  it('keeps a csv path inside MCP_DATASET_ROOT', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ui9000-dataset-root-'));
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'ui9000-dataset-out-'));
+    try {
+      const inside = path.join(root, 'sales.csv');
+      const leaked = path.join(outside, 'sales.csv');
+      fs.copyFileSync(FIXTURE, inside);
+      fs.copyFileSync(FIXTURE, leaked);
+      const env = { ...TEST_ENV, MCP_DATASET_ROOT: root };
+      const table = parseCsvTable(fs.readFileSync(FIXTURE, 'utf8'));
+
+      const allowed = resultOf(
+        await createWorkspaceServer({ env, store, table }).handle(
+          request('tools/call', {
+            name: SHOW_WORKSPACE_NAME,
+            arguments: { intent: 'comparison', path: inside },
+          }),
+        ),
+      );
+      expect((allowed.structuredContent as { ok: boolean }).ok).toBe(true);
+      expect(allowed.isError).toBeFalsy();
+
+      const refused = resultOf(
+        await createWorkspaceServer({ env, store, table }).handle(
+          request('tools/call', {
+            name: SHOW_WORKSPACE_NAME,
+            arguments: { intent: 'comparison', path: leaked },
+          }),
+        ),
+      );
+      expect(refused.isError).toBe(true);
+      expect(JSON.stringify(refused.structuredContent)).toMatch(/dataset root/);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+      fs.rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
   it('routes show_workspace through handleShowWorkspace, not a stub', async () => {
     const server = wiredServer();
     const result = resultOf(
