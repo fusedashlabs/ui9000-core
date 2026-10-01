@@ -60,6 +60,24 @@ export type McpServer = {
 
 export const PROTOCOL_VERSION = '2025-06-18';
 
+/** Versions this hand-rolled server will answer with. Anything else stays on PROTOCOL_VERSION. */
+const SUPPORTED_PROTOCOL_VERSIONS = ['2024-11-05', '2025-03-26', PROTOCOL_VERSION] as const;
+
+/** Echo a supported client version. An absent or unknown one keeps the server default. */
+export function negotiateProtocol(params: unknown): string {
+  const requested =
+    params !== null && typeof params === 'object' && !Array.isArray(params)
+      ? (params as { protocolVersion?: unknown }).protocolVersion
+      : undefined;
+  if (
+    typeof requested === 'string' &&
+    (SUPPORTED_PROTOCOL_VERSIONS as readonly string[]).includes(requested)
+  ) {
+    return requested;
+  }
+  return PROTOCOL_VERSION;
+}
+
 export const SERVER_INFO = { name: 'ui9000-core', version: '0.0.0' } as const;
 
 /**
@@ -131,7 +149,7 @@ export function createServer(
     switch (method) {
       case 'initialize':
         return okResponse(id, {
-          protocolVersion: PROTOCOL_VERSION,
+          protocolVersion: negotiateProtocol(request.params),
           capabilities: appResource
             ? {
                 tools: {},
@@ -255,6 +273,16 @@ function toolResult(
     payload.structuredContent = app?.structured ?? result;
   }
   if (app?._meta) payload._meta = app._meta;
+  // A refused tool result is still a successful JSON-RPC response. isError is
+  // what tells the host the call failed, on both the hand-rolled and SDK paths.
+  if (
+    result !== null &&
+    typeof result === 'object' &&
+    !Array.isArray(result) &&
+    (result as { ok?: unknown }).ok === false
+  ) {
+    payload.isError = true;
+  }
   return payload;
 }
 

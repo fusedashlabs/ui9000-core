@@ -305,7 +305,21 @@ describe('createServer', () => {
     );
 
     expect(result.structuredContent).toEqual({ ok: false, code: 'no_winner' });
-    expect(result.isError).toBeUndefined();
+    expect(result.isError).toBe(true);
+  });
+
+  it('echoes a supported protocol version and keeps the default otherwise', async () => {
+    const server = createServer(stubHandler);
+
+    const echoed = resultOf(
+      await server.handle(request('initialize', { protocolVersion: '2025-03-26' })),
+    );
+    expect(echoed.protocolVersion).toBe('2025-03-26');
+
+    const kept = resultOf(
+      await server.handle(request('initialize', { protocolVersion: '1999-01-01' })),
+    );
+    expect(kept.protocolVersion).toBe(PROTOCOL_VERSION);
   });
 
   it('refuses any tool name other than show_workspace', async () => {
