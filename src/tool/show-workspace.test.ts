@@ -12,11 +12,13 @@ import {
   type SignedLink,
 } from './data-channel.js';
 import { datasetFromPayload } from './ingest-table.js';
+import { requestedChartFromUtterance } from '../catalog/discuss-chart.js';
 import {
   SHOW_WORKSPACE_DESCRIPTION,
   SHOW_WORKSPACE_INPUT_SCHEMA,
   SHOW_WORKSPACE_NAME,
   handleShowWorkspace,
+  isDatasetFollowUp,
   type ShowWorkspaceContext,
   type ShowWorkspaceOk,
   type ShowWorkspaceResult,
@@ -866,6 +868,82 @@ describe('show_workspace fail-closed', () => {
       { role: 'label', field: 'team' },
       { role: 'y', field: 'score' },
     ]);
+  });
+
+  it('draws a line when the model invents a chart the user did not name', async () => {
+    const result = await handleShowWorkspace(
+      {
+        csv: 'period,closed_sales\nJul 2026,1200\nAug 2026,1100\nSep 2026,1300\n',
+        intent: 'comparison',
+        requestedChart: 'bar-chart',
+        utterance:
+          'Do a research on Fairfax county real estate situation for last 3 months and create a list widgets to explain the demand, supply and prices, location best',
+      },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('line-chart');
+    expect(JSON.stringify(result)).not.toContain('You asked for');
+  });
+
+  it('keeps the chart the user picked when the follow-up resends the old words', async () => {
+    const channel = memoryChannel();
+    const session = context({
+      signDataLink: channel.signDataLink,
+      loadDataset: channel.loadDataset,
+    });
+    const first = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        csv: 'team,score\nAlpha,10\nBeta,4\nGamma,6\n',
+        utterance: 'Compare the teams.',
+      },
+      session,
+    );
+    expect(isDrawn(first)).toBe(true);
+    if (!isDrawn(first) || !first.datasetId) return;
+
+    const second = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        datasetId: first.datasetId,
+        requestedChart: 'pie',
+        utterance: 'Compare the teams.',
+      },
+      session,
+    );
+    expect(isDrawn(second)).toBe(true);
+    if (!isDrawn(second)) return;
+    expect(second.spec.component).toBe('pie-chart');
+  });
+
+  it('does not treat csv, url, or path plus datasetId as a follow-up', () => {
+    const research =
+      'Do a research on Fairfax county real estate situation for last 3 months and create a list widgets to explain the demand, supply and prices, location best';
+    const withCsv = { datasetId: 'abc', csv: 'period,closed_sales\nJul,1\n' };
+    expect(isDatasetFollowUp({ datasetId: 'abc' })).toBe(true);
+    expect(isDatasetFollowUp({ datasetId: 'abc', csv: '' })).toBe(true);
+    expect(isDatasetFollowUp(withCsv)).toBe(false);
+    expect(isDatasetFollowUp({ datasetId: 'abc', url: 'https://example.test/fairfax.csv' })).toBe(false);
+    expect(isDatasetFollowUp({ datasetId: 'abc', path: '/tmp/fairfax.csv' })).toBe(false);
+    expect(isDatasetFollowUp({ csv: 'period,closed_sales\nJul,1\n' })).toBe(false);
+    expect(requestedChartFromUtterance(research, 'bar-chart', { followUp: isDatasetFollowUp(withCsv) })).toBeUndefined();
+  });
+
+  it('refuses csv and datasetId in the same call', async () => {
+    const result = await handleShowWorkspace(
+      {
+        csv: 'period,closed_sales\nJul 2026,1200\nAug 2026,1100\n',
+        datasetId: 'already-stored',
+        intent: 'comparison',
+        requestedChart: 'bar-chart',
+        utterance:
+          'Do a research on Fairfax county real estate situation for last 3 months and create a list widgets to explain the demand, supply and prices, location best',
+      },
+      context(),
+    );
+    expect(result).toMatchObject({ ok: false, code: 'invalid_ingest' });
   });
 
   it('draws both measures over time when the engine has no comparison chart', async () => {

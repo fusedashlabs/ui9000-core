@@ -146,6 +146,74 @@ export function resolveChartName(name: string): ChartId | undefined {
   return hit && hit in CHART_ROLES ? (hit as ChartId) : undefined;
 }
 
+/** Stems this short are ordinary English ("area", "line", "bar", "map"). */
+const SHORT_CHART_STEM = 4;
+const CHART_ARTICLES = new Set(['a', 'an', 'the']);
+/** "the area" is a place, not an area chart. "the map" and "the line" are charts. */
+const THE_STEM_BLOCK = new Set(['area']);
+
+/**
+ * True when the user's words name this chart. A model-invented id does not count.
+ * Aliases are whole tokens ("bar chart", "sankey"), not substrings ("bargain").
+ * A stem of 4 letters or fewer counts after "a", "an", or "the" ("a bar", "the map").
+ * "the area" does not confirm an area chart.
+ */
+export function utteranceNamesChart(utterance: string, requestedChart: string): boolean {
+  const id = resolveChartName(requestedChart);
+  if (!id) return false;
+  const aliases = new Set<string>();
+  for (const [key, value] of LOOSE_NAMES) {
+    if (value === id && key.length >= 3) aliases.add(key);
+  }
+  const raw = normalizeName(requestedChart);
+  if (raw.length >= 3) aliases.add(raw);
+  if (aliases.size === 0) return false;
+  const tokens = utterance
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .map((token) => normalizeName(token));
+  const windows = new Set(tokens);
+  for (let i = 0; i < tokens.length - 1; i++) {
+    const left = tokens[i];
+    const right = tokens[i + 1];
+    if (left && right) windows.add(left + right);
+  }
+  for (const alias of aliases) {
+    if (alias.length > SHORT_CHART_STEM) {
+      if (windows.has(alias)) return true;
+      continue;
+    }
+    for (let i = 1; i < tokens.length; i++) {
+      const prev = tokens[i - 1];
+      if (tokens[i] !== alias || !prev || !CHART_ARTICLES.has(prev)) continue;
+      if (prev === 'the' && THE_STEM_BLOCK.has(alias)) continue;
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Keep requestedChart when the utterance is absent, when this is a datasetId
+ * follow-up with no new table, or when the words name that chart.
+ * On a new table, drop a known chart the words do not name.
+ * An unknown name stays, so the existing hold still applies.
+ */
+export function requestedChartFromUtterance(
+  utterance: string | undefined,
+  requestedChart: string | undefined,
+  options?: { followUp?: boolean },
+): string | undefined {
+  const named = requestedChart?.trim();
+  if (!named) return undefined;
+  if (options?.followUp) return named;
+  const words = utterance?.trim();
+  if (!words) return named;
+  if (!resolveChartName(named)) return named;
+  return utteranceNamesChart(words, named) ? named : undefined;
+}
+
 export function chartWhyFor(componentId: string): string | undefined {
   return chartRole(componentId) ? whyChart(componentId) : undefined;
 }

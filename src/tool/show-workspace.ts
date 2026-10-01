@@ -34,7 +34,13 @@ import {
 } from '../trace/trace.js';
 import { CHART_ROLES } from '../catalog/chart-roles.js';
 import { dataRolesForChart } from './payload/hosted-chart.js';
-import { canDraw, chartFamiliesFor, chartWhyFor, discussChart } from '../catalog/discuss-chart.js';
+import {
+  canDraw,
+  chartFamiliesFor,
+  chartWhyFor,
+  discussChart,
+  requestedChartFromUtterance,
+} from '../catalog/discuss-chart.js';
 import { resolveJev } from '../jev/resolve.js';
 import {
   type JevChartRequest,
@@ -194,7 +200,7 @@ export const SHOW_WORKSPACE_INPUT_SCHEMA = {
     requestedChart: {
       type: 'string',
       description:
-        'Step 3. The chart the user asked for: their words, or an id from a previous reply. Omit when they did not name a chart.',
+        'Step 3. The chart the user asked for, in their words or an id from a previous reply. Omit when they did not name a chart. On a new table, a known chart the utterance does not name is ignored. An unknown name is kept. A datasetId call with no new csv, url, or path keeps the id.',
     },
     confirm: {
       type: 'boolean',
@@ -224,7 +230,7 @@ export const SHOW_WORKSPACE_DESCRIPTION = [
   'Describe that reading. It does not replace the chart the user named.',
   '',
   '3. Pass utterance as the user\'s words. Pass requestedChart only when they named a chart.',
-  'Omit requestedChart when they did not name one. Jev reads utterance and the column roles.',
+  'Omit requestedChart when they did not name one. New table drops a known chart the words omit. Unknown stays. datasetId with no new csv, url, or path keeps the id.',
   '',
   '4. Draw the chart they named when it is in the class Jev chose and this server can draw it. chartWhy says why it stays.',
   'Jev chooses a class, then a chart in that class. chartWhy argues both, and what was passed over.',
@@ -328,11 +334,14 @@ export async function handleShowWorkspace(
   const catalogIds = new Set(
     drawingCatalog.map((entry) => entry.id).filter((id): id is string => typeof id === 'string'),
   );
+  const requestedChart = requestedChartFromUtterance(parsed.utterance, parsed.requestedChart, {
+    followUp: isDatasetFollowUp(parsed.raw),
+  });
   const jev = await resolveJev({
     ask: runtime.askJev,
-    utterance: parsed.utterance || parsed.requestedChart || parsed.intent,
+    utterance: parsed.utterance || requestedChart || parsed.intent,
     intent: parsed.intent,
-    ...(parsed.requestedChart ? { requestedChart: parsed.requestedChart } : {}),
+    ...(requestedChart ? { requestedChart } : {}),
     profile: runtime.profile,
     classified: runtime.classified,
     catalogIds,
@@ -353,11 +362,11 @@ export async function handleShowWorkspace(
     };
   }
   const discussion =
-    jev.kind !== 'draw' && parsed.requestedChart
+    jev.kind !== 'draw' && requestedChart
       ? discussChart({
           profile: runtime.profile,
           columns: runtime.classified,
-          requestedChart: parsed.requestedChart,
+          requestedChart,
           intent: parsed.intent,
           catalogIds,
         })
@@ -579,6 +588,16 @@ function contextFromTable(
     fields: table.columns.map((column) => column.name),
     classified,
   };
+}
+
+/** A later call that reuses datasetId and does not paste a new table. */
+export function isDatasetFollowUp(raw: Record<string, unknown>): boolean {
+  const datasetId = raw.datasetId;
+  if (typeof datasetId !== 'string' || !datasetId.trim()) return false;
+  return !['csv', 'url', 'path'].some((key) => {
+    const value = raw[key];
+    return typeof value === 'string' && value.trim().length > 0;
+  });
 }
 
 function listedColumns(fields: readonly string[] | undefined): string[] | undefined {

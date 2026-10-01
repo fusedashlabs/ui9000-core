@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { DataProfile } from '../spec/data-profile.js';
-import { discussChart, resolveChartName } from './discuss-chart.js';
+import { discussChart, requestedChartFromUtterance, resolveChartName, utteranceNamesChart } from './discuss-chart.js';
 
 const catalogIds = new Set(['bar-chart', 'map-chart', 'histogram-chart', 'kpi-widget', 'line-chart']);
 
@@ -19,6 +19,23 @@ describe('discussChart', () => {
     expect(resolveChartName('bar chart')).toBe('bar-chart');
     expect(resolveChartName('pieChart')).toBe('pie-chart');
     expect(resolveChartName('not-a-chart')).toBeUndefined();
+  });
+
+  it('names a chart only when the words contain that chart', () => {
+    const research =
+      'Do a research on Fairfax county real estate situation for last 3 months and create a list widgets to explain the demand, supply and prices, location best';
+    expect(utteranceNamesChart(research, 'bar-chart')).toBe(false);
+    expect(utteranceNamesChart('Show teams as a bar.', 'bar')).toBe(true);
+    expect(utteranceNamesChart('Show a bar chart of sales.', 'bar-chart')).toBe(true);
+    expect(utteranceNamesChart('Show a map.', 'map')).toBe(true);
+    expect(utteranceNamesChart('Show the map.', 'map')).toBe(true);
+    expect(utteranceNamesChart('Show the line.', 'line')).toBe(true);
+    expect(utteranceNamesChart('Compare the bargain listings.', 'bar')).toBe(false);
+    expect(utteranceNamesChart('Prices in the area for last quarter.', 'area-chart')).toBe(false);
+    expect(requestedChartFromUtterance(research, 'bar-chart')).toBeUndefined();
+    expect(requestedChartFromUtterance(undefined, 'bar-chart')).toBe('bar-chart');
+    expect(requestedChartFromUtterance('Show a sankey.', 'not-a-chart')).toBe('not-a-chart');
+    expect(requestedChartFromUtterance(research, 'line-chart', { followUp: true })).toBe('line-chart');
   });
 
   it('draws a pie when the share family matches and the catalog can render it', () => {

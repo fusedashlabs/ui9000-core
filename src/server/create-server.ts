@@ -70,7 +70,7 @@ export const WORKSPACE_INSTRUCTIONS = [
   'For any table or chart, call show_workspace.',
   "Do not draw that chart with the chat's built-in tools.",
   "Pass the user's words as utterance.",
-  'Pass requestedChart only when they named a chart.',
+  'Pass requestedChart only when they named a chart. On a new table, a known chart the utterance does not name is ignored and a chart is drawn. An unknown name is kept. A datasetId call with no new csv, url, or path keeps the id.',
   'If the result is awaitingUser, show the argument, do not draw a substitute, and call again only with the chart the user picks and the same datasetId.',
 ].join(' ');
 
