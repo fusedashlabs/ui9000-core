@@ -50,6 +50,22 @@ describe('discussChart', () => {
     expect(discussion.dataFamilies).toContain('part-to-whole');
   });
 
+  it('suggests a line, not a histogram, for a monthly metric', () => {
+    const discussion = discussChart({
+      profile: {
+        hasTemporal: true,
+        hasNumericMetric: true,
+        hasCategory: false,
+        categoryCardinality: 0,
+        rowCount: 8,
+      },
+      requestedChart: 'sankey',
+      intent: 'comparison',
+      catalogIds,
+    });
+    expect(discussion.suggestion).toBe('line-chart');
+  });
+
   it('suggests the comparison main and does not substitute a chart it cannot draw', () => {
     const discussion = discussChart({
       profile: groups,

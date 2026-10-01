@@ -7,6 +7,7 @@
 import { chartFamiliesFor } from '../catalog/discuss-chart.js';
 import { chartRole, type ChartFamily } from '../catalog/chart-roles.js';
 import type { DataProfile } from '../spec/data-profile.js';
+import { intentFrom } from '../spec/intent.js';
 
 export const JEV_MODEL = 'jev-latest';
 
@@ -58,7 +59,7 @@ export function classChoiceRequest(input: {
   intent: string;
   askNamedChart: boolean;
 }): JevChartRequest {
-  const families = chartFamiliesFor(input.profile, input.columns);
+  const families = chartFamiliesFor(input.profile, input.columns, intentFrom(input.intent));
   const criteria: Record<string, string> = {};
   for (const family of families) {
     if (!criteria[family.main]) criteria[family.main] = family.question;

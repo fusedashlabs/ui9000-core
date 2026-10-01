@@ -9,7 +9,7 @@
 
 import type { ClassifiedColumn } from '../profiler/roles.js';
 import type { DataProfile } from '../spec/data-profile.js';
-import type { Intent } from '../spec/intent.js';
+import { INTENTS, type Intent } from '../spec/intent.js';
 import { CHART_FAMILIES, CHART_ROLES, type ChartFamily, type ChartId, chartRole, familiesForChart } from './chart-roles.js';
 
 export type ChartDiscussion = {
@@ -75,7 +75,7 @@ export function discussChart(input: {
   const families = eligibleFamilies(input.profile, counts);
   const resolved = resolveChartName(input.requestedChart);
   const judged = resolved ? judgeRequest(resolved, families) : undefined;
-  const proposal = pickProposal(families, input.intent);
+  const proposal = pickProposal(families, input.intent, input.profile);
   const drawable = proposal ? firstDrawable(proposal, families, input.profile, input.catalogIds) : undefined;
   const suggestionWhy = proposal ? whyFamily(proposal) : 'These columns do not match a chart category.';
   const inGroup = judged?.kind === 'main' || judged?.kind === 'alternative';
@@ -222,8 +222,94 @@ export function chartWhyFor(componentId: string): string | undefined {
 export function chartFamiliesFor(
   profile: DataProfile,
   columns?: readonly { role: string }[],
+  intent?: Intent,
 ): ChartFamily[] {
-  return eligibleFamilies(profile, columnCounts(profile, columns));
+  const families = eligibleFamilies(profile, columnCounts(profile, columns));
+  const preferred = preferenceIds(profile, intent);
+  if (!preferred) return families;
+  const rank = (id: string) => {
+    const index = preferred.indexOf(id);
+    return index === -1 ? preferred.length : index;
+  };
+  return families
+    .map((family, index) => ({ family, index }))
+    .sort((a, b) => rank(a.family.id) - rank(b.family.id) || a.index - b.index)
+    .map((item) => item.family);
+}
+
+/**
+ * The intent's own families, in preference order.
+ * Empty when the intent has a list and none of those families fit the columns.
+ */
+export function guidedChartFamilies(
+  profile: DataProfile,
+  columns: readonly { role: string }[] | undefined,
+  intent: Intent,
+): ChartFamily[] {
+  const preferred = preferenceIds(profile, intent);
+  if (!preferred) return [];
+  const ids = new Set(preferred);
+  return chartFamiliesFor(profile, columns, intent).filter((family) => ids.has(family.id));
+}
+
+function preferenceIds(profile: DataProfile, intent: Intent | undefined): readonly string[] | undefined {
+  const known = intent && (INTENTS as readonly string[]).includes(intent) ? intent : undefined;
+  if (!known) return undefined;
+  const preferred = preferenceFor(known, profile);
+  return preferred.length > 0 ? preferred : undefined;
+}
+
+/** True when this intent should refuse a chart outside its families. */
+export function intentGuidesCharts(intent: Intent): boolean {
+  return INTENT_PREFERENCE[intent].length > 0;
+}
+
+/**
+ * A drawing has to match the profile, not only sit in the catalog.
+ * Line and area need time. Pie needs a small set of categories. A map needs geo.
+ */
+export function chartFitsProfile(id: string, profile: DataProfile): boolean {
+  if (id === 'map-chart') return profile.hasGeo === true && profile.hasMapToken === true;
+  if (id === 'pie-chart' || id === 'donut-chart') {
+    const card = profile.categoryCardinality ?? 0;
+    return card >= 2 && card <= 8;
+  }
+  if (
+    id === 'line-chart' ||
+    id === 'area-chart' ||
+    id === 'step-line-chart' ||
+    id.startsWith('spark')
+  ) {
+    return profile.hasTemporal === true;
+  }
+  if (id === 'scatter-plot-chart' || id === 'bubble-chart') {
+    return profile.hasNumericMetric === true;
+  }
+  return true;
+}
+
+/** The one chart the words name, or nothing when they name zero or several. */
+export function chartNamedByWords(utterance: string): ChartId | undefined {
+  let found: ChartId | undefined;
+  for (const id of Object.keys(CHART_ROLES) as ChartId[]) {
+    if (!utteranceNamesChart(utterance, id)) continue;
+    if (found && found !== id) return undefined;
+    found = id;
+  }
+  return found;
+}
+
+function preferenceFor(intent: Intent, profile: DataProfile): string[] {
+  const preferred = [...INTENT_PREFERENCE[intent]];
+  if (intent === 'comparison' && profile.hasTemporal === true && profile.hasNumericMetric === true) {
+    const distribution = preferred.indexOf('distribution');
+    const ordered = preferred.indexOf('ordered-series');
+    if (distribution !== -1 && ordered > distribution) {
+      preferred.splice(ordered, 1);
+      preferred.splice(distribution, 0, 'ordered-series');
+    }
+  }
+  return preferred;
 }
 
 /** Both ids are the main or an alternative of one family the columns support. */
@@ -292,8 +378,12 @@ function columnCounts(profile: DataProfile, columns?: readonly { role: string }[
   };
 }
 
-function pickProposal(families: readonly ChartFamily[], intent: Intent): ChartFamily | undefined {
-  const preferred = INTENT_PREFERENCE[intent];
+function pickProposal(
+  families: readonly ChartFamily[],
+  intent: Intent,
+  profile: DataProfile,
+): ChartFamily | undefined {
+  const preferred = preferenceFor(intent, profile);
   for (const id of preferred) {
     const hit = families.find((family) => family.id === id);
     if (hit) return hit;

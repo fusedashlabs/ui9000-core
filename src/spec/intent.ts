@@ -9,3 +9,8 @@ export const INTENTS = [
 ] as const;
 
 export type Intent = (typeof INTENTS)[number];
+
+/** A tool argument that is one of the closed intents, or nothing. */
+export function intentFrom(value: string): Intent | undefined {
+  return (INTENTS as readonly string[]).includes(value) ? (value as Intent) : undefined;
+}

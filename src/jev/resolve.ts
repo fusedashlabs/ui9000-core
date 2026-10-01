@@ -3,10 +3,17 @@
  * A miss leaves the engine draw in place. A clear class never falls through to it.
  */
 
-import { canDraw, chartFamiliesFor, resolveChartName } from '../catalog/discuss-chart.js';
+import {
+  canDraw,
+  chartFamiliesFor,
+  chartFitsProfile,
+  chartNamedByWords,
+  resolveChartName,
+} from '../catalog/discuss-chart.js';
 import { chartRole, type ChartFamily } from '../catalog/chart-roles.js';
 import type { ClassifiedColumn } from '../profiler/roles.js';
 import type { DataProfile } from '../spec/data-profile.js';
+import { intentFrom } from '../spec/intent.js';
 import {
   acceptReading,
   classChoiceRequest,
@@ -47,7 +54,7 @@ export async function resolveJev(input: {
   catalogIds: ReadonlySet<string>;
 }): Promise<JevOutcome> {
   if (!input.ask) return { kind: 'skip' };
-  const families = chartFamiliesFor(input.profile, input.classified);
+  const families = chartFamiliesFor(input.profile, input.classified, intentFrom(input.intent));
   const dataFamilies = families.map((family) => family.id);
   if (families.length === 0) return { kind: 'miss' };
 
@@ -75,6 +82,23 @@ export async function resolveJev(input: {
   const offered = families.map((family) => family.main);
   const reading = acceptReading(classResponse, offered);
   if (!input.requestedChart && reading.namedChart) {
+    const local = chartNamedByWords(input.utterance);
+    const family = families.find((item) => item.main === reading.top);
+    if (
+      reading.clear &&
+      family &&
+      local &&
+      inFamily(local, family) &&
+      canDraw(local, input.profile, input.catalogIds) &&
+      chartFitsProfile(local, input.profile)
+    ) {
+      return {
+        kind: 'draw',
+        chartId: local,
+        by: 'named',
+        why: `You asked for ${local}. Jev selected the same class, ${family.question} so this chart stays.`,
+      };
+    }
     return {
       kind: 'hold',
       dataFamilies,
@@ -163,7 +187,12 @@ async function pickMark(
   try {
     const response = await input.ask(request);
     const reading = acceptReading(response, offeredChartIds(request));
-    if (reading.clear && reading.top && canDraw(reading.top, input.profile, input.catalogIds)) {
+    if (
+      reading.clear &&
+      reading.top &&
+      canDraw(reading.top, input.profile, input.catalogIds) &&
+      chartFitsProfile(reading.top, input.profile)
+    ) {
       return { id: reading.top, runnerUp: reading.runnerUp, fromMark: reading.top !== family.main };
     }
   } catch {
