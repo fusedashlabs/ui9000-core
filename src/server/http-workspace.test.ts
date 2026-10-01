@@ -66,7 +66,19 @@ describe('workspace Streamable HTTP', () => {
 
       const preflight = await fetch(`${http.url}${http.path}`, { method: 'OPTIONS' });
       expect(preflight.status).toBe(204);
-      expect(preflight.headers.get('access-control-allow-origin')).toBe('*');
+      expect(preflight.headers.get('access-control-allow-origin')).toBeNull();
+
+      const echoed = await fetch(`${http.url}${http.path}`, {
+        method: 'OPTIONS',
+        headers: { Origin: 'http://127.0.0.1' },
+      });
+      expect(echoed.status).toBe(204);
+      expect(echoed.headers.get('access-control-allow-origin')).toBe('http://127.0.0.1');
+
+      const foreign = await fetch(`${http.url}/health`, {
+        headers: { Origin: 'https://evil.example' },
+      });
+      expect(foreign.status).toBe(403);
     } finally {
       await http.close();
     }

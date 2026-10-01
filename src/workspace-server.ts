@@ -112,6 +112,11 @@ export type CreateWorkspaceServerOptions = {
   root?: string;
   /** Tests inject hosted App View HTML so resources/read does not hit the network. */
   loadChartHtml?: () => string | Promise<string>;
+  /**
+   * HTTP forces this off. Stdio local/dev keeps url and path unless the env is
+   * production-like.
+   */
+  allowRemoteSources?: boolean;
 };
 
 /** JSON-RPC tool schema. Cloned so the `as const` contract object stays frozen. */
@@ -154,7 +159,7 @@ export function wireWorkspace(options: CreateWorkspaceServerOptions = {}): Wired
       classified,
       ...(apiKey ? { askJev: (request) => askJev(request, apiKey) } : {}),
       signDataLink: sign,
-      allowRemoteSources: !isProductionLikeEnv(env),
+      allowRemoteSources: options.allowRemoteSources ?? !isProductionLikeEnv(env),
       loadDataset: (id) => {
         if (!store) return undefined;
         return datasetFromPayload(store.get(id)?.payload);
