@@ -4,6 +4,8 @@
  */
 import { errorResponse, PARSE_ERROR, type JsonRpcResponse, type McpServer } from './create-server.js';
 
+const INTERNAL_ERROR = -32603;
+
 export type StdioStreams = {
   input: NodeJS.ReadableStream;
   output: NodeJS.WritableStream;
@@ -27,7 +29,12 @@ export function connectStdio(
     while (newline !== -1) {
       const line = buffer.slice(0, newline);
       buffer = buffer.slice(newline + 1);
-      queue = queue.then(() => dispatch(server, line, output));
+      queue = queue
+        .then(() => dispatch(server, line, output))
+        .catch((error: unknown) => {
+          const message = error instanceof Error ? error.message : 'Internal error';
+          write(output, errorResponse(0, INTERNAL_ERROR, message));
+        });
       newline = buffer.indexOf('\n');
     }
   };

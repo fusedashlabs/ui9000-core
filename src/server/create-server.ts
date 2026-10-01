@@ -185,7 +185,14 @@ export function createServer(
         isError: true,
       });
     }
-    return okResponse(id, workspaceToolResult(result, appResource));
+    try {
+      return okResponse(id, workspaceToolResult(result, appResource));
+    } catch (error) {
+      return okResponse(id, {
+        content: [{ type: 'text', text: describeError(error) }],
+        isError: true,
+      });
+    }
   }
 
   async function listResources(id: JsonRpcId): Promise<JsonRpcResponse> {
