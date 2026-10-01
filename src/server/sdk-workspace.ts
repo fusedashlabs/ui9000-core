@@ -2,8 +2,8 @@
  * Production stdio uses the same MCP SDK + ext-apps stack as mcp-ui.
  * Cursor's MCP Apps host is tested against that wire shape (registerAppTool /
  * registerAppResource). The hand-rolled createServer stays for in-process
- * unit tests of JSON-RPC framing; `startWorkspaceServer` always connects this
- * SDK server (injected streams included).
+ * JSON-RPC framing tests. Live stdio and HTTP always connect this SDK server.
+ * sdk-workspace.test.ts locks the field descriptions tools/list actually sends.
  */
 import type { Readable, Writable } from 'node:stream';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';

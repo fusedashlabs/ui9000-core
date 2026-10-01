@@ -47,10 +47,14 @@ describe('createSdkWorkspaceServer', () => {
         type: 'object',
         additionalProperties: false,
       });
-      expect(
-        (tools.tools[0]?.inputSchema as { properties?: { intent?: { enum?: string[] }; csv?: unknown } })
-          .properties?.intent?.enum,
-      ).toEqual([...INTENTS]);
+      const properties = (
+        tools.tools[0]?.inputSchema as {
+          properties?: { intent?: { enum?: string[]; description?: string }; csv?: { description?: string } };
+        }
+      ).properties;
+      expect(properties?.intent?.enum).toEqual([...INTENTS]);
+      expect(properties?.intent?.description).toMatch(/spatial/);
+      expect(properties?.csv?.description).toMatch(/CSV/);
       expect(
         (tools.tools[0]?.inputSchema as { properties?: { csv?: unknown; datasetId?: unknown } }).properties,
       ).toMatchObject({
