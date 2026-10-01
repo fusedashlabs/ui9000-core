@@ -119,7 +119,7 @@ describe('workspaceWidgetPayload', () => {
     expect(payload.yAxe).toEqual(['pharmacy']);
   });
 
-  it('keeps the original payload when bind fields are not on the rows', () => {
+  it('returns null when bind fields are not on the rows', () => {
     const rows = [{ region: 'secret-north', value: 99 }];
     expect(
       workspaceWidgetPayload(
@@ -131,7 +131,7 @@ describe('workspaceWidgetPayload', () => {
         ],
         rows,
       ),
-    ).toBe(rows);
+    ).toBeNull();
   });
 
   it('joins ISO-2 country codes onto Natural Earth names', () => {
@@ -318,6 +318,79 @@ describe('workspaceWidgetPayload', () => {
     ).toMatchObject({
       data: [{ key: 'score', role: 'metric', value: 10 }],
     });
+  });
+
+  it('averages a score and does not average a name that merely contains those letters', () => {
+    const rows = [{ health_score: 2 }, { health_score: 4 }];
+    expect(
+      workspaceWidgetPayload('kpi-widget', 'KPI', [{ role: 'metric', field: 'health_score' }], rows),
+    ).toMatchObject({ items: [{ aggregations: 'avg', data: [{ value: { avg_health_score: 3 } }] }] });
+    expect(
+      workspaceWidgetPayload('kpi-widget', 'KPI', [{ role: 'metric', field: 'meaningful' }], [
+        { meaningful: 2 },
+        { meaningful: 4 },
+      ]),
+    ).toMatchObject({ items: [{ aggregations: 'sum', data: [{ value: { sum_meaningful: 6 } }] }] });
+    expect(
+      workspaceWidgetPayload('kpi-widget', 'KPI', [{ role: 'metric', field: 'strategy' }], [
+        { strategy: 2 },
+        { strategy: 4 },
+      ]),
+    ).toMatchObject({ items: [{ aggregations: 'sum' }] });
+  });
+
+  it('takes revenue from the latest month, not the last file row or a date-shaped id', () => {
+    const rows = [
+      { month: '2024-03', revenue: 5, ticket: '2024-03-441' },
+      { month: '2024-01', revenue: 10, ticket: '2024-01-100' },
+      { month: '2024-02', revenue: 40, ticket: '2024-04-442' },
+      { month: '2024-04', revenue: 'n/a', ticket: '2024-05-500' },
+    ];
+    expect(
+      workspaceWidgetPayload(
+        'kpi-widget',
+        'KPI',
+        [{ role: 'metric', field: 'revenue' }],
+        rows,
+        [
+          { name: 'month', role: 'temporal' },
+          { name: 'revenue', role: 'metric' },
+          { name: 'ticket', role: 'category' },
+        ],
+      ),
+    ).toMatchObject({ items: [{ aggregations: 'last', data: [{ value: { last_revenue: 5 } }] }] });
+    expect(
+      workspaceWidgetPayload(
+        'kpi-widget',
+        'KPI',
+        [{ role: 'metric', field: 'revenue' }],
+        rows,
+        [
+          { name: 'revenue', role: 'metric' },
+          { name: 'ticket', role: 'category' },
+        ],
+      ),
+    ).toMatchObject({ items: [{ aggregations: 'sum', data: [{ value: { sum_revenue: 55 } }] }] });
+  });
+
+  it('orders month names by the calendar, not the alphabet', () => {
+    expect(
+      workspaceWidgetPayload(
+        'kpi-widget',
+        'KPI',
+        [{ role: 'metric', field: 'revenue' }],
+        [
+          { month: 'September', revenue: 9 },
+          { month: 'zzz', revenue: 99 },
+          { month: 'January', revenue: 1 },
+          { month: 'December', revenue: 12 },
+        ],
+        [
+          { name: 'month', role: 'temporal' },
+          { name: 'revenue', role: 'metric' },
+        ],
+      ),
+    ).toMatchObject({ items: [{ aggregations: 'last', data: [{ value: { last_revenue: 12 } }] }] });
   });
 
   it('sums a KPI under aggregations_column', () => {

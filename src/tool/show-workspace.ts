@@ -41,6 +41,8 @@ import {
   chartFamiliesFor,
   chartWhyFor,
   discussChart,
+  guidedChartFamilies,
+  intentGuidesCharts,
   requestedChartFromUtterance,
 } from '../catalog/discuss-chart.js';
 import { resolveJev } from '../jev/resolve.js';
@@ -65,6 +67,7 @@ export const SHOW_WORKSPACE_CODES = [
   'leaky_handle',
   'missing_binds',
   'no_winner',
+  'chart_unbuilt',
   'invalid_spec',
   'map_unrenderable',
 ] as const;
@@ -403,6 +406,33 @@ export async function handleShowWorkspace(
     catalog: runtime.catalog,
   });
   let componentId = namedDraw ?? discussion?.drawId ?? jevDraw ?? decision.winner;
+  let hostChart = false;
+  let choiceWhy = '';
+  const guided = guidedChartFamilies(runtime.profile, runtime.classified, parsed.intent);
+  if (!namedDraw && !discussion?.drawId && !jevDraw && intentGuidesCharts(parsed.intent)) {
+    if (guided.length === 0 && (parsed.intent === 'spatial' || parsed.intent === 'graph')) {
+      const columns = listedColumns(runtime.fields);
+      return {
+        ok: true,
+        awaitingUser: true,
+        message: `No chart family matches ${parsed.intent} for these columns. Nothing was drawn.`,
+        dataFamilies: [],
+        suggestionWhy: `Intent ${parsed.intent} has no compatible chart for this table.`,
+        ...(datasetId ? { datasetId } : {}),
+        ...(typeof runtime.profile.rowCount === 'number' ? { rowCount: runtime.profile.rowCount } : {}),
+        ...(columns ? { columns } : {}),
+      };
+    }
+    const best = guided.find((family) => canDraw(family.main, runtime.profile, catalogIds));
+    const inBest =
+      !!best &&
+      (componentId === best.main || best.alternatives.some((alt) => alt.id === componentId));
+    if (best && !inBest) {
+      componentId = best.main;
+      hostChart = true;
+      choiceWhy = `The columns answer "${best.question}", so this is ${best.main}.`;
+    }
+  }
   if (
     !namedDraw &&
     !discussion?.drawId &&
@@ -412,14 +442,14 @@ export async function handleShowWorkspace(
   ) {
     componentId = 'status-gauge-widget';
   }
-  let hostChart = false;
   if (!componentId) {
-    const family = chartFamiliesFor(runtime.profile, runtime.classified).find((item) =>
+    const family = chartFamiliesFor(runtime.profile, runtime.classified, parsed.intent).find((item) =>
       canDraw(item.main, runtime.profile, catalogIds),
     );
     if (family) {
       componentId = family.main;
       hostChart = true;
+      choiceWhy = `The columns answer "${family.question}", so this is ${family.main}.`;
     }
   }
   if (!componentId) {
@@ -471,7 +501,14 @@ export async function handleShowWorkspace(
     fallbackType,
     shaped.spec.binds,
     runtime.payload,
+    runtime.classified?.map((column) => ({ name: column.column.name, role: column.role })),
   );
+  if (payload == null) {
+    return fail(
+      'chart_unbuilt',
+      'The chart could not be built from these columns, so nothing was signed.',
+    );
+  }
   const chartType = chartTypeFromPayload(payload) ?? fallbackType;
 
   if (componentId === 'map-chart') {
@@ -535,10 +572,11 @@ export async function handleShowWorkspace(
   const by: TraceChooser = jev.kind === 'draw' ? jev.by : discussion?.drawId ? 'named' : 'engine';
   const trace: Trace = {
     ...recorded,
+    ...(choiceWhy ? { tieBreak: choiceWhy } : {}),
     chosen: {
       id: componentId,
       by,
-      why: chartWhy || recorded.tieBreak,
+      why: chartWhy || choiceWhy || recorded.tieBreak,
     },
   };
   assertTraceHasNoRows(trace);
@@ -547,7 +585,12 @@ export async function handleShowWorkspace(
   return {
     ok: true,
     spec: validated.spec,
-    summary: buildSummary(validated.spec, parsed.intent, componentId, trace.tieBreak),
+    summary: buildSummary(
+      validated.spec,
+      parsed.intent,
+      componentId,
+      choiceWhy || (hostChart ? '' : trace.tieBreak),
+    ),
     ...(chartWhy ? { chartWhy } : {}),
     ...(discussion?.suggestion
       ? { suggestion: discussion.suggestion, suggestionWhy: discussion.suggestionWhy }

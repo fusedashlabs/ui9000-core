@@ -94,8 +94,8 @@ const profile: DataProfile = {
 };
 
 const secretRows = [
-  { region: 'secret-north', value: 99 },
-  { region: 'secret-south', value: 1 },
+  { category: 'secret-north', metric: 99 },
+  { category: 'secret-south', metric: 1 },
 ];
 
 function memoryChannel() {
@@ -437,7 +437,10 @@ describe('data channel', () => {
     expect(hasRowObjects(result)).toBe(false);
 
     const rows = await readViaHandle(result.spec, channel.readDataLink);
-    expect(rows).toEqual(secretRows);
+    expect(rows).toMatchObject({
+      chartType: 'barChart',
+      data: secretRows,
+    });
   });
 
   it('does not copy payload onto the spec when attaching a handle', async () => {
@@ -531,10 +534,28 @@ describe('show_workspace fail-closed', () => {
     expect(result).toMatchObject({ ok: false, code: 'missing_binds' });
   });
 
+  it('does not sign rows when the chosen chart cannot be built', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'comparison' },
+      context({
+        fields: ['severity', 'count'],
+        payload: [{ region: 'secret-north', value: 99 }],
+      }),
+    );
+    expect(result).toMatchObject({ ok: false, code: 'chart_unbuilt' });
+    expect(hasRowObjects(result)).toBe(false);
+  });
+
   it('binds caller field names onto required catalog roles', async () => {
     const result = await handleShowWorkspace(
       { intent: 'comparison' },
-      context({ fields: ['severity', 'count'] }),
+      context({
+        fields: ['severity', 'count'],
+        payload: [
+          { severity: 'high', count: 3 },
+          { severity: 'low', count: 1 },
+        ],
+      }),
     );
     expect(result.ok).toBe(true);
     if (!isDrawn(result)) return;
@@ -1040,6 +1061,7 @@ describe('show_workspace fail-closed', () => {
     const result = await handleShowWorkspace(
       { intent: 'comparison', utterance: 'Compare incident counts by team over months.' },
       context({
+        profile: { ...profile, hasTemporal: true },
         askJev: async (request) => {
           const offered = Object.keys(request.questions.chart.criteria);
           const choice = offered.includes('lollipop') ? 'line-chart' : 'bar-chart';

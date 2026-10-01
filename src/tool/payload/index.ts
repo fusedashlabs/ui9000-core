@@ -11,10 +11,13 @@ import { mapChartPayload } from './map-chart.js';
 import { networkGraphPayload } from './network-graph.js';
 import { asRowObjects } from './rows.js';
 
+export type ColumnHint = { name: string; role: string };
+
 type PayloadBuilder = (
   chartType: string | undefined,
   fields: Record<string, string>,
   rows: Record<string, unknown>[],
+  columns?: readonly ColumnHint[],
 ) => unknown | null;
 
 /** Components with a chart object. Anything else keeps the raw table rows. */
@@ -23,9 +26,9 @@ const PAYLOAD_BY_COMPONENT: Record<string, PayloadBuilder> = {
   'histogram-chart': histogramChartPayload,
   'map-chart': mapChartPayload,
   'network-graph': networkGraphPayload,
-  'kpi-widget': (chartType, fields, rows) => {
+  'kpi-widget': (chartType, fields, rows, columns) => {
     void chartType;
-    return kpiWidgetPayload(fields, rows);
+    return kpiWidgetPayload(fields, rows, columns);
   },
   'status-gauge-widget': (chartType, fields, rows) => {
     void chartType;
@@ -45,11 +48,11 @@ export function workspaceWidgetPayload(
   chartType: string | undefined,
   binds: WorkspaceSpec['binds'],
   payload: unknown,
+  columns?: readonly ColumnHint[],
 ): unknown {
   const rows = asRowObjects(payload);
   if (!rows) return payload;
   const build = builderFor(component);
   if (!build) return payload;
-  const built = build(chartType ?? chartTypeForComponent(component), bindFieldMap(binds), rows);
-  return built ?? payload;
+  return build(chartType ?? chartTypeForComponent(component), bindFieldMap(binds), rows, columns);
 }
