@@ -17,6 +17,7 @@ jobs:
           repository: fusedashlabs/ui9000-widgets
           path: vendor/ui9000-widgets
           token: ${{ secrets.WIDGETS_CHECKOUT_TOKEN }}
+          ref: v0.6.0
           persist-credentials: false
 
       - uses: actions/setup-node@v4
@@ -35,5 +36,6 @@ jobs:
       - run: yarn test --reporter=default --reporter=json --outputFile.json=${{ runner.temp }}/core-vitest.json
       - run: yarn scorecard:check --report ${{ runner.temp }}/core-vitest.json
       - run: node scripts/no-raw-rows.mjs
+      - run: node -e "const v=require('@fusedashlabs/widgets/package.json').version; if(v!=='0.6.0'){console.error('widgets',v); process.exit(1)}"
       - run: yarn build
       - run: node --input-type=module -e "import { DATA_PROFILE_KEYS } from './dist/index.js'; if(!DATA_PROFILE_KEYS?.length) process.exit(1)"
