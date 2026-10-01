@@ -270,4 +270,59 @@ describe('validateSpec', () => {
     );
     expect(series).toMatchObject({ ok: false, code: 'unmet_data' });
   });
+
+  it('refuses a handler or script URL nested under props.children', () => {
+    const handler = validateSpec(
+      { ...validBar, props: { wrapper: { children: [{ onclick: 'alert(1)' }] } } },
+      catalog,
+    );
+    expect(handler).toMatchObject({ ok: false, code: 'handler_prop' });
+
+    const script = validateSpec(
+      { ...validBar, props: { wrapper: { children: [{ href: 'javascript:alert(1)' }] } } },
+      catalog,
+    );
+    expect(script).toMatchObject({ ok: false, code: 'javascript_url' });
+  });
+
+  it('refuses a script scheme with whitespace or NUL inside the word', () => {
+    for (const href of ['java\tscript:alert(1)', 'java\nscript:alert(1)', 'java\u0000script:alert(1)']) {
+      const result = validateSpec({ ...validBar, props: { href } }, catalog);
+      expect(result).toMatchObject({ ok: false, code: 'javascript_url' });
+    }
+  });
+
+  it('refuses lowercase and uppercase event-handler props', () => {
+    for (const key of ['onwheel', 'onpointerdown', 'ONWHEEL']) {
+      const result = validateSpec({ ...validBar, props: { [key]: 'alert(1)' } }, catalog);
+      expect(result).toMatchObject({ ok: false, code: 'handler_prop' });
+    }
+  });
+
+  it('accepts a non-handler prop that starts with on', () => {
+    const result = validateSpec({ ...validBar, props: { orientation: 'horizontal' } }, catalog);
+    expect(result.ok).toBe(true);
+  });
+
+  it('refuses srcdoc and an empty-mime data URL', () => {
+    const srcdoc = validateSpec(
+      { ...validBar, props: { srcdoc: '<script>alert(1)</script>' } },
+      catalog,
+    );
+    expect(srcdoc).toMatchObject({ ok: false, code: 'handler_prop' });
+
+    const data = validateSpec(
+      { ...validBar, props: { href: 'data:;base64,PHNjcmlwdD4=' } },
+      catalog,
+    );
+    expect(data).toMatchObject({ ok: false, code: 'data_url' });
+  });
+
+  it('refuses row arrays nested more than one level under props', () => {
+    const result = validateSpec(
+      { ...validBar, props: { inner: { data: [{ a: 1, b: 2 }] } } },
+      catalog,
+    );
+    expect(result).toMatchObject({ ok: false, code: 'unmet_data' });
+  });
 });

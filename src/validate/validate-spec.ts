@@ -26,15 +26,17 @@ const HANDLER_KEYS = new Set([
   'outerhtml',
   'dangerouslysetinnerhtml',
   'html',
+  'srcdoc',
 ]);
 
 const FIELD_DEF_KEYS = new Set(['name', 'id', 'label', 'type', 'required']);
 
-const HANDLER_SOURCE = /^(?:function\b|\([^)]*\)\s*=>)/;
+const HANDLER_SOURCE =
+  /^(?:async\s+)?(?:function\b|\([^)]*\)\s*=>|[A-Za-z_$][\w$]*\s*=>)/;
 /** Script URL schemes — not the word "javascript". Also matches url(javascript:…). */
 const SCRIPT_SCHEME = /(?:^|[^a-z0-9_+.-])(?:javascript|vbscript)\s*:/i;
-/** data: / blob: payloads — not prose like "Compare data: production". */
-const DATA_URL = /(?:^|[^a-z0-9_+.-])data\s*:(?:[a-z]+\/[a-z0-9.+-]+|,)/i;
+/** data: / blob: payloads — not prose like "Compare data: production". `;` covers `data:;base64`. */
+const DATA_URL = /(?:^|[^a-z0-9_+.-])data\s*:(?:[a-z]+\/[a-z0-9.+-]+|,|;)/i;
 const BLOB_URL = /(?:^|[^a-z0-9_+.-])blob\s*:/i;
 const ROW_KEYS = ['data', 'points', 'series', 'rows'] as const;
 
@@ -128,10 +130,11 @@ function layerSafety(spec: WorkspaceSpec): ValidationResult<WorkspaceSpec> {
       return fail('handler_prop', 'functions are not allowed on the spec');
     }
     if (typeof value === 'string') {
-      if (SCRIPT_SCHEME.test(value)) {
+      const scanned = value.replace(/[\s\u0000-\u001f]+/g, '');
+      if (SCRIPT_SCHEME.test(scanned)) {
         return fail('javascript_url', 'javascript: and vbscript: URLs are refused');
       }
-      if (DATA_URL.test(value) || BLOB_URL.test(value)) {
+      if (DATA_URL.test(scanned) || BLOB_URL.test(scanned)) {
         return fail('data_url', 'data: and blob: URLs are refused');
       }
       if (HANDLER_SOURCE.test(value.trim())) {
@@ -152,7 +155,9 @@ function layerSafety(spec: WorkspaceSpec): ValidationResult<WorkspaceSpec> {
       if (isHandlerKey(key)) {
         return fail('handler_prop', `prop "${key}" is a handler and is refused`);
       }
-      if (key === 'children') continue;
+      if ((ROW_KEYS as readonly string[]).includes(key) && isRowArray(child)) {
+        return fail('unmet_data', 'spec must not include data rows; use binds and a data handle');
+      }
       queue.push(child);
     }
   }
@@ -239,9 +244,11 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 function isHandlerKey(key: string): boolean {
-  if (HANDLER_KEYS.has(key.toLowerCase())) return true;
+  const lower = key.toLowerCase();
+  if (HANDLER_KEYS.has(lower)) return true;
   if (key.endsWith('Handler')) return true;
-  return /^on[A-Z]/.test(key);
+  // Event handlers (`onclick`, `onwheel`, `ONWHEEL`). Not `orientation` / `one` / `only`.
+  return /^on[a-z]{3,}/i.test(key) && !/^(orientation|opacity|online|only|once)$/i.test(key);
 }
 
 function hasRowPayload(raw: Record<string, unknown>): boolean {
