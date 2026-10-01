@@ -3,6 +3,7 @@
  * Rows stay on the server. The MCP result only gets datasetId + column names.
  */
 
+import { lookup } from 'node:dns/promises';
 import * as fs from 'node:fs';
 import { isIP } from 'node:net';
 import * as path from 'node:path';
@@ -271,7 +272,7 @@ async function resolveCsvText(
     if (!/^https?:\/\//i.test(source.url)) {
       return fail('invalid_ingest', 'url must start with http:// or https://.');
     }
-    const blocked = blockedDatasetUrl(source.url);
+    const blocked = await blockedDatasetUrl(source.url);
     if (blocked) return fail('invalid_ingest', blocked);
     try {
       const fetchImpl = options.fetchImpl ?? fetch;
@@ -300,14 +301,31 @@ async function resolveCsvText(
     if (relative && resolved !== cwd && !resolved.startsWith(cwd + path.sep)) {
       return fail('invalid_ingest', 'Relative path must stay inside the working directory.');
     }
-    if (isSensitiveDatasetPath(resolved)) {
-      return fail('invalid_ingest', SENSITIVE_PATH);
-    }
-    if (!fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) {
+    let real: string;
+    let realCwd: string;
+    try {
+      real = fs.realpathSync(resolved);
+      realCwd = fs.realpathSync(cwd);
+    } catch {
       return fail('invalid_ingest', `File not found: ${source.path}`);
     }
-    const csvText = fs.readFileSync(resolved, 'utf8');
-    return capCsv(csvText, path.basename(resolved), maxBytes);
+    if (relative && real !== realCwd && !real.startsWith(realCwd + path.sep)) {
+      return fail('invalid_ingest', 'Relative path must stay inside the working directory.');
+    }
+    if (isSensitiveDatasetPath(real)) {
+      return fail('invalid_ingest', SENSITIVE_PATH);
+    }
+    let stat: fs.Stats;
+    try {
+      stat = fs.statSync(real);
+    } catch {
+      return fail('invalid_ingest', `File not found: ${source.path}`);
+    }
+    if (!stat.isFile()) {
+      return fail('invalid_ingest', `File not found: ${source.path}`);
+    }
+    const csvText = fs.readFileSync(real, 'utf8');
+    return capCsv(csvText, path.basename(real), maxBytes);
   }
 
   return fail('invalid_ingest', 'Provide exactly one of: csv, url, path, or datasetId.');
@@ -318,8 +336,20 @@ const BLOCKED_URL_HOSTS = new Set([
   'metadata.google.internal',
 ]);
 
-/** Refuse loopback, link-local, private, and cloud-metadata hosts before fetch. */
-export function blockedDatasetUrl(raw: string): string | undefined {
+export type HostLookup = (hostname: string) => Promise<readonly { address: string }[]>;
+
+async function lookupAll(hostname: string): Promise<readonly { address: string }[]> {
+  return lookup(hostname, { all: true, verbatim: true });
+}
+
+/**
+ * Refuse loopback, link-local, private, and cloud-metadata hosts before fetch.
+ * A public name is refused when any resolved address is in those ranges.
+ */
+export async function blockedDatasetUrl(
+  raw: string,
+  lookupHost: HostLookup = lookupAll,
+): Promise<string | undefined> {
   let url: URL;
   try {
     url = new URL(raw);
@@ -332,11 +362,27 @@ export function blockedDatasetUrl(raw: string): string | undefined {
     BLOCKED_URL_HOSTS.has(host) ||
     host.endsWith('.local') ||
     host.endsWith('.internal') ||
-    isBlockedIp(host)
+    isBlockedIp(host) ||
+    isAmbiguousNumericHost(host)
   ) {
     return 'url host is not allowed.';
   }
+  if (isIP(host)) return undefined;
+  let records: readonly { address: string }[];
+  try {
+    records = await lookupHost(host);
+  } catch {
+    return 'url host could not be resolved.';
+  }
+  if (records.length === 0 || records.some((record) => isBlockedIp(record.address))) {
+    return 'url host is not allowed.';
+  }
   return undefined;
+}
+
+/** Integer and short dotted forms (`2130706433`, `127.1`) that isIP() does not classify. */
+function isAmbiguousNumericHost(host: string): boolean {
+  return /^[\d.]+$/.test(host) && isIP(host) === 0;
 }
 
 function isBlockedIp(host: string): boolean {
@@ -351,14 +397,56 @@ function isBlockedIp(host: string): boolean {
     if (a >= 224) return true;
     return false;
   }
-  if (kind === 6) {
-    const lower = host.toLowerCase();
-    if (lower === '::1' || lower === '::') return true;
-    if (lower.startsWith('fe80') || lower.startsWith('fc') || lower.startsWith('fd')) return true;
-    if (lower.startsWith('::ffff:')) return isBlockedIp(lower.slice('::ffff:'.length));
-    return false;
-  }
+  if (kind === 6) return isBlockedIpv6(host);
   return false;
+}
+
+function isBlockedIpv6(host: string): boolean {
+  const parts = expandIpv6(host.toLowerCase());
+  if (!parts) return true;
+  const mapped =
+    parts[0] === 0 &&
+    parts[1] === 0 &&
+    parts[2] === 0 &&
+    parts[3] === 0 &&
+    parts[4] === 0 &&
+    parts[5] === 0xffff;
+  if (mapped || parts.slice(0, 6).every((part) => part === 0)) {
+    const hi = parts[6] ?? 0;
+    const lo = parts[7] ?? 0;
+    return isBlockedIp(`${hi >> 8}.${hi & 0xff}.${lo >> 8}.${lo & 0xff}`);
+  }
+  if (parts.every((part) => part === 0)) return true;
+  if (parts[7] === 1 && parts.slice(0, 7).every((part) => part === 0)) return true;
+  const first = parts[0] ?? 0;
+  if ((first & 0xfe00) === 0xfc00) return true;
+  if ((first & 0xffc0) === 0xfe80) return true;
+  if ((first & 0xff00) === 0xff00) return true;
+  return false;
+}
+
+function expandIpv6(host: string): number[] | undefined {
+  let input = host;
+  const dotted = input.match(/^(.*:)(\d+\.\d+\.\d+\.\d+)$/);
+  if (dotted?.[1] && dotted[2]) {
+    if (isIP(dotted[2]) !== 4) return undefined;
+    const [a = 0, b = 0, c = 0, d = 0] = dotted[2].split('.').map((part) => Number(part));
+    const hi = ((a << 8) | b).toString(16);
+    const lo = ((c << 8) | d).toString(16);
+    input = `${dotted[1]}${hi}:${lo}`;
+  }
+  const halves = input.split('::');
+  if (halves.length > 2) return undefined;
+  const left = halves[0] ? halves[0].split(':') : [];
+  const right = halves.length === 2 && halves[1] ? halves[1].split(':') : [];
+  if (halves.length === 1 && left.length !== 8) return undefined;
+  const missing = 8 - left.length - right.length;
+  if (missing < 0) return undefined;
+  const groups = [...left, ...Array<string>(missing).fill('0'), ...right];
+  if (groups.length !== 8) return undefined;
+  const nums = groups.map((part) => (/^[0-9a-f]{1,4}$/.test(part) ? Number.parseInt(part, 16) : Number.NaN));
+  if (nums.some((part) => !Number.isFinite(part))) return undefined;
+  return nums;
 }
 
 function capCsv(

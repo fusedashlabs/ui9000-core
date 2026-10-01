@@ -95,16 +95,43 @@ describe('resolveWorkspaceIngest', () => {
 });
 
 describe('ingest helpers', () => {
-  it('flags hidden and env files', () => {
+  it('flags hidden and env files', async () => {
     expect(isSensitiveDatasetFileName('/tmp/.env')).toBe(true);
     expect(isSensitiveDatasetFileName('/tmp/env.prod')).toBe(true);
     expect(isSensitiveDatasetFileName('/tmp/sales.csv')).toBe(false);
     expect(isSensitiveDatasetFileName('/Users/x/.ssh/id_rsa')).toBe(true);
     expect(isSensitiveDatasetPath('/etc/passwd')).toBe(true);
-    expect(blockedDatasetUrl('http://169.254.169.254/latest/meta-data/')).toBe(
+    expect(await blockedDatasetUrl('http://169.254.169.254/latest/meta-data/')).toBe(
       'url host is not allowed.',
     );
-    expect(blockedDatasetUrl('https://example.com/a.csv')).toBeUndefined();
+    expect(await blockedDatasetUrl('http://[0:0:0:0:0:ffff:127.0.0.1]/')).toBe(
+      'url host is not allowed.',
+    );
+    expect(await blockedDatasetUrl('http://[::127.0.0.1]/')).toBe('url host is not allowed.');
+    expect(await blockedDatasetUrl('http://2130706433/')).toBe('url host is not allowed.');
+    expect(
+      await blockedDatasetUrl('https://evil.example/a.csv', async () => [
+        { address: '169.254.169.254' },
+      ]),
+    ).toBe('url host is not allowed.');
+    expect(
+      await blockedDatasetUrl('https://example.com/a.csv', async () => [{ address: '93.184.216.34' }]),
+    ).toBeUndefined();
+  });
+
+  it('rejects a symlink that leaves the working directory or points at a secret', async () => {
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'ui9000-secret-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ui9000-link-'));
+    tmpDirs.push(outside, dir);
+    fs.writeFileSync(path.join(outside, 'id_rsa'), 'key\n');
+    fs.writeFileSync(path.join(outside, 'sales.csv'), 'dept,n\nA,1\n');
+    fs.symlinkSync(path.join(outside, 'id_rsa'), path.join(dir, 'notes.csv'));
+    fs.symlinkSync(path.join(outside, 'sales.csv'), path.join(dir, 'link.csv'));
+
+    const secret = await resolveWorkspaceIngest({ path: 'notes.csv' }, { cwd: dir });
+    expect(secret).toMatchObject({ ok: false, code: 'invalid_ingest' });
+    const escaped = await resolveWorkspaceIngest({ path: 'link.csv' }, { cwd: dir });
+    expect(escaped).toMatchObject({ ok: false, code: 'invalid_ingest' });
   });
 
   it('builds a table from record objects', () => {
