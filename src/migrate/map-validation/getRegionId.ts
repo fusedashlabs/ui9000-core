@@ -1,5 +1,5 @@
-import { FeaturesIndex } from "./createFeaturesIndex";
-import { normalizeDataValue } from "./normalizeDataValue";
+import { FeaturesIndex } from "./createFeaturesIndex.js";
+import { normalizeDataValue } from "./normalizeDataValue.js";
 
 /**
  * Optimized version using index for O(1) lookup instead of O(n) find()

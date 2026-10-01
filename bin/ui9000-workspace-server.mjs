@@ -1,25 +1,20 @@
 #!/usr/bin/env node
 /**
- * Same path as `yarn workspace @fusedashlabs/ui9000-workspace start`: `tsx src/bin.ts`.
+ * Launches the compiled server. The published package does not run tsx.
  *
- * `@fusedashlabs/widgets/catalog` is the engine catalog (npm dist). Vite's
- * `import.meta.glob` is not available under tsx, so an unbuilt widgets
- * checkout cannot start. npx resolves the published widgets package.
+ * `@fusedashlabs/widgets/catalog` is the engine catalog (npm dist). npx
+ * installs it. A local checkout needs `yarn build` in ui9000-widgets first.
  */
 import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
-import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import { join } from 'node:path';
-
-const require = createRequire(import.meta.url);
 
 function resolveWidgetsCatalog() {
   try {
     return fileURLToPath(import.meta.resolve('@fusedashlabs/widgets/catalog'));
   } catch {
-    const sibling = join(
-      fileURLToPath(new URL('../vendor/ui9000-widgets/dist/catalog/index.js', import.meta.url)),
+    const sibling = fileURLToPath(
+      new URL('../vendor/ui9000-widgets/dist/catalog/index.js', import.meta.url),
     );
     return existsSync(sibling) ? sibling : undefined;
   }
@@ -28,16 +23,25 @@ function resolveWidgetsCatalog() {
 if (!resolveWidgetsCatalog()) {
   process.stderr.write(
     'ui9000-workspace-server needs @fusedashlabs/widgets with a built catalog.\n' +
-      'npx installs it automatically. From this monorepo run: yarn build\n',
+      'npx installs it automatically. From this repo run: yarn build\n',
   );
   process.exit(1);
 }
 
-const tsx = require.resolve('tsx/cli');
-const entry = fileURLToPath(new URL('../src/bin.ts', import.meta.url));
-const child = spawn(process.execPath, [tsx, entry, ...process.argv.slice(2)], {
+const entry = fileURLToPath(new URL('../dist/bin.js', import.meta.url));
+if (!existsSync(entry)) {
+  process.stderr.write('ui9000-workspace-server is not built. Run: yarn build\n');
+  process.exit(1);
+}
+
+const child = spawn(process.execPath, [entry, ...process.argv.slice(2)], {
   stdio: 'inherit',
 });
+
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.on(signal, () => child.kill(signal));
+}
+
 child.on('exit', (code, signal) => {
   if (signal) {
     process.kill(process.pid, signal);

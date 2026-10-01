@@ -1,8 +1,8 @@
-import { GEOJSON_KEYS } from "./geojsonKeys";
-import { createFeaturesIndex, type FeaturesIndex } from "./createFeaturesIndex";
-import { getRegionIdOptimized } from "./getRegionId";
-import { inferMapTypeFromKeyNames } from "./inferMapTypeFromKeyNames";
-import { normalizeDataValue } from "./normalizeDataValue";
+import { GEOJSON_KEYS } from "./geojsonKeys.js";
+import { createFeaturesIndex, type FeaturesIndex } from "./createFeaturesIndex.js";
+import { getRegionIdOptimized } from "./getRegionId.js";
+import { inferMapTypeFromKeyNames } from "./inferMapTypeFromKeyNames.js";
+import { normalizeDataValue } from "./normalizeDataValue.js";
 
 // Headless, framework-free validation that a map widget's geospatial values
 // resolve against the boundary set the renderer would actually join them to.

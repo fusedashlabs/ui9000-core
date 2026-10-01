@@ -1,5 +1,4 @@
 import { PassThrough } from 'node:stream';
-import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -551,11 +550,13 @@ describe('startWorkspaceServer', () => {
     }
   });
 
-  it('resolves tsx/cli and the widgets catalog the same way the bin trampoline does', () => {
-    const require = createRequire(
+  it('launches the built server and resolves the widgets catalog', () => {
+    const launcher = fs.readFileSync(
       fileURLToPath(new URL('../bin/ui9000-workspace-server.mjs', import.meta.url)),
+      'utf8',
     );
-    expect(require.resolve('tsx/cli')).toMatch(/tsx/);
+    expect(launcher).toContain('dist/bin.js');
+    expect(launcher).not.toContain('tsx/cli');
     const catalog = execFileSync(
       process.execPath,
       [

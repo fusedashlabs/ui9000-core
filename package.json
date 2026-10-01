@@ -10,27 +10,27 @@
   },
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "import": "./src/index.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
   },
   "files": [
     "bin",
-    "src",
+    "dist",
     "LICENSE",
     "README.md"
   ],
   "engines": {
-    "node": ">=20.6"
+    "node": ">=20.10"
   },
   "scripts": {
-    "build": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-build-assets.mjs",
     "start": "node ./bin/ui9000-workspace-server.mjs",
     "start:http": "node ./bin/ui9000-workspace-server.mjs --http",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "prepack": "yarn typecheck && yarn test",
+    "prepack": "yarn typecheck && yarn test && yarn build",
     "scorecard": "tsx scripts/scorecard.ts",
     "scorecard:check": "tsx scripts/scorecard.ts --check"
   },
@@ -38,13 +38,13 @@
     "@fusedashlabs/widgets": "0.6.0",
     "@modelcontextprotocol/ext-apps": "1.7.5",
     "@modelcontextprotocol/sdk": "1.30.0",
-    "tsx": "^4.23.13",
     "zod": "3.25.76"
   },
   "devDependencies": {
     "@types/geojson": "^7946.0.14",
     "@types/node": "^22.10.0",
     "js-tiktoken": "^1.0.21",
+    "tsx": "4.23.15",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   },

@@ -1,7 +1,7 @@
-import { GEOJSON_KEYS } from "./geojsonKeys";
+import { GEOJSON_KEYS } from "./geojsonKeys.js";
 
-import { getRegionIdFromFeatureProperties } from "./getRegionIdFromFeatureProperties";
-import { normalizeDataValue } from "./normalizeDataValue";
+import { getRegionIdFromFeatureProperties } from "./getRegionIdFromFeatureProperties.js";
+import { normalizeDataValue } from "./normalizeDataValue.js";
 
 export type FeaturesIndex = {
   byId: Map<string, GeoJSON.Feature>;

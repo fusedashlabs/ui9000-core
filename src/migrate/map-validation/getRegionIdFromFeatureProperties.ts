@@ -1,4 +1,4 @@
-import { GEOJSON_KEYS } from "./geojsonKeys";
+import { GEOJSON_KEYS } from "./geojsonKeys.js";
 
 export const getRegionIdFromFeatureProperties = (
   featureProperties: GeoJSON.GeoJsonProperties,

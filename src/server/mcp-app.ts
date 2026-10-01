@@ -83,13 +83,19 @@ let htmlCache: { url: string; text: string } | undefined;
 let localHtmlCache: string | undefined;
 
 export function localChartAppHtmlPath(): string | undefined {
-  const here = dirname(fileURLToPath(import.meta.url));
-  const mcpRoot = join(here, '../../../../../');
-  const candidates = [
-    join(mcpRoot, 'mcp-ui/src/mcp-app/generated/chart-app.html'),
-    join(mcpRoot, 'mcp-ui/dist/generated/chart-app.html'),
-  ];
-  return candidates.find((path) => existsSync(path));
+  let dir = dirname(fileURLToPath(import.meta.url));
+  for (let depth = 0; depth < 6; depth += 1) {
+    const candidates = [
+      join(dir, 'mcp-ui/src/mcp-app/generated/chart-app.html'),
+      join(dir, 'mcp-ui/dist/generated/chart-app.html'),
+    ];
+    const hit = candidates.find((path) => existsSync(path));
+    if (hit) return hit;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return undefined;
 }
 
 export function loadLocalChartAppHtml(): string | undefined {

@@ -14,6 +14,17 @@ const http =
 void (async () => {
   if (http) {
     const server = await startWorkspaceHttpServer();
+    let stopping = false;
+    const stop = () => {
+      if (stopping) return;
+      stopping = true;
+      void server.close().then(
+        () => process.exit(0),
+        () => process.exit(1),
+      );
+    };
+    process.on('SIGINT', stop);
+    process.on('SIGTERM', stop);
     process.stderr.write(
       `UI9000-Workspace MCP HTTP ${server.url}${server.path} (Claude connector URL path /mcp)\n`,
     );

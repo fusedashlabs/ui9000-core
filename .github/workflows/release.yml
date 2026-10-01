@@ -30,6 +30,7 @@ jobs:
       - run: yarn install --immutable
       - run: yarn typecheck
       - run: yarn test
+      - run: yarn build
       - name: Publish @fusedashlabs/ui9000-workspace
         run: yarn npm publish
         env:

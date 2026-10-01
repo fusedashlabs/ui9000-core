@@ -1,8 +1,8 @@
-import cityGeo from "./catalogs/city.json";
-import countryGeo from "./catalogs/country.json";
-import countyGeo from "./catalogs/county.json";
-import provinceGeo from "./catalogs/province.json";
-import stateGeo from "./catalogs/state.json";
+import cityGeo from "./catalogs/city.json" with { type: "json" };
+import countryGeo from "./catalogs/country.json" with { type: "json" };
+import countyGeo from "./catalogs/county.json" with { type: "json" };
+import provinceGeo from "./catalogs/province.json" with { type: "json" };
+import stateGeo from "./catalogs/state.json" with { type: "json" };
 
 // Geometry-free boundary catalogs for every map type the renderer supports.
 // region reuses the world-provinces (admin-1) set.

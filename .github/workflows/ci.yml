@@ -35,3 +35,5 @@ jobs:
       - run: yarn test --reporter=default --reporter=json --outputFile.json=${{ runner.temp }}/core-vitest.json
       - run: yarn scorecard:check --report ${{ runner.temp }}/core-vitest.json
       - run: node scripts/no-raw-rows.mjs
+      - run: yarn build
+      - run: node --input-type=module -e "import { DATA_PROFILE_KEYS } from './dist/index.js'; if(!DATA_PROFILE_KEYS?.length) process.exit(1)"

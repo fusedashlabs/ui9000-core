@@ -4,7 +4,7 @@
  * Tables are sliced from the same `country.json` catalog the join uses.
  */
 
-import names from './country-iso-names.json';
+import names from './country-iso-names.json' with { type: 'json' };
 
 const ISO2_TO_NAME: Record<string, string> = names.iso2;
 const ISO3_TO_NAME: Record<string, string> = names.iso3;
