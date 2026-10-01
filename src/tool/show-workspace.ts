@@ -34,7 +34,7 @@ import {
 } from '../trace/trace.js';
 import { CHART_ROLES } from '../catalog/chart-roles.js';
 import { dataRolesForChart } from './payload/hosted-chart.js';
-import { chartFamiliesFor, chartWhyFor, discussChart } from '../catalog/discuss-chart.js';
+import { canDraw, chartFamiliesFor, chartWhyFor, discussChart } from '../catalog/discuss-chart.js';
 import { resolveJev } from '../jev/resolve.js';
 import {
   type JevChartRequest,
@@ -397,6 +397,16 @@ export async function handleShowWorkspace(
   ) {
     componentId = 'status-gauge-widget';
   }
+  let hostChart = false;
+  if (!componentId) {
+    const family = chartFamiliesFor(runtime.profile, runtime.classified).find((item) =>
+      canDraw(item.main, runtime.profile, catalogIds),
+    );
+    if (family) {
+      componentId = family.main;
+      hostChart = true;
+    }
+  }
   if (!componentId) {
     const reason = decision.rejected[0]?.reason ?? decision.trace.tieBreak;
     return fail('no_winner', reason || 'No eligible catalog component for this intent and profile.');
@@ -404,9 +414,10 @@ export async function handleShowWorkspace(
 
   const winner = drawingCatalog.find((item) => item.id === componentId);
   const chosenByJev = Boolean(namedDraw || discussion?.drawId || jevDraw);
-  const allowedActions = chosenByJev
-    ? (winner?.allowedActions ?? []).filter((action) => SPEC_ACTION_SET.has(action))
-    : decision.trace.actions;
+  const allowedActions =
+    chosenByJev || hostChart
+      ? (winner?.allowedActions ?? []).filter((action) => SPEC_ACTION_SET.has(action))
+      : decision.trace.actions;
   const shaped = shapeSpec(
     {
       component: componentId,
@@ -474,7 +485,11 @@ export async function handleShowWorkspace(
   const columns = listedColumns(runtime.fields);
   const engineWhy = chartWhyFor(componentId) ?? '';
   const missedWhy = jevMissed
-    ? ['Jev did not select a chart.', engineWhy, "This drawing is the engine choice, not Jev's."]
+    ? [
+        'Jev did not select a chart.',
+        engineWhy,
+        hostChart ? '' : "This drawing is the engine choice, not Jev's.",
+      ]
         .filter(Boolean)
         .join(' ')
     : '';

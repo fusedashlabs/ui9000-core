@@ -338,6 +338,34 @@ describe('workspaceWidgetPayload', () => {
     });
   });
 
+  it('draws one line per metric column when a time chart has no series', () => {
+    expect(
+      workspaceWidgetPayload(
+        'line-chart',
+        'lineChart',
+        [
+          { role: 'x', field: 'month' },
+          { role: 'y', field: 'active_listings' },
+        ],
+        [
+          { month: 'Jul 2026', active_listings: 2035, pending_sales: 1049 },
+          { month: 'Aug 2026', active_listings: 1985, pending_sales: 1002 },
+        ],
+      ),
+    ).toMatchObject({
+      chartType: 'lineGroupedChart',
+      xAxe: ['month'],
+      yAxe: ['value'],
+      groupBy: ['measure'],
+      data: [
+        { month: 'Jul 2026', measure: 'active_listings', value: 2035 },
+        { month: 'Jul 2026', measure: 'pending_sales', value: 1049 },
+        { month: 'Aug 2026', measure: 'active_listings', value: 1985 },
+        { month: 'Aug 2026', measure: 'pending_sales', value: 1002 },
+      ],
+    });
+  });
+
   it('draws a grouped line from a time axis, a metric, and a series', () => {
     expect(
       workspaceWidgetPayload(

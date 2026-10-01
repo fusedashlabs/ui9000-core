@@ -121,6 +121,10 @@ function seriesPayload(
   const y = present(rows, fields.y ?? fields.metric) ?? inferAxis(rows, 'number');
   if (!x || !y || x === y) return null;
   const series = present(rows, fields.series);
+  if (!series && (id === 'line-chart' || id === 'area-chart')) {
+    const melted = meltWideMetrics(id, x, y, rows);
+    if (melted) return melted;
+  }
   const data = RAW.has(id) ? rows : summed(rows, x, y, series);
   if (!data) return null;
   return {
@@ -280,6 +284,47 @@ function summed(
       [y]: sums.get(key),
     };
   });
+}
+
+/** One row per measure, so two metric columns become two lines on the same axis. */
+function meltWideMetrics(
+  id: string,
+  x: string,
+  y: string,
+  rows: Record<string, unknown>[],
+): Record<string, unknown> | null {
+  const metrics = numericKeys(rows).filter((key) => key !== x);
+  if (!metrics.includes(y) || metrics.length < 2) return null;
+  const measure = unusedKey(rows, 'measure');
+  const value = unusedKey(rows, 'value');
+  const data: Record<string, unknown>[] = [];
+  for (const row of rows) {
+    const label = String(row[x] ?? '').trim();
+    if (!label) continue;
+    for (const metric of metrics) {
+      const raw = row[metric];
+      const n = Number(raw);
+      if (String(raw ?? '').trim() === '' || !Number.isFinite(n)) continue;
+      data.push({ [x]: label, [measure]: metric, [value]: n });
+    }
+  }
+  if (data.length === 0) return null;
+  return {
+    chartType: id === 'area-chart' ? 'areaStackedChart' : 'lineGroupedChart',
+    name: id,
+    xAxe: [x],
+    yAxe: [value],
+    groupBy: [measure],
+    data,
+  };
+}
+
+function unusedKey(rows: Record<string, unknown>[], base: string): string {
+  const taken = new Set(Object.keys(rows[0] ?? {}));
+  if (!taken.has(base)) return base;
+  let index = 2;
+  while (taken.has(`${base}${index}`)) index += 1;
+  return `${base}${index}`;
 }
 
 function fiveNumber(values: number[]): Record<string, number> {

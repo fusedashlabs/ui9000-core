@@ -868,6 +868,36 @@ describe('show_workspace fail-closed', () => {
     ]);
   });
 
+  it('draws both measures over time when the engine has no comparison chart', async () => {
+    const channel = memoryChannel();
+    const result = await handleShowWorkspace(
+      {
+        csv: 'month,active_listings,pending_sales\nJul 2026,2035,1049\nAug 2026,1985,1002',
+        intent: 'comparison',
+        utterance: 'Fairfax County real estate supply: active listings vs pending sales, July and August',
+      },
+      context({ signDataLink: channel.signDataLink, loadDataset: channel.loadDataset }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('line-chart');
+    expect(result.chartType).toBe('lineGroupedChart');
+    const widget = await readViaHandle(result.spec, channel.readDataLink);
+    expect(widget).toMatchObject({
+      chartType: 'lineGroupedChart',
+      xAxe: ['month'],
+      groupBy: ['measure'],
+    });
+    const data = (widget as { data: { measure: string; value: number }[] }).data;
+    expect(data.map((row) => row.measure)).toEqual([
+      'active_listings',
+      'pending_sales',
+      'active_listings',
+      'pending_sales',
+    ]);
+    expect(data.map((row) => row.value)).toEqual([2035, 1049, 1985, 1002]);
+  });
+
   it('draws a grouped line when the user asks for a line over time', async () => {
     const result = await handleShowWorkspace(
       {
