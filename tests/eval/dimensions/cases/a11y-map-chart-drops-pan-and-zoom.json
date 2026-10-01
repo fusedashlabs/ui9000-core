@@ -4,7 +4,7 @@
   "intent": "spatial",
   "profile": { "name": "geo-lat-lng", "hasMapToken": true },
   "expect": {
-    "label": "map-chart",
+    "label": "readings by lat",
     "everyFieldLabelled": true,
     "actions": ["hover", "resize"],
     "actionsAllowedByCatalog": true

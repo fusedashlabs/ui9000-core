@@ -4,7 +4,7 @@
   "intent": "summary",
   "profile": "regional-incidents",
   "expect": {
-    "label": "kpi-widget",
+    "label": "incidents",
     "everyFieldLabelled": true,
     "actions": [
       "resize"

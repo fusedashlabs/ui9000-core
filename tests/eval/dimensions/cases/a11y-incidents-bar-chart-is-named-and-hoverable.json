@@ -4,7 +4,7 @@
   "intent": "comparison",
   "profile": "regional-incidents",
   "expect": {
-    "label": "bar-chart",
+    "label": "incidents by team",
     "everyFieldLabelled": true,
     "actions": [
       "hover",

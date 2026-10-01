@@ -86,11 +86,11 @@ cases/*.json         the eval set
 `specValid` (default `true`) runs `show_workspace` and revalidates its spec.
 `component`, `actions`, `bindRoles`, `fieldNames` compare exactly and in order;
 `closedProfileKeys` asserts the trace profile carries only `DataProfile` keys.
-For a known gap, record it honestly with `"specValid": false` and the
-`failCode` the tool answers with (see
-`schema-network-graph-has-no-node-columns.json`: the profiler proves nodes and
-links, but the column classifier has no `node`/`link` role, so `graph` wins the
-choice and then cannot bind).
+A refusal is recorded with `"specValid": false` and the `failCode` the tool
+answers with. `schema-network-graph-binds-link-ends.json` is the other way
+around: source and target are link columns, and those ends fill `nodes` and
+`links`, so the graph binds without a separate node column. A leftover metric
+column is the edge value.
 
 ### `data_accuracy`
 

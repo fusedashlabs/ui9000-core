@@ -14,9 +14,6 @@ export function shapeSpec(
   classified?: readonly ClassifiedColumn[],
 ): ShapeSpecResult {
   const spec: WorkspaceSpec = { ...base };
-  if (entry?.accessibility?.nameFrom) {
-    spec.label = entry.id;
-  }
 
   const roles = entry?.dataRoles ?? [];
   const requiredRoles = roles.filter((role) => role.required && role.id !== 'fields');
@@ -64,6 +61,9 @@ export function shapeSpec(
   }
 
   if (binds.length > 0) spec.binds = binds;
+  if (entry?.accessibility?.nameFrom) {
+    spec.label = labelFromBinds(binds) ?? entry.id;
+  }
 
   if (needsFieldsRole || binds.length > 0) {
     const labels = classified?.length
@@ -99,12 +99,26 @@ const ROLE_COLUMN: Record<string, readonly ClassifiedColumn['role'][]> = {
   proposal: ['entity', 'claim'],
   claim: ['claim'],
   entity: ['entity'],
-  nodes: ['node'],
+  nodes: ['node', 'link'],
   links: ['link'],
   events: ['event'],
   sources: ['sources'],
   rows: ['category', 'metric', 'entity', 'geo'],
 };
+
+function labelFromBinds(binds: readonly { role: string; field: string }[]): string | undefined {
+  const field = (role: string) => binds.find((item) => item.role === role)?.field;
+  const metric = field('metric') ?? field('y') ?? field('distribution');
+  const category = field('category') ?? field('label') ?? field('x') ?? field('geo');
+  const nodes = field('nodes');
+  const links = field('links');
+  if (metric && nodes && links && metric !== nodes && metric !== links) {
+    return `${metric} from ${nodes} to ${links}`;
+  }
+  if (metric && category && metric !== category) return `${metric} by ${category}`;
+  if (metric) return metric;
+  return undefined;
+}
 
 function fieldForRole(
   roleId: string,

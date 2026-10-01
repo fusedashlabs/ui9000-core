@@ -1,0 +1,14 @@
+{
+  "id": "schema-network-graph-binds-link-ends",
+  "dimension": "schema",
+  "intent": "graph",
+  "profile": "nodes-links",
+  "expect": {
+    "specValid": true,
+    "component": "network-graph",
+    "actions": ["hover", "select", "resize"],
+    "bindRoles": ["nodes", "links", "metric"],
+    "fieldNames": ["source", "target", "weight"],
+    "closedProfileKeys": true
+  }
+}

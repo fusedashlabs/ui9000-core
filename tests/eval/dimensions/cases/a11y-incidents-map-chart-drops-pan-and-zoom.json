@@ -7,7 +7,7 @@
     "hasMapToken": true
   },
   "expect": {
-    "label": "map-chart",
+    "label": "incidents by country",
     "everyFieldLabelled": true,
     "actions": [
       "hover",
