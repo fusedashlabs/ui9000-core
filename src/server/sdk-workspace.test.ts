@@ -49,12 +49,13 @@ describe('createSdkWorkspaceServer', () => {
       });
       const properties = (
         tools.tools[0]?.inputSchema as {
-          properties?: { intent?: { enum?: string[]; description?: string }; csv?: { description?: string } };
+          properties?: Record<string, { enum?: string[]; description?: string }>;
         }
       ).properties;
       expect(properties?.intent?.enum).toEqual([...INTENTS]);
-      expect(properties?.intent?.description).toMatch(/spatial/);
-      expect(properties?.csv?.description).toMatch(/CSV/);
+      for (const [name, field] of Object.entries(SHOW_WORKSPACE_INPUT_SCHEMA.properties)) {
+        expect(properties?.[name]?.description).toBe(field.description);
+      }
       expect(
         (tools.tools[0]?.inputSchema as { properties?: { csv?: unknown; datasetId?: unknown } }).properties,
       ).toMatchObject({
@@ -114,6 +115,49 @@ describe('createSdkWorkspaceServer', () => {
         arguments: { intent: 'comparison', data: [{ secret: 1 }] },
       });
       expect(called.isError).toBe(true);
+    } finally {
+      await client.close();
+      await mcp.close();
+    }
+  });
+
+  it('returns a tool error when the handler throws and accepts the next call', async () => {
+    let calls = 0;
+    const mcp = createSdkWorkspaceServer(
+      async () => {
+        calls += 1;
+        if (calls === 1) throw new Error('boom');
+        return {
+          ok: true,
+          spec: {
+            component: 'bar-chart',
+            dataUrl: 'https://mcp.ui9000.com/v1/data-links/x?sig=a&exp=1',
+          },
+          summary: 'ok',
+          chartType: 'barChart',
+        };
+      },
+      {
+        inputSchema: SHOW_WORKSPACE_INPUT_SCHEMA as unknown as Record<string, unknown>,
+        appResource: workspaceChartAppResource('https://mcp.ui9000.com', () => HTML),
+      },
+    );
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'sdk-workspace-test', version: '0.0.0' });
+    await Promise.all([mcp.connect(serverTransport), client.connect(clientTransport)]);
+
+    try {
+      const failed = await client.callTool({
+        name: SHOW_WORKSPACE_NAME,
+        arguments: { intent: 'comparison' },
+      });
+      expect(failed.isError).toBe(true);
+      const again = await client.callTool({
+        name: SHOW_WORKSPACE_NAME,
+        arguments: { intent: 'comparison' },
+      });
+      expect(again.isError).toBeFalsy();
+      expect(calls).toBe(2);
     } finally {
       await client.close();
       await mcp.close();

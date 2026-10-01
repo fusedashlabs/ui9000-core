@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { INTENTS } from '../spec/intent.js';
 import {
   SHOW_WORKSPACE_DESCRIPTION,
+  SHOW_WORKSPACE_INPUT_SCHEMA,
   SHOW_WORKSPACE_NAME,
 } from '../tool/show-workspace.js';
 import {
@@ -26,38 +27,24 @@ import {
 } from './create-server.js';
 import type { Disconnect, StdioStreams } from './stdio.js';
 
-/** Same closed enum as SHOW_WORKSPACE_INPUT_SCHEMA (`additionalProperties: false`). */
+/** Same closed enum and field text as SHOW_WORKSPACE_INPUT_SCHEMA. */
 const ShowWorkspaceArgsSchema = z
   .object({
-    intent: z.enum(INTENTS).describe(
-      'Closed objective. One of spatial, comparison, summary, form, evidence, graph. Do not invent values.',
-    ),
-    csv: z.string().optional().describe(
-      'Pasted CSV including the header row. Empty string means omit.',
-    ),
-    url: z.string().optional().describe(
-      'http(s) URL to a CSV. Local/dev only — rejected on hosted/production. Empty string means omit.',
-    ),
-    path: z.string().optional().describe(
-      'Local CSV path. Local/dev only. Empty string means omit.',
-    ),
-    datasetId: z.string().optional().describe(
-      'Id returned by an earlier show_workspace on this table. Use instead of csv/url/path.',
-    ),
-    utterance: z.string().optional().describe(
-      "The user's words, for Jev. Empty string means omit.",
-    ),
-    requestedChart: z.string().optional().describe(
-      'The chart the user asked for. Omit when they did not name a chart.',
-    ),
-    confirm: z.boolean().optional().describe(
-      'Ignored. The next call draws the chart the user picks.',
-    ),
-    columns: z.array(z.string()).optional().describe(
-      'Column names the user asked to chart. Names only, not cell values.',
-    ),
+    intent: z.enum(INTENTS).describe(schemaDescription('intent')),
+    csv: z.string().optional().describe(schemaDescription('csv')),
+    url: z.string().optional().describe(schemaDescription('url')),
+    path: z.string().optional().describe(schemaDescription('path')),
+    datasetId: z.string().optional().describe(schemaDescription('datasetId')),
+    utterance: z.string().optional().describe(schemaDescription('utterance')),
+    requestedChart: z.string().optional().describe(schemaDescription('requestedChart')),
+    confirm: z.boolean().optional().describe(schemaDescription('confirm')),
+    columns: z.array(z.string()).optional().describe(schemaDescription('columns')),
   })
   .strict();
+
+function schemaDescription(name: keyof typeof SHOW_WORKSPACE_INPUT_SCHEMA.properties): string {
+  return SHOW_WORKSPACE_INPUT_SCHEMA.properties[name].description;
+}
 
 export function createSdkWorkspaceServer(
   handler: ShowWorkspaceHandler,
@@ -114,8 +101,14 @@ export function createSdkWorkspaceServer(
         'ui/resourceUri': resourceUri,
       },
     },
-    async (args) =>
-      workspaceToolResult(await handler(args), appResource) as CallToolResult,
+    async (args) => {
+      try {
+        return workspaceToolResult(await handler(args), appResource) as CallToolResult;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Internal error';
+        return { content: [{ type: 'text', text: message }], isError: true };
+      }
+    },
   );
 
   return server;
