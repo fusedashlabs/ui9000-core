@@ -20,7 +20,7 @@ export const normalizeDataValue = (
 
   // Strip diacritics for every type so comma-below vs cedilla (ș/ş, ț/ţ) and
   // accents (São/Sao, Córdoba/Cordoba) match regardless of encoding.
-  let normalized = dataValue.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  let normalized = dataValue.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
   // Fold common punctuation variants so "St. Andrew"/"Saint Andrew" and
   // "Guinea-Bissau"/"Guinea Bissau" match across data sources.

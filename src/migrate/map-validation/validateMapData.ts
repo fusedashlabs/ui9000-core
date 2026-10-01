@@ -16,6 +16,22 @@ const MAP_TYPES = ["city", "county", "state", "province", "region", "country"] a
 // Catalogs we can cross-check a stray value against to suggest the right map type.
 const SUGGEST_ORDER = ["county", "province", "state", "country", "city"] as const;
 
+const INDEX_CACHE = new WeakMap<object, Map<string, FeaturesIndex>>();
+
+/** Catalog arrays are stable module imports. Build each type's index once. */
+function cachedFeaturesIndex(features: GeoJSON.Feature[], mapType: string): FeaturesIndex {
+  let byType = INDEX_CACHE.get(features);
+  if (!byType) {
+    byType = new Map();
+    INDEX_CACHE.set(features, byType);
+  }
+  const hit = byType.get(mapType);
+  if (hit) return hit;
+  const index = createFeaturesIndex(features, mapType);
+  byType.set(mapType, index);
+  return index;
+}
+
 export interface Suggestion {
   mapType: string;
   value: string;
@@ -108,7 +124,7 @@ export const validateRegions = (
   mapType: string,
   features: GeoJSON.Feature[],
 ): LayerValidation => {
-  const index = createFeaturesIndex(features, mapType);
+  const index = cachedFeaturesIndex(features, mapType);
   const matched: LayerValidation["matched"] = [];
   const warnings: RegionWarning[] = [];
   const unmatched: LayerValidation["unmatched"] = [];

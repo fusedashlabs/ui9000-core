@@ -70,6 +70,8 @@ export const createFeaturesIndex = (
   // ambiguous; an arbitrary winner silently colors the wrong unit, so those
   // keys are dropped after indexing (the 3-part form stays authoritative).
   const ambiguousTwoPartKeys = new Set<string>();
+  const ambiguousBare = new Set<string>();
+  const ambiguousBareNorm = new Set<string>();
 
   features.forEach((feature) => {
     const regionId = getRegionIdFromFeatureProperties(
@@ -207,13 +209,9 @@ export const createFeaturesIndex = (
           feature.properties[GEOJSON_KEYS[mapType].name];
         if (typeof bareName === "string" && bareName) {
           const bareLower = bareName.toLowerCase();
-          if (!byDataValue.has(bareLower)) {
-            byDataValue.set(bareLower, regionIdStr);
-          }
           const bareNorm = normalizeDataValue(bareName, mapType);
-          if (!byNormalizedValue.has(bareNorm)) {
-            byNormalizedValue.set(bareNorm, regionIdStr);
-          }
+          rememberUnique(byDataValue, bareLower, regionIdStr, ambiguousBare);
+          rememberUnique(byNormalizedValue, bareNorm, regionIdStr, ambiguousBareNorm);
         }
       }
 
@@ -233,6 +231,15 @@ export const createFeaturesIndex = (
             feature.properties.name_long,
             feature.properties.brk_name,
           ]),
+          ...countrySynonyms([
+            feature.properties.name,
+            feature.properties.admin,
+            feature.properties.name_long,
+          ]),
+          feature.properties.iso_a2,
+          feature.properties.iso_a3,
+          feature.properties.postal,
+          feature.properties.abbrev,
         ];
         for (const alias of aliasValues) {
           if (typeof alias === "string" && alias && alias !== dataValue) {
@@ -253,9 +260,36 @@ export const createFeaturesIndex = (
   for (const key of ambiguousTwoPartKeys) {
     byNormalizedValue.delete(key);
   }
+  for (const key of ambiguousBare) byDataValue.delete(key);
+  for (const key of ambiguousBareNorm) byNormalizedValue.delete(key);
 
   return { byId, byDataValue, byNormalizedValue };
 };
+
+function rememberUnique(
+  map: Map<string, string>,
+  key: string,
+  regionId: string,
+  ambiguous: Set<string>,
+): void {
+  if (!key || ambiguous.has(key)) return;
+  const prev = map.get(key);
+  if (prev === undefined) {
+    map.set(key, regionId);
+    return;
+  }
+  if (prev !== regionId) ambiguous.add(key);
+}
+
+function countrySynonyms(names: unknown[]): string[] {
+  const out: string[] = [];
+  for (const name of names) {
+    if (typeof name !== "string") continue;
+    const extras = COUNTRY_SYNONYMS[name];
+    if (extras) out.push(...extras);
+  }
+  return out;
+}
 
 const getDataValueFromFeature = (
   feature: GeoJSON.Feature,

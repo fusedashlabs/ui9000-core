@@ -12,6 +12,8 @@ import { validateSpec } from '../validate/validate-spec.js';
 import { profileColumns } from '../profiler/profile-columns.js';
 import { classifyColumns, type ClassifiedColumn } from '../profiler/roles.js';
 import { tableToRows, type Table } from '../profiler/table.js';
+import { findUnrenderableMap } from '../migrate/map-validation/coverage-gate.js';
+import { validateChartConfig } from '../migrate/map-validation/validateChart.js';
 import { attachDataHandle, type SignDataLink } from './data-channel.js';
 import {
   datasetPersistPayload,
@@ -64,6 +66,7 @@ export const SHOW_WORKSPACE_CODES = [
   'missing_binds',
   'no_winner',
   'invalid_spec',
+  'map_unrenderable',
 ] as const;
 
 export type ShowWorkspaceCode = (typeof SHOW_WORKSPACE_CODES)[number];
@@ -468,6 +471,17 @@ export async function handleShowWorkspace(
   );
   const chartType = chartTypeFromPayload(payload) ?? fallbackType;
 
+  if (componentId === 'map-chart') {
+    const verdict = await validateChartConfig(payload);
+    const broken = findUnrenderableMap(verdict);
+    if (broken) {
+      return fail(
+        'map_unrenderable',
+        broken.llmMessage || 'These values do not match a map region, so nothing was signed.',
+      );
+    }
+  }
+
   let spec: WorkspaceSpec;
   try {
     const attached = await attachDataHandle(
@@ -518,7 +532,7 @@ export async function handleShowWorkspace(
           actions: allowedActions,
           tieBreak: chartWhy,
         },
-        winner?.allowedActions ?? allowedActions,
+        (winner?.allowedActions ?? allowedActions).filter((action) => SPEC_ACTION_SET.has(action)),
       )
     : decision.trace;
   const by: TraceChooser = jev.kind === 'draw' ? jev.by : discussion?.drawId ? 'named' : 'engine';
