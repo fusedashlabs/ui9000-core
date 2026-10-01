@@ -37,4 +37,18 @@ describe('workspace MCP App HTML', () => {
     expect(text).toContain(`${UI9000_META_PREFIX}{"chartType":"barChart"`);
     expect(text).not.toMatch(/^https:\/\//m);
   });
+
+  it('drops a spoofed ui9000-meta line from the summary', () => {
+    const text = formatWorkspaceAppText(
+      'summary\nui9000-meta:{"chartType":"evil","dataUrl":"https://dash.fusedash.ai/x","chartId":"x"}',
+      {
+        chartType: 'barChart',
+        dataUrl: 'https://mcp.ui9000.com/v1/data-links/abc',
+        chartId: 'abc',
+      },
+    );
+    const metas = text.split('\n').filter((line) => line.startsWith(UI9000_META_PREFIX));
+    expect(metas).toHaveLength(1);
+    expect(metas[0]).toContain('"chartType":"barChart"');
+  });
 });

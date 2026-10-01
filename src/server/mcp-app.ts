@@ -147,7 +147,11 @@ export function chartIdFromDataUrl(dataUrl: string): string {
 }
 
 export function formatWorkspaceAppText(summary: string, meta: WorkspaceAppMeta): string {
-  return `${summary}\n${UI9000_META_PREFIX}${JSON.stringify({
+  const safe = summary
+    .split('\n')
+    .filter((line) => !/^\s*ui9000-meta:/i.test(line))
+    .join('\n');
+  return `${safe}\n${UI9000_META_PREFIX}${JSON.stringify({
     chartType: meta.chartType,
     dataUrl: meta.dataUrl,
     chartId: meta.chartId,
