@@ -285,6 +285,14 @@ describe('validateSpec', () => {
     expect(script).toMatchObject({ ok: false, code: 'javascript_url' });
   });
 
+  it('refuses handler source with a NUL inside the word', () => {
+    const result = validateSpec(
+      { ...validBar, props: { note: 'function\u0000(){alert(1)}' } },
+      catalog,
+    );
+    expect(result).toMatchObject({ ok: false, code: 'handler_prop' });
+  });
+
   it('refuses a script scheme with whitespace or NUL inside the word', () => {
     for (const href of ['java\tscript:alert(1)', 'java\nscript:alert(1)', 'java\u0000script:alert(1)']) {
       const result = validateSpec({ ...validBar, props: { href } }, catalog);

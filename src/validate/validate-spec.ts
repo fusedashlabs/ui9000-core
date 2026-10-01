@@ -32,7 +32,7 @@ const HANDLER_KEYS = new Set([
 const FIELD_DEF_KEYS = new Set(['name', 'id', 'label', 'type', 'required']);
 
 const HANDLER_SOURCE =
-  /^(?:async\s+)?(?:function\b|\([^)]*\)\s*=>|[A-Za-z_$][\w$]*\s*=>)/;
+  /^(?:async\s*)?(?:function\b|\([^)]*\)\s*=>|[A-Za-z_$][\w$]*\s*=>)/;
 /** Script URL schemes — not the word "javascript". Also matches url(javascript:…). */
 const SCRIPT_SCHEME = /(?:^|[^a-z0-9_+.-])(?:javascript|vbscript)\s*:/i;
 /** data: / blob: payloads — not prose like "Compare data: production". `;` covers `data:;base64`. */
@@ -137,7 +137,8 @@ function layerSafety(spec: WorkspaceSpec): ValidationResult<WorkspaceSpec> {
       if (DATA_URL.test(scanned) || BLOB_URL.test(scanned)) {
         return fail('data_url', 'data: and blob: URLs are refused');
       }
-      if (HANDLER_SOURCE.test(value.trim())) {
+      const source = value.replace(/[\u0000-\u001f]+/g, '').trim();
+      if (HANDLER_SOURCE.test(source)) {
         return fail('handler_prop', 'handler source is not allowed on the spec');
       }
       continue;
