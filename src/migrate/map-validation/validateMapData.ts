@@ -171,7 +171,31 @@ interface RawLayer {
   geospatialData?: string[];
   mapType?: string;
   fieldSubtype?: string;
+  visualisationType?: string;
   representation?: { geospatial_data?: string[] };
+}
+
+function isMarkerLayer(layer: RawLayer): boolean {
+  return layer.visualisationType === "markers" || layer.geospatialData?.[0] === "point";
+}
+
+/** A region layer the catalog never checked. Coverage 0 so the gate refuses it. */
+function uncheckedLayer(
+  mapType: string,
+  geospatialKey: string,
+  values: string[],
+): LayerValidation {
+  const shown = values.length > 0 ? values : ["(empty)"];
+  return {
+    applicable: true,
+    mapType: mapType || "unknown",
+    geospatialKey,
+    mapsCorrectly: false,
+    coverage: 0,
+    matched: [],
+    warnings: [],
+    unmatched: shown.map((value) => ({ value, didYouMean: null })),
+  };
 }
 
 const unwrap = (config: unknown): Record<string, unknown> => {
@@ -318,8 +342,14 @@ export const validateMapData = async (
   const layers: LayerValidation[] = [];
 
   for (const layer of rawLayers) {
+    // Marker layers are points, not region joins. A choropleth that cannot be
+    // checked (no map type, no key, no values) must not look like a pass.
+    if (isMarkerLayer(layer)) continue;
     const { mapType, geospatialKey, values } = layerInputs(layer, opts);
-    if (!mapType || !geospatialKey || values.length === 0) continue;
+    if (!mapType || !geospatialKey || values.length === 0) {
+      layers.push(uncheckedLayer(mapType, geospatialKey, values));
+      continue;
+    }
 
     const features = await loadCatalog(mapType);
     const result = validateRegions(values, mapType, features);

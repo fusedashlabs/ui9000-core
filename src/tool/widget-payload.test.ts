@@ -156,6 +156,7 @@ describe('workspaceWidgetPayload', () => {
         {
           name: 'Map',
           visualisationType: 'choropleth',
+          mapType: 'country',
           geospatialData: ['label'],
           arrangeByMetric: ['value'],
           aggregationFunction: 'sum',
@@ -166,6 +167,41 @@ describe('workspaceWidgetPayload', () => {
         },
       ],
     });
+  });
+
+  it('stamps the admin level on the choropleth layer, defaulting to country', () => {
+    const state = workspaceWidgetPayload(
+      'map-chart',
+      'mapChart',
+      [
+        { role: 'geo', field: 'state' },
+        { role: 'metric', field: 'n' },
+      ],
+      [{ state: 'California', n: '1' }],
+    ) as { layers: Array<{ mapType?: string }> };
+    expect(state.layers[0]?.mapType).toBe('state');
+
+    const codes = workspaceWidgetPayload(
+      'map-chart',
+      'mapChart',
+      [
+        { role: 'geo', field: 'state' },
+        { role: 'metric', field: 'n' },
+      ],
+      [{ state: 'CA', n: '1' }],
+    ) as { layers: Array<{ data?: Array<{ label: string }> }> };
+    expect(codes.layers[0]?.data?.[0]?.label).toBe('CA');
+
+    const place = workspaceWidgetPayload(
+      'map-chart',
+      'mapChart',
+      [
+        { role: 'geo', field: 'place' },
+        { role: 'metric', field: 'n' },
+      ],
+      [{ place: 'France', n: '1' }],
+    ) as { layers: Array<{ mapType?: string }> };
+    expect(place.layers[0]?.mapType).toBe('country');
   });
 
   it('emits lat/lng marker layers instead of choropleth labels', () => {

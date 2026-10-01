@@ -2,8 +2,9 @@ import { loadCatalog } from "./loadCatalog.js";
 import { isMapConfig, validateMapData, type MapValidation } from "./validateMapData.js";
 
 /**
- * Best-effort map validation for a chart payload's `config`, before a data-link
- * is signed. Never throws — validation must not break data-link creation.
+ * Map validation for a chart payload before a data-link is signed.
+ * Returns undefined only when the payload is not a map. A throw means the
+ * check did not finish — the caller must not sign.
  *
  * The map type is resolved exactly like the renderer's getMapType(): generated
  * data-links carry no explicit type or dataset metadata, so it falls to the
@@ -15,11 +16,7 @@ export const validateChartConfig = async (
   config: unknown,
   opts: { mapType?: string; fieldSubtype?: string } = {},
 ): Promise<MapValidation | undefined> => {
-  try {
-    if (!isMapConfig(config)) return undefined;
-    const result = await validateMapData(config, loadCatalog, opts);
-    return result.applicable ? result : undefined;
-  } catch {
-    return undefined;
-  }
+  if (!isMapConfig(config)) return undefined;
+  const result = await validateMapData(config, loadCatalog, opts);
+  return result.applicable ? result : undefined;
 };

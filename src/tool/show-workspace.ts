@@ -472,14 +472,8 @@ export async function handleShowWorkspace(
   const chartType = chartTypeFromPayload(payload) ?? fallbackType;
 
   if (componentId === 'map-chart') {
-    const verdict = await validateChartConfig(payload);
-    const broken = findUnrenderableMap(verdict);
-    if (broken) {
-      return fail(
-        'map_unrenderable',
-        broken.llmMessage || 'These values do not match a map region, so nothing was signed.',
-      );
-    }
+    const refusal = await mapSignRefusal(payload);
+    if (refusal) return fail('map_unrenderable', refusal);
   }
 
   let spec: WorkspaceSpec;
@@ -791,6 +785,24 @@ function formatBinds(binds: WorkspaceSpec['binds']): string | undefined {
         return `${role}=${field}`;
       });
   return items.length ? `binds ${items.join(', ')}` : undefined;
+}
+
+/**
+ * The choropleth layer carries `mapType` (column name, or `country` when the
+ * name has no admin level). That is the same field the widget reads first.
+ * No verdict, a throw, or a layer below the coverage gate means nothing is signed.
+ * Marker maps have no region layer and are allowed through.
+ */
+async function mapSignRefusal(payload: unknown): Promise<string | undefined> {
+  try {
+    const verdict = await validateChartConfig(payload);
+    if (!verdict) return 'These values do not match a map region, so nothing was signed.';
+    const broken = findUnrenderableMap(verdict);
+    if (!broken) return undefined;
+    return broken.llmMessage || 'These values do not match a map region, so nothing was signed.';
+  } catch {
+    return 'Map validation failed, so nothing was signed.';
+  }
 }
 
 function fail(code: ShowWorkspaceCode, reason: string): ShowWorkspaceFail {

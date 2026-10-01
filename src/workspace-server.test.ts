@@ -361,6 +361,7 @@ describe('createWorkspaceServer', () => {
       layers: [
         expect.objectContaining({
           visualisationType: 'choropleth',
+          mapType: 'country',
           geospatialData: ['label'],
           arrangeByMetric: ['value'],
           aggregationFunction: 'sum',

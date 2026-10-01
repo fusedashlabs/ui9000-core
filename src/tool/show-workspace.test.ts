@@ -340,8 +340,21 @@ describe('show_workspace', () => {
 
   it('picks different components for four intents without an LLM', async () => {
     const winners = [];
+    const countries = parseCsvTable('country,incidents\nFR,12\nDE,11\n');
     for (const intent of ['spatial', 'comparison', 'summary', 'form'] as const) {
-      const result = await handleShowWorkspace({ intent }, context());
+      const result = await handleShowWorkspace(
+        { intent },
+        intent === 'spatial'
+          ? context({
+              fields: ['country', 'incidents'],
+              classified: classifyColumns(countries).columns,
+              payload: [
+                { country: 'FR', incidents: '12' },
+                { country: 'DE', incidents: '11' },
+              ],
+            })
+          : context(),
+      );
       expect(isDrawn(result)).toBe(true);
       if (isDrawn(result)) winners.push(result.spec.component);
     }
@@ -388,7 +401,18 @@ describe('show_workspace', () => {
     expect(held.trace.proposals.map((item) => item.action)).toEqual(['approve', 'reject']);
     expect(JSON.stringify(held.trace)).not.toContain('secret-north');
 
-    const spatial = await handleShowWorkspace({ intent: 'spatial' }, context());
+    const countries = parseCsvTable('country,incidents\nFR,12\nDE,11\n');
+    const spatial = await handleShowWorkspace(
+      { intent: 'spatial' },
+      context({
+        fields: ['country', 'incidents'],
+        classified: classifyColumns(countries).columns,
+        payload: [
+          { country: 'FR', incidents: '12' },
+          { country: 'DE', incidents: '11' },
+        ],
+      }),
+    );
     expect(isDrawn(spatial)).toBe(true);
     if (!isDrawn(spatial)) return;
     expect(spatial.spec.component).toBe('map-chart');
@@ -567,6 +591,22 @@ describe('show_workspace fail-closed', () => {
       { role: 'geo', field: 'country' },
       { role: 'metric', field: 'incidents' },
     ]);
+  });
+
+  it('refuses a choropleth whose regions match no boundary', async () => {
+    const table = parseCsvTable('country,incidents\nNotACountry,12\nAlsoNo,11\n');
+    const result = await handleShowWorkspace(
+      { intent: 'spatial' },
+      context({
+        fields: table.columns.map((column) => column.name),
+        classified: classifyColumns(table).columns,
+        payload: [
+          { country: 'NotACountry', incidents: '12' },
+          { country: 'AlsoNo', incidents: '11' },
+        ],
+      }),
+    );
+    expect(result).toMatchObject({ ok: false, code: 'map_unrenderable' });
   });
 
   it('binds histogram distribution to the profiler metric column', async () => {

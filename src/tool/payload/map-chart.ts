@@ -1,7 +1,16 @@
+import { inferMapTypeFromKeyNames } from '../../migrate/map-validation/inferMapTypeFromKeyNames.js';
 import { GEO_LAT_NAMES, GEO_LNG_NAMES } from '../../profiler/roles.js';
 import { normalizeName } from '../../profiler/table.js';
 import { countryJoinLabel } from '../country-join-label.js';
 import { aggregatePoints } from './rows.js';
+
+/**
+ * Same default as the widget's buildLayer: an unnamed choropleth key is country.
+ * The value is written on the layer, because that is the field the widget reads first.
+ */
+export function choroplethMapType(fieldName: string | undefined): string {
+  return inferMapTypeFromKeyNames(fieldName ? [fieldName] : []) ?? 'country';
+}
 
 export function mapChartPayload(
   chartType: string | undefined,
@@ -46,7 +55,13 @@ export function mapChartPayload(
   const geo = fields.geo ?? fields.category;
   const metric = fields.metric;
   if (!geo || !metric || geo === metric) return null;
-  const points = aggregatePoints(rows, geo, metric, countryJoinLabel);
+  const mapType = choroplethMapType(geo);
+  const points = aggregatePoints(
+    rows,
+    geo,
+    metric,
+    mapType === 'country' ? countryJoinLabel : (label) => label,
+  );
   if (!points) return null;
   return {
     chartType,
@@ -55,6 +70,7 @@ export function mapChartPayload(
       {
         name: 'Map',
         visualisationType: 'choropleth',
+        mapType,
         geospatialData: ['label'],
         arrangeByMetric: ['value'],
         aggregationFunction: 'sum',

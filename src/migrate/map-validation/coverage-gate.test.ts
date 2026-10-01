@@ -80,4 +80,76 @@ describe('≤10% coverage gate (refuses signing)', () => {
     const viaChart = await validateChartConfig(config.config);
     expect(() => assertRenderableMap(viaChart)).toThrow(MapValidationError);
   });
+
+  it('checks a choropleth whose rows were renamed to label', async () => {
+    const choropleth = {
+      chartType: 'mapChart',
+      layers: [
+        {
+          visualisationType: 'choropleth',
+          geospatialData: ['label'],
+          data: [{ label: 'France', value: 1 }],
+        },
+      ],
+    };
+    const skipped = await validateChartConfig(choropleth);
+    expect(findUnrenderableMap(skipped)).toBe(skipped);
+    const checked = await validateChartConfig(choropleth, { mapType: 'country' });
+    expect(findUnrenderableMap(checked)).toBeUndefined();
+  });
+
+  it('honours mapType on the layer the widget reads', async () => {
+    const state = await validateChartConfig({
+      chartType: 'mapChart',
+      layers: [
+        {
+          visualisationType: 'choropleth',
+          mapType: 'state',
+          geospatialData: ['label'],
+          data: [{ label: 'California', value: 1 }],
+        },
+      ],
+    });
+    expect(state?.layers[0]?.mapType).toBe('state');
+    expect(findUnrenderableMap(state)).toBeUndefined();
+
+    const asCountry = await validateChartConfig({
+      chartType: 'mapChart',
+      layers: [
+        {
+          visualisationType: 'choropleth',
+          mapType: 'country',
+          geospatialData: ['label'],
+          data: [{ label: 'France', value: 1 }],
+        },
+      ],
+    });
+    expect(findUnrenderableMap(asCountry)).toBeUndefined();
+  });
+
+  it('does not refuse a marker layer', async () => {
+    const verdict = await validateChartConfig({
+      chartType: 'mapChart',
+      layers: [
+        {
+          visualisationType: 'markers',
+          geospatialData: ['point'],
+          data: [{ point: [2.3, 48.8], value: 1 }],
+        },
+      ],
+    });
+    expect(findUnrenderableMap(verdict)).toBeUndefined();
+  });
+
+  it('throws when the catalog is missing instead of looking like a pass', async () => {
+    await expect(
+      validateChartConfig(
+        {
+          chartType: 'mapChart',
+          layers: [{ geospatialData: ['label'], data: [{ label: 'France' }] }],
+        },
+        { mapType: 'nope' },
+      ),
+    ).rejects.toThrow(/catalog/);
+  });
 });
