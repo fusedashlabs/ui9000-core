@@ -1,10 +1,12 @@
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { describe, expect, it } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
 import { SHOW_WORKSPACE_NAME } from '../tool/show-workspace.js';
 import { WORKSPACE_INSTRUCTIONS } from './create-server.js';
-import { startWorkspaceHttpServer } from './http-workspace.js';
+import { handleWorkspaceMcpHttpRequest, startWorkspaceHttpServer } from './http-workspace.js';
 
 const HTML = '<!doctype html><html><body>ui9000-chart</body></html>';
 
@@ -81,6 +83,87 @@ describe('workspace Streamable HTTP', () => {
       expect(foreign.status).toBe(403);
     } finally {
       await http.close();
+    }
+  });
+
+  it('requires the bearer token only when MCP_HTTP_TOKEN is set', async () => {
+    const http = await startWorkspaceHttpServer({
+      host: '127.0.0.1',
+      port: 0,
+      env: {
+        MCP_BASE_URL: 'http://127.0.0.1:8099',
+        MCP_DATA_LINK_SECRET: 'workspace-http-it-secret',
+        MCP_HTTP_TOKEN: 'workspace-http-token',
+      },
+      loadChartHtml: () => HTML,
+    });
+
+    try {
+      const denied = await fetch(`${http.url}${http.path}`, { method: 'POST' });
+      expect(denied.status).toBe(401);
+
+      const wrong = await fetch(`${http.url}${http.path}`, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer workspace-http-WRONG' },
+      });
+      expect(wrong.status).toBe(401);
+
+      const health = await fetch(`${http.url}/health`);
+      expect(health.status).toBe(200);
+
+      const client = new Client({ name: 'workspace-http-auth', version: '0.0.0' });
+      const transport = new StreamableHTTPClientTransport(new URL(`${http.url}${http.path}`), {
+        requestInit: { headers: { Authorization: 'bearer workspace-http-token' } },
+      });
+      await client.connect(transport);
+      try {
+        const tools = await client.listTools();
+        expect(tools.tools[0]?.name).toBe(SHOW_WORKSPACE_NAME);
+      } finally {
+        await client.close();
+      }
+    } finally {
+      await http.close();
+    }
+  });
+
+  it('requires the bearer token on the mounted handler mcp-ui calls', async () => {
+    const env = {
+      MCP_BASE_URL: 'http://127.0.0.1:8099',
+      MCP_DATA_LINK_SECRET: 'workspace-http-it-secret',
+      MCP_HTTP_TOKEN: 'workspace-http-token',
+    };
+    const httpServer = createServer((req, res) => {
+      void handleWorkspaceMcpHttpRequest(req, res, undefined, {
+        env,
+        loadChartHtml: () => HTML,
+      });
+    });
+    await new Promise<void>((resolve) => {
+      httpServer.listen(0, '127.0.0.1', () => resolve());
+    });
+    const address = httpServer.address() as AddressInfo;
+    const url = `http://127.0.0.1:${address.port}/workspace/mcp`;
+
+    try {
+      const denied = await fetch(url, { method: 'POST' });
+      expect(denied.status).toBe(401);
+
+      const client = new Client({ name: 'workspace-mounted-auth', version: '0.0.0' });
+      const transport = new StreamableHTTPClientTransport(new URL(url), {
+        requestInit: { headers: { Authorization: 'Bearer workspace-http-token' } },
+      });
+      await client.connect(transport);
+      try {
+        const tools = await client.listTools();
+        expect(tools.tools[0]?.name).toBe(SHOW_WORKSPACE_NAME);
+      } finally {
+        await client.close();
+      }
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        httpServer.close((err) => (err ? reject(err) : resolve()));
+      });
     }
   });
 });

@@ -2,6 +2,7 @@
  * Streamable HTTP for Claude.ai / ChatGPT connectors. Stdio stays the Cursor path.
  * Stateless: one SDK server + transport per request (same as mcp-ui POST /mcp).
  */
+import { timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -22,7 +23,8 @@ export const WORKSPACE_HTTP_PATH = '/mcp';
 export const DEFAULT_WORKSPACE_HTTP_PORT = 8090;
 
 const CORS_METHODS = 'GET, POST, DELETE, OPTIONS';
-const CORS_ALLOW_HEADERS = 'content-type, mcp-session-id, mcp-protocol-version';
+const CORS_ALLOW_HEADERS = 'content-type, mcp-session-id, mcp-protocol-version, authorization';
+const HTTP_TOKEN_ENV = 'MCP_HTTP_TOKEN';
 const MAX_HTTP_BODY_BYTES = 2 * 1024 * 1024;
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
 
@@ -60,6 +62,8 @@ export async function handleWorkspaceMcpHttpRequest(
     res.end();
     return;
   }
+  const env = options.env ?? process.env;
+  if (refuseMissingBearer(req, res, env)) return;
   await dispatchWorkspaceMcp(req, res, wireWorkspaceHttp(options), parsedBody);
 }
 
@@ -148,6 +152,7 @@ export async function startWorkspaceHttpServer(
         res.end('ok');
         return;
       }
+      if (refuseMissingBearer(req, res, env)) return;
       if (url.pathname !== mcpPath && url.pathname !== `${mcpPath}/`) {
         res.writeHead(404, { 'content-type': 'text/plain' });
         res.end('not found');
@@ -232,6 +237,31 @@ export function isAllowedHttpHost(host: string, extraHosts: readonly string[] = 
   const name = host.trim().toLowerCase();
   if (!name) return true;
   return LOOPBACK_HOSTS.has(name) || extraHosts.includes(name);
+}
+
+/** Unset token leaves local loopback as it is. A set token is required on /mcp. */
+function refuseMissingBearer(
+  req: IncomingMessage,
+  res: ServerResponse,
+  env: NodeJS.ProcessEnv,
+): boolean {
+  if (bearerMatches(req, env[HTTP_TOKEN_ENV])) return false;
+  res.writeHead(401, { 'content-type': 'text/plain' });
+  res.end('unauthorized');
+  return true;
+}
+
+function bearerMatches(req: IncomingMessage, expected: string | undefined): boolean {
+  const token = expected?.trim() ?? '';
+  if (!token) return true;
+  const header = req.headers.authorization;
+  if (typeof header !== 'string') return false;
+  const scheme = /^Bearer\s+/i.exec(header);
+  if (!scheme) return false;
+  const given = Buffer.from(header.slice(scheme[0].length));
+  const want = Buffer.from(token);
+  if (given.length !== want.length) return false;
+  return timingSafeEqual(given, want);
 }
 
 function headerOrigin(req: IncomingMessage): string | undefined {
