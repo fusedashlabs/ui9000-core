@@ -8,6 +8,8 @@ on:
 jobs:
   publish:
     # Manual publishes only from main. Tag pushes publish that tag.
+    # This workflow cannot `needs` the CI job: that job lives in another file.
+    # Tag pushes do not run ci.yml, so the publish job repeats those gates.
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -34,9 +36,12 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: yarn
       - run: yarn install --immutable
+      - run: node scripts/secret-scan.mjs
+      - run: yarn npm audit --severity high --environment production
       - run: yarn typecheck
       - run: yarn test
       - run: yarn build
+      - run: node scripts/assert-pack.mjs
       - name: Publish @fusedashlabs/ui9000-workspace
         run: npm publish --provenance --access public
         env:

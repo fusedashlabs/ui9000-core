@@ -30,6 +30,9 @@ jobs:
           node-version: '20'
           cache: yarn
       - run: yarn install --immutable
+      - run: node scripts/secret-scan.mjs
+      # Production tree only. The Vitest UI advisory is a devDependency, not the published package.
+      - run: yarn npm audit --severity high --environment production
       - run: yarn typecheck
       # One vitest run. The JSON report is what scorecard:check reads, so the
       # suites are not started a second time.
@@ -37,5 +40,9 @@ jobs:
       - run: yarn scorecard:check --report ${{ runner.temp }}/core-vitest.json
       - run: node scripts/no-raw-rows.mjs
       - run: node -e "const v=require('@fusedashlabs/widgets/package.json').version; if(v!=='0.6.0'){console.error('widgets',v); process.exit(1)}"
+      # Node resolves the published widgets package. Vitest still aliases the
+      # catalog to vendor source, because that source uses import.meta.glob.
+      - run: node --input-type=module -e "import { loadEngineCatalog } from '@fusedashlabs/widgets/catalog'; if(!loadEngineCatalog().length) process.exit(1)"
       - run: yarn build
       - run: node --input-type=module -e "import { DATA_PROFILE_KEYS } from './dist/index.js'; if(!DATA_PROFILE_KEYS?.length) process.exit(1)"
+      - run: node scripts/assert-pack.mjs
