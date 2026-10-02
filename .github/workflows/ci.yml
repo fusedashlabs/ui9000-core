@@ -39,7 +39,9 @@ jobs:
       - run: yarn test --reporter=default --reporter=json --outputFile.json=${{ runner.temp }}/core-vitest.json
       - run: yarn scorecard:check --report ${{ runner.temp }}/core-vitest.json
       - run: node scripts/no-raw-rows.mjs
-      - run: node -e "const v=require('@fusedashlabs/widgets/package.json').version; if(v!=='0.6.0'){console.error('widgets',v); process.exit(1)}"
+      # package.json is not an export of the widgets package, so read the
+      # installed file. The installed version must match the dependency pin.
+      - run: node -e "const fs=require('fs'); const declared=JSON.parse(fs.readFileSync('package.json','utf8')).dependencies['@fusedashlabs/widgets']; const installed=JSON.parse(fs.readFileSync('node_modules/@fusedashlabs/widgets/package.json','utf8')).version; if(installed!==declared){console.error('widgets',installed,'expected',declared); process.exit(1)}"
       # Node resolves the published widgets package. Vitest still aliases the
       # catalog to vendor source, because that source uses import.meta.glob.
       - run: node --input-type=module -e "import { loadEngineCatalog } from '@fusedashlabs/widgets/catalog'; if(!loadEngineCatalog().length) process.exit(1)"
