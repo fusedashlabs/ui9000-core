@@ -224,7 +224,9 @@ describe('createWorkspaceServer', () => {
       chartType: 'barChart',
     });
     expect(String((result.content as Array<{ text?: string }>)[0]?.text)).toContain('ui9000-meta:');
-    expect(String((result.content as Array<{ text?: string }>)[0]?.text)).toContain('bar-chart for comparison');
+    expect(String((result.content as Array<{ text?: string }>)[0]?.text)).toContain(
+      'bar chart (compare discrete groups on one metric) for comparison',
+    );
     expect(String((result.content as Array<{ text?: string }>)[0]?.text)).toContain(
       'binds category=department, metric=revenue',
     );
