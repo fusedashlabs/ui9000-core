@@ -37,7 +37,7 @@
     "pack:check": "node scripts/assert-pack.mjs"
   },
   "dependencies": {
-    "@fusedashlabs/widgets": "0.6.0",
+    "@fusedashlabs/widgets": "0.7.0",
     "@modelcontextprotocol/ext-apps": "1.7.5",
     "@modelcontextprotocol/sdk": "1.30.0",
     "zod": "3.25.76"
