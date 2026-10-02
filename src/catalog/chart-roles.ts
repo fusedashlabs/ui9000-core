@@ -432,6 +432,20 @@ export function chartRole(id: string): ChartRole | undefined {
   return CHART_ROLES[id as ChartId];
 }
 
+/** Words for a chart. The component id stays on the spec. */
+export function chartName(id: string): string {
+  return id.replace(/-/g, ' ');
+}
+
+/** Name plus what the drawing shows, so a reply never says `bar-chart`. */
+export function chartLabel(id: string): string {
+  const role = chartRole(id);
+  if (!role) return 'this chart';
+  const described = role.role.trim().replace(/[.\s]+$/, '');
+  const gloss = described.charAt(0).toLowerCase() + described.slice(1);
+  return `${chartName(id)} (${gloss})`;
+}
+
 /** Families where this chart is the main drawing or an alternative. */
 export function familiesForChart(id: string): ChartFamily[] {
   return CHART_FAMILIES.filter(

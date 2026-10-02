@@ -34,7 +34,7 @@ import {
   type TraceChooser,
   type TraceProposal,
 } from '../trace/trace.js';
-import { CHART_ROLES } from '../catalog/chart-roles.js';
+import { CHART_ROLES, chartLabel } from '../catalog/chart-roles.js';
 import { dataRolesForChart } from './payload/hosted-chart.js';
 import {
   canDraw,
@@ -370,7 +370,7 @@ export async function handleShowWorkspace(
     if (best && !inBest) {
       componentId = best.main;
       hostChart = true;
-      choiceWhy = `The columns answer "${best.question}", so this is ${best.main}.`;
+      choiceWhy = `The columns answer "${best.question}", so this is ${chartLabel(best.main)}.`;
     }
   }
   if (
@@ -389,7 +389,7 @@ export async function handleShowWorkspace(
     if (family) {
       componentId = family.main;
       hostChart = true;
-      choiceWhy = `The columns answer "${family.question}", so this is ${family.main}.`;
+      choiceWhy = `The columns answer "${family.question}", so this is ${chartLabel(family.main)}.`;
     }
   }
   if (!componentId) {
@@ -467,7 +467,7 @@ export async function handleShowWorkspace(
     if (id !== componentId) {
       switched = true;
       hostChart = true;
-      choiceWhy = `${switchWhy || 'The first chart did not fit these columns'}, so this is ${id}.`;
+      choiceWhy = `${switchWhy || 'The first chart did not fit these columns'}, so this is ${chartLabel(id)}.`;
     }
     componentId = id;
     winner = nextWinner;
@@ -570,7 +570,7 @@ export async function handleShowWorkspace(
     summary: buildSummary(
       validated.spec,
       parsed.intent,
-      componentId,
+      chartLabel(componentId),
       choiceWhy || (hostChart ? '' : trace.tieBreak),
     ),
     ...(chartWhy ? { chartWhy } : {}),

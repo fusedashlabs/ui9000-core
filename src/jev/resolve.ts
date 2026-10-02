@@ -10,7 +10,7 @@ import {
   chartNamedByWords,
   resolveChartName,
 } from '../catalog/discuss-chart.js';
-import { chartRole, type ChartFamily } from '../catalog/chart-roles.js';
+import { chartLabel, chartRole, type ChartFamily } from '../catalog/chart-roles.js';
 import type { ClassifiedColumn } from '../profiler/roles.js';
 import type { DataProfile } from '../spec/data-profile.js';
 import { intentFrom } from '../spec/intent.js';
@@ -85,8 +85,8 @@ export async function resolveJev(input: {
         by: 'named',
         why:
           reading.clear && family && inFamily(local, family)
-            ? `You asked for ${local}. Jev selected the same class, ${family.question} so this chart stays.`
-            : `You asked for ${local}, so this chart is drawn.`,
+            ? `You asked for ${chartLabel(local)}. Jev selected the same class, ${family.question} so this chart stays.`
+            : `You asked for ${chartLabel(local)}, so this chart is drawn.`,
       };
     }
   }
@@ -103,7 +103,7 @@ export async function resolveJev(input: {
       kind: 'draw',
       chartId: named,
       by: 'named',
-      why: `You asked for ${named}. Jev selected the same class, ${family.question} so this chart stays.`,
+      why: `You asked for ${chartLabel(named)}. Jev selected the same class, ${family.question} so this chart stays.`,
     };
   }
 
@@ -120,7 +120,7 @@ export async function resolveJev(input: {
       kind: 'draw',
       chartId: named,
       by: 'named',
-      why: `You asked for ${named}, so this chart is drawn.`,
+      why: `You asked for ${chartLabel(named)}, so this chart is drawn.`,
     };
   }
   if (canDraw(chartId, input.profile, input.catalogIds) && chartFitsProfile(chartId, input.profile)) {
@@ -187,7 +187,7 @@ function hesitate(
       kind: 'draw',
       chartId: named,
       by: 'named',
-      why: `You asked for ${named}. Jev hesitated between ${first.main} and ${second.main}, and this chart is one of those classes, so it stays.`,
+      why: `You asked for ${chartLabel(named)}. Jev hesitated between ${chartLabel(first.main)} and ${chartLabel(second.main)}, and this chart is one of those classes, so it stays.`,
     };
   }
 
@@ -203,7 +203,7 @@ function hesitate(
       kind: 'draw',
       chartId: named,
       by: 'named',
-      why: `You asked for ${named}. Jev hesitated between ${first.main} and ${second.main}, and this chart is drawn.`,
+      why: `You asked for ${chartLabel(named)}. Jev hesitated between ${chartLabel(first.main)} and ${chartLabel(second.main)}, and this chart is drawn.`,
     };
   }
   if (lead) {
@@ -211,7 +211,7 @@ function hesitate(
       kind: 'draw',
       chartId: lead.main,
       by: 'jev',
-      why: `Jev hesitated between ${first.main} and ${second.main}, and drew ${lead.main}, because ${because(lead.question)}`,
+      why: `Jev hesitated between ${chartLabel(first.main)} and ${chartLabel(second.main)}, and drew ${chartLabel(lead.main)}, because ${because(lead.question)}`,
     };
   }
   return { kind: 'miss' };
@@ -224,14 +224,11 @@ function drawWhy(
   markRunner: string | null,
   fromMark: boolean,
 ): string {
-  const over = runner ? ` over ${runner.main}` : '';
-  const classBit = `Jev selected ${family.main}${over}, because ${because(family.question)}`;
-  if (!fromMark) {
-    const role = chartRole(chartId);
-    return role ? `${classBit} ${role.role}` : classBit;
-  }
-  const markOver = markRunner ? ` over ${markRunner}` : '';
-  return `${classBit} Inside it, Jev selected ${chartId}${markOver}, because ${markBecause(family, chartId)}`;
+  const over = runner ? ` over ${chartLabel(runner.main)}` : '';
+  const classBit = `Jev selected ${chartLabel(family.main)}${over}, because ${because(family.question)}`;
+  if (!fromMark) return classBit;
+  const markOver = markRunner ? ` over ${chartLabel(markRunner)}` : '';
+  return `${classBit} Inside it, Jev selected ${chartLabel(chartId)}${markOver}, because ${markBecause(family, chartId)}`;
 }
 
 function markBecause(family: ChartFamily, chartId: string): string {

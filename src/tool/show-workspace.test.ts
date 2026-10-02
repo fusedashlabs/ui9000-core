@@ -653,8 +653,8 @@ describe('show_workspace fail-closed', () => {
     if (!isDrawn(result)) return;
     expect(result.spec.component).toBe('bar-chart');
     expect(result.chartWhy).toContain('map region');
-    expect(result.chartWhy).toContain('bar-chart');
-    expect(result.chartWhy).not.toContain('map-chart');
+    expect(result.chartWhy).toContain('bar chart (compare discrete groups on one metric)');
+    expect(result.chartWhy).not.toMatch(/[a-z]-chart/);
   });
 
   it('binds histogram distribution to the profiler metric column', async () => {
@@ -928,7 +928,7 @@ describe('show_workspace fail-closed', () => {
       why: result.chartWhy,
     });
     expect(result.trace.tieBreak).toBe(result.chartWhy);
-    expect(result.summary).toContain('bar-chart');
+    expect(result.summary).toContain('bar chart (compare discrete groups on one metric)');
     expect(result.trace.candidates.map((item) => item.id)).toContain('kpi-widget');
     expect(result.trace.rejections.map((item) => item.id)).not.toContain('bar-chart');
     expect(result.proposal).toBeUndefined();
@@ -1101,7 +1101,8 @@ describe('show_workspace fail-closed', () => {
     expect(result.suggestion).toBeUndefined();
     expect(result.trace.chosen).toMatchObject({ id: 'line-chart', by: 'jev' });
     expect(result.trace.candidates.some((item) => item.id !== 'line-chart')).toBe(true);
-    expect(result.chartWhy).toContain('Jev selected line-chart');
+    expect(result.chartWhy).toContain('Jev selected line chart (show how a metric moves along an ordered axis)');
+    expect(result.chartWhy).not.toContain('line-chart');
     expect(result.chartWhy).toContain('because');
   });
 
@@ -1149,7 +1150,8 @@ describe('show_workspace fail-closed', () => {
     expect(isDrawn(result)).toBe(true);
     if (!isDrawn(result)) return;
     expect(result.spec.component).toBe('sankey-chart');
-    expect(result.chartWhy).toContain('sankey');
+    expect(result.chartWhy).toContain('sankey chart (show how much moves from a source category to a target category)');
+    expect(result.chartWhy).not.toContain('sankey-chart');
   });
 
   it('draws the class main when the mark call fails', async () => {
@@ -1171,7 +1173,8 @@ describe('show_workspace fail-closed', () => {
     expect(isDrawn(result)).toBe(true);
     if (!isDrawn(result)) return;
     expect(result.spec.component).toBe('bar-chart');
-    expect(result.chartWhy).toContain('Jev selected bar-chart');
+    expect(result.chartWhy).toContain('Jev selected bar chart (compare discrete groups on one metric)');
+    expect(result.chartWhy).not.toContain('bar-chart');
     expect(result.chartWhy).not.toContain('Jev did not select');
     expect(result.trace.chosen).toMatchObject({ by: 'jev' });
   });
@@ -1195,8 +1198,11 @@ describe('show_workspace fail-closed', () => {
     expect(isDrawn(result)).toBe(true);
     if (!isDrawn(result)) return;
     expect(result.spec.component).toBe('bar-chart');
-    expect(result.chartWhy).toContain('hesitated between bar-chart and map-chart');
-    expect(result.chartWhy).toContain('drew bar-chart');
+    expect(result.chartWhy).toContain(
+      'hesitated between bar chart (compare discrete groups on one metric) and map chart (place a metric on geography)',
+    );
+    expect(result.chartWhy).toContain('drew bar chart (compare discrete groups on one metric)');
+    expect(result.chartWhy).not.toMatch(/[a-z]-chart/);
     expect(result.chartWhy).not.toContain('Nothing was generated');
   });
 
@@ -1231,7 +1237,8 @@ describe('show_workspace fail-closed', () => {
     expect(isDrawn(result)).toBe(true);
     if (!isDrawn(result)) return;
     expect(result.spec.component).toBe('bar-chart');
-    expect(result.chartWhy).toContain('bar-chart');
+    expect(result.chartWhy).toContain('bar chart (compare discrete groups on one metric)');
+    expect(result.chartWhy).not.toMatch(/[a-z]-chart/);
     expect(result.chartWhy).not.toContain('Nothing was generated');
   });
 
@@ -1267,7 +1274,8 @@ describe('show_workspace fail-closed', () => {
     expect(isDrawn(result)).toBe(true);
     if (!isDrawn(result)) return;
     expect(result.spec.component).toBe('bar-chart');
-    expect(result.chartWhy).toContain('bar-chart');
+    expect(result.chartWhy).toContain('bar chart (compare discrete groups on one metric)');
+    expect(result.chartWhy).not.toMatch(/[a-z]-chart/);
   });
 
   it('draws Jev\'s chart when an undrawable named chart is outside Jev\'s class', async () => {
@@ -1302,7 +1310,8 @@ describe('show_workspace fail-closed', () => {
     expect(isDrawn(result)).toBe(true);
     if (!isDrawn(result)) return;
     expect(result.spec.component).toBe('bar-chart');
-    expect(result.chartWhy).toContain('bar-chart');
+    expect(result.chartWhy).toContain('bar chart (compare discrete groups on one metric)');
+    expect(result.chartWhy).not.toMatch(/[a-z]-chart/);
   });
 
   it('draws a supported chart when the named chart does not fit the columns', async () => {
@@ -1325,7 +1334,8 @@ describe('show_workspace fail-closed', () => {
     if (!isDrawn(result)) return;
     expect(result.spec.component).toBe('bar-chart');
     expect(result.chartWhy).toContain('columns');
-    expect(result.chartWhy).toContain('bar-chart');
+    expect(result.chartWhy).toContain('bar chart (compare discrete groups on one metric)');
+    expect(result.chartWhy).not.toMatch(/[a-z]-chart/);
     expect(result.chartWhy).not.toContain('sankey');
   });
 });

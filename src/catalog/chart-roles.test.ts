@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { collectPortMetadata, type PortMetadata } from '@fusedashlabs/widgets/catalog';
 
-import { CHART_FAMILIES, CHART_ROLES, drawingsFor, familiesForChart } from './chart-roles.js';
+import { CHART_FAMILIES, CHART_ROLES, chartLabel, drawingsFor, familiesForChart } from './chart-roles.js';
 
 function chartTypeKeysOf(meta: PortMetadata): string[] {
   const keys = meta.chartTypeKeys;
@@ -62,5 +62,11 @@ describe('chart roles', () => {
       'category-magnitude',
       'ordered-series',
     ]);
+  });
+
+  it('names a chart by what it shows', () => {
+    expect(chartLabel('bar-chart')).toBe('bar chart (compare discrete groups on one metric)');
+    expect(chartLabel('map-chart')).toBe('map chart (place a metric on geography)');
+    expect(chartLabel('not-a-chart')).toBe('this chart');
   });
 });

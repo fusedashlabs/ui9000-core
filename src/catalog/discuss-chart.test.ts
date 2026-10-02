@@ -92,7 +92,8 @@ describe('discussChart', () => {
     expect(discussion.drawId).toBe('sankey-chart');
     expect(discussion.suggestion).toBe('bar-chart');
     expect(discussion.chartWhy).toContain('Drawing it');
-    expect(discussion.chartWhy).toContain('stays sankey-chart');
+    expect(discussion.chartWhy).toContain('stays sankey chart (show how much moves from a source category to a target category)');
+    expect(discussion.chartWhy).not.toContain('sankey-chart');
     expect(discussion.poorFit).toBe(true);
   });
 
@@ -131,7 +132,8 @@ describe('discussChart', () => {
     expect(discussion.drawId).toBeUndefined();
     expect(discussion.suggestion).toBeUndefined();
     expect(discussion.keepRequested).toBe(true);
-    expect(discussion.message).toContain('stays line-chart');
+    expect(discussion.message).toContain('stays line chart (show how a metric moves along an ordered axis)');
+    expect(discussion.message).not.toContain('line-chart');
     expect(discussion.message).toContain('How do discrete groups compare');
     expect(discussion.message).not.toContain('category-magnitude');
     expect(discussion.message).toContain('Do not call again');

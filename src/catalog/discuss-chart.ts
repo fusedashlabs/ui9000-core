@@ -10,7 +10,7 @@
 import type { ClassifiedColumn } from '../profiler/roles.js';
 import type { DataProfile } from '../spec/data-profile.js';
 import { INTENTS, type Intent } from '../spec/intent.js';
-import { CHART_FAMILIES, CHART_ROLES, type ChartFamily, type ChartId, chartRole, familiesForChart } from './chart-roles.js';
+import { CHART_FAMILIES, CHART_ROLES, type ChartFamily, type ChartId, chartLabel, chartRole, familiesForChart } from './chart-roles.js';
 
 export type ChartDiscussion = {
   /** Family ids the columns can support, most specific first. */
@@ -114,8 +114,8 @@ export function discussChart(input: {
       awaitingUser: true,
       chartWhy: '',
       message: [
-        `You selected ${resolved} (${chartRole(resolved)?.role ?? 'this chart'}).`,
-        `It fits this data: ${judged.family.question} It stays ${resolved}.`,
+        `You selected ${chartLabel(resolved)}.`,
+        `It fits this data: ${judged.family.question} It stays ${chartLabel(resolved)}.`,
         'This workspace cannot draw it yet.',
         'I am not switching it to another chart. Do not call again.',
       ].join(' '),
@@ -426,27 +426,25 @@ function firstDrawable(
 }
 
 function whyFamily(family: ChartFamily): string {
-  const role = chartRole(family.main);
-  return `${family.main}: ${role?.role ?? family.question} The columns answer "${family.question}" (${family.data}).`;
+  return `${chartLabel(family.main)}. The columns answer "${family.question}" (${family.data}).`;
 }
 
 function whyInFamily(id: string, family: ChartFamily): string {
-  const role = chartRole(id);
-  const kept = family.main === id ? `${id} is the chart for this group.` : `${id} is in this group, so it stays.`;
-  return `${kept} ${role?.role ?? family.question} The columns answer "${family.question}" (${family.data}).`;
+  const named = chartLabel(id);
+  const kept = family.main === id ? `${named} is the chart for this group.` : `${named} is in this group, so it stays.`;
+  return `${kept} The columns answer "${family.question}" (${family.data}).`;
 }
 
 function whyChart(id: string): string {
-  const role = chartRole(id);
+  const named = chartLabel(id);
   const family = CHART_FAMILIES.find((item) => item.main === id);
-  if (!role) return id;
-  if (!family) return `${id}: ${role.role}`;
-  return `${id}: ${role.role} The columns answer "${family.question}" (${family.data}).`;
+  if (!family) return named;
+  return `${named}. The columns answer "${family.question}" (${family.data}).`;
 }
 
 function whyDrawnAnyway(id: string, suggestionWhy: string): string {
-  const role = chartRole(id);
-  return `You asked for ${id} (${role?.role ?? 'this chart'}). Drawing it. ${suggestionWhy} That is a suggestion. This chart stays ${id}.`;
+  const named = chartLabel(id);
+  return `You asked for ${named}. Drawing it. ${suggestionWhy} That is a suggestion. This chart stays ${named}.`;
 }
 
 function cannotDrawMessage(input: {
@@ -456,12 +454,12 @@ function cannotDrawMessage(input: {
   suggestionWhy: string;
 }): string {
   const asked = input.resolved ? chartRole(input.resolved) : undefined;
-  const selected = asked
-    ? `You selected ${input.resolved} (${asked.role}).`
+  const selected = input.resolved && asked
+    ? `You selected ${chartLabel(input.resolved)}.`
     : `You selected "${input.raw.trim()}", which is not a chart I know.`;
   const held = 'This workspace cannot draw it, so nothing was generated in its place.';
   const offer = input.suggestion
-    ? `${input.suggestionWhy} A closer chart would be ${input.suggestion}. That is a suggestion only. Call again with it only if the user asks for that chart.`
+    ? `${input.suggestionWhy} A closer chart would be ${chartLabel(input.suggestion)}. That is a suggestion only. Call again with it only if the user asks for that chart.`
     : `${input.suggestionWhy} This workspace cannot draw a chart for this table. Do not call again.`;
   return [selected, held, offer].join(' ');
 }
