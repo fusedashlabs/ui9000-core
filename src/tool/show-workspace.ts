@@ -262,7 +262,7 @@ export const SHOW_WORKSPACE_DESCRIPTION = [
   'intent values:',
   'spatial — where, which region, country, city, lat/lng, choropleth. A map needs geo fields and a map token.',
   'comparison — which group is highest or lowest, or how values spread.',
-  'summary — a snapshot, total, count, or a few headline numbers.',
+  'summary — one number, its change, or current versus previous.',
   'form — the user must enter or confirm labelled values, not only view a chart.',
   'evidence — claims, sources, entity detail, timelines of supporting facts.',
   'graph — nodes and links, how things connect, not where they sit on a map.',

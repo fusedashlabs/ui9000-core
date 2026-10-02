@@ -1,7 +1,12 @@
 /**
  * KPI object from mcp-ui generate_kpi_widget.
- * single_value stores the number at aggregations_column (sum_count, avg_score, last_revenue),
+ * The number sits at aggregations_column (sum_count, avg_score, last_revenue),
  * never under the bare word "sum" or a renamed key.
+ *
+ * A category with two or more groups is the high and the low, even when a
+ * date column is present. Otherwise two periods are a trend: each period is
+ * the sum of its rows, and the card is the latest period against the one
+ * before. A date-shaped id is not a group. Anything else is one number.
  */
 const AVERAGE_TOKENS = new Set(['rate', 'ratio', 'percent', 'pct', 'score', 'price', 'avg', 'average', 'mean']);
 const COUNT_TOKENS = new Set(['count', 'incident', 'incidents', 'unit', 'units', 'qty', 'quantity']);
@@ -20,13 +25,62 @@ export function kpiWidgetPayload(
   }
   if (numbers.length === 0) return null;
   const aggregation = aggregationFor(metric, columns);
+  const key = `${aggregation}_${metric}`;
+  const grouped = aggregation === 'avg' ? 'avg' : 'sum';
+  const extremes = categoryExtremes(rows, metric, columns, grouped);
+  if (extremes) {
+    const groupKey = `${grouped}_${metric}`;
+    return {
+      chartType: 'KPI',
+      name: metric,
+      items: [
+        {
+          type: 'high/low_overall',
+          name: metric,
+          column: metric,
+          aggregations: grouped,
+          groupBy: extremes.category,
+          data: [
+            {
+              high: { [extremes.category]: extremes.high.label, [groupKey]: extremes.high.value },
+              low: { [extremes.category]: extremes.low.label, [groupKey]: extremes.low.value },
+            },
+          ],
+        },
+      ],
+    };
+  }
+  const series = aggregation === 'last' ? finiteSeries(rows, metric, columns) : [];
+  if (series.length >= 2) {
+    const current = series[series.length - 1]!.value;
+    const previous = series[series.length - 2]!.value;
+    return {
+      chartType: 'KPI',
+      name: metric,
+      items: [
+        {
+          type: 'trend',
+          name: metric,
+          column: metric,
+          aggregations: aggregation,
+          showPercentage: true,
+          data: [
+            {
+              [key]: current,
+              percentage: changePercent(current, previous),
+              subtitle: 'vs previous period',
+            },
+          ],
+        },
+      ],
+    };
+  }
   const value =
     aggregation === 'avg'
       ? numbers.reduce((sum, item) => sum + item, 0) / numbers.length
       : aggregation === 'last'
-        ? lastByTime(rows, metric, columns)
+        ? (series[0]?.value ?? lastByTime(rows, metric, columns))
         : numbers.reduce((sum, item) => sum + item, 0);
-  const key = `${aggregation}_${metric}`;
   return {
     chartType: 'KPI',
     name: metric,
@@ -40,6 +94,100 @@ export function kpiWidgetPayload(
       },
     ],
   };
+}
+
+/** Periods earliest first. Each period is the sum of its rows, not the last row. */
+function finiteSeries(
+  rows: Record<string, unknown>[],
+  metric: string,
+  columns: readonly { name: string; role: string }[] | undefined,
+): { value: number }[] {
+  const temporal = columns?.find((column) => column.role === 'temporal')?.name;
+  if (!temporal) return [];
+  const byKey = new Map<string, number>();
+  for (const row of rows) {
+    const value = Number(row[metric]);
+    if (!Number.isFinite(value)) continue;
+    const key = timeKey(row[temporal]);
+    if (!key) continue;
+    byKey.set(key, (byKey.get(key) ?? 0) + value);
+  }
+  return [...byKey.entries()]
+    .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+    .map((entry) => ({ value: entry[1] }));
+}
+
+/**
+ * Highest and lowest group. The first category that actually groups wins,
+ * so a ticket id does not hide Zone 1. A date-shaped id is not a group.
+ */
+function categoryExtremes(
+  rows: Record<string, unknown>[],
+  metric: string,
+  columns: readonly { name: string; role: string }[] | undefined,
+  aggregation: 'sum' | 'avg',
+): {
+  category: string;
+  high: { label: string; value: number };
+  low: { label: string; value: number };
+} | null {
+  const names = columns?.filter((column) => column.role === 'category').map((column) => column.name) ?? [];
+  for (const category of names) {
+    const extremes = extremesFor(rows, metric, category, aggregation);
+    if (extremes) return { category, ...extremes };
+  }
+  return null;
+}
+
+function extremesFor(
+  rows: Record<string, unknown>[],
+  metric: string,
+  category: string,
+  aggregation: 'sum' | 'avg',
+): { high: { label: string; value: number }; low: { label: string; value: number } } | null {
+  const buckets = new Map<string, number[]>();
+  for (const row of rows) {
+    const raw = row[category];
+    if (typeof raw !== 'string' || !isGroupLabel(raw)) continue;
+    const value = Number(row[metric]);
+    if (!Number.isFinite(value)) continue;
+    const label = raw.trim();
+    const list = buckets.get(label) ?? [];
+    list.push(value);
+    buckets.set(label, list);
+  }
+  const groups = [...buckets.entries()].map(([label, values]) => ({
+    label,
+    value:
+      aggregation === 'avg'
+        ? values.reduce((sum, item) => sum + item, 0) / values.length
+        : values.reduce((sum, item) => sum + item, 0),
+  }));
+  if (groups.length < 2) return null;
+  let high = groups[0]!;
+  let low = groups[0]!;
+  for (const group of groups.slice(1)) {
+    if (group.value > high.value || (group.value === high.value && group.label < high.label)) {
+      high = group;
+    }
+    if (group.value < low.value || (group.value === low.value && group.label > low.label)) {
+      low = group;
+    }
+  }
+  if (high.label === low.label) return null;
+  return { high, low };
+}
+
+/** A group name. A year-month ticket is an id. "Room 101" and "Q1" are groups. */
+function isGroupLabel(value: string): boolean {
+  const text = value.trim();
+  if (!text) return false;
+  return !/\d{4}-\d/.test(text);
+}
+
+function changePercent(current: number, previous: number): number {
+  if (previous === 0) return 0;
+  return Math.round(((current - previous) / Math.abs(previous)) * 10000) / 100;
 }
 
 /**

@@ -215,8 +215,8 @@ export const CHART_ROLES = {
   'kpi-widget': {
     id: 'kpi-widget',
     chartTypeKeys: ['KPI', 'KPIs'],
-    role: 'State one or a few headline numbers.',
-    data: 'One or a few metrics. Optional trend or comparison.',
+    role: 'State a headline card: one number, its change, current versus previous, or the high and low of a category.',
+    data: 'One metric. A change, a previous period, or a category for high and low, when that reading was asked.',
     visual: 'Cards, not a plot.',
   },
   'status-gauge-widget': {
@@ -397,8 +397,9 @@ export const CHART_FAMILIES = [
   },
   {
     id: 'headline',
-    question: 'What is the number?',
-    data: 'One or a few headline metrics.',
+    question:
+      'What headline card fits: one number, its change, current versus previous, or the high and low category?',
+    data: 'One metric. Optional change, previous period, or a category that splits high and low.',
     main: 'kpi-widget',
     alternatives: [
       { id: 'status-gauge-widget', when: 'At least two measures, and one of them is already a health or condition score. The dial is that score. Do not invent it.' },

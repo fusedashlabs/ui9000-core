@@ -78,7 +78,7 @@ Enable the connector in the chat. This hosted server accepts `csv` or `datasetId
 |--------|------------|
 | `spatial` | Where something is: region, country, city, lat/lng. A map needs geo columns. |
 | `comparison` | Which group is higher or lower, or how values spread. |
-| `summary` | A total, a count, or a few headline numbers. |
+| `summary` | One number, its change, or current versus previous. |
 | `form` | The user must enter or confirm labelled values. |
 | `evidence` | Claims, sources, or a timeline of facts. |
 | `graph` | What is connected to what. |

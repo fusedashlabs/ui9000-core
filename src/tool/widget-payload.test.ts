@@ -358,7 +358,16 @@ describe('workspaceWidgetPayload', () => {
           { name: 'ticket', role: 'category' },
         ],
       ),
-    ).toMatchObject({ items: [{ aggregations: 'last', data: [{ value: { last_revenue: 5 } }] }] });
+    ).toMatchObject({
+      items: [
+        {
+          type: 'trend',
+          aggregations: 'last',
+          showPercentage: true,
+          data: [{ last_revenue: 5, percentage: -87.5, subtitle: 'vs previous period' }],
+        },
+      ],
+    });
     expect(
       workspaceWidgetPayload(
         'kpi-widget',
@@ -390,7 +399,136 @@ describe('workspaceWidgetPayload', () => {
           { name: 'revenue', role: 'metric' },
         ],
       ),
-    ).toMatchObject({ items: [{ aggregations: 'last', data: [{ value: { last_revenue: 12 } }] }] });
+    ).toMatchObject({
+      items: [
+        {
+          type: 'trend',
+          aggregations: 'last',
+          data: [{ last_revenue: 12, percentage: 33.33 }],
+        },
+      ],
+    });
+  });
+
+  it('states the high and low of a category, and does not rank an id', () => {
+    expect(
+      workspaceWidgetPayload(
+        'kpi-widget',
+        'KPI',
+        [{ role: 'metric', field: 'revenue' }],
+        [
+          { region: 'West', revenue: 4 },
+          { region: 'East', revenue: 9 },
+          { region: 'East', revenue: 1 },
+        ],
+        [
+          { name: 'region', role: 'category' },
+          { name: 'revenue', role: 'metric' },
+        ],
+      ),
+    ).toMatchObject({
+      items: [
+        {
+          type: 'high/low_overall',
+          groupBy: 'region',
+          aggregations: 'sum',
+          data: [
+            {
+              high: { region: 'East', sum_revenue: 10 },
+              low: { region: 'West', sum_revenue: 4 },
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('sums every row in a period, and still ranks Room 101 against District 100', () => {
+    expect(
+      workspaceWidgetPayload(
+        'kpi-widget',
+        'KPI',
+        [{ role: 'metric', field: 'revenue' }],
+        [
+          { month: '2024-01', revenue: 10, ticket: '2024-01-100' },
+          { month: '2024-01', revenue: 5, ticket: '2024-01-101' },
+          { month: '2024-02', revenue: 20, ticket: '2024-02-100' },
+          { month: '2024-02', revenue: 20, ticket: '2024-02-101' },
+        ],
+        [
+          { name: 'month', role: 'temporal' },
+          { name: 'ticket', role: 'category' },
+          { name: 'revenue', role: 'metric' },
+        ],
+      ),
+    ).toMatchObject({
+      items: [
+        {
+          type: 'trend',
+          data: [{ last_revenue: 40, percentage: 166.67 }],
+        },
+      ],
+    });
+    expect(
+      workspaceWidgetPayload(
+        'kpi-widget',
+        'KPI',
+        [{ role: 'metric', field: 'revenue' }],
+        [
+          { month: '2024-01', region: 'West', revenue: 10 },
+          { month: '2024-01', region: 'East', revenue: 5 },
+          { month: '2024-02', region: 'West', revenue: 20 },
+          { month: '2024-02', region: 'East', revenue: 20 },
+        ],
+        [
+          { name: 'month', role: 'temporal' },
+          { name: 'region', role: 'category' },
+          { name: 'revenue', role: 'metric' },
+        ],
+      ),
+    ).toMatchObject({
+      items: [
+        {
+          type: 'high/low_overall',
+          groupBy: 'region',
+          data: [
+            {
+              high: { region: 'West', sum_revenue: 30 },
+              low: { region: 'East', sum_revenue: 25 },
+            },
+          ],
+        },
+      ],
+    });
+    expect(
+      workspaceWidgetPayload(
+        'kpi-widget',
+        'KPI',
+        [{ role: 'metric', field: 'revenue' }],
+        [
+          { zone: 'Room 101', revenue: 2 },
+          { zone: 'Room 101', revenue: 3 },
+          { zone: 'District 100', revenue: 9 },
+        ],
+        [
+          { name: 'zone', role: 'category' },
+          { name: 'revenue', role: 'metric' },
+        ],
+      ),
+    ).toMatchObject({
+      items: [
+        {
+          type: 'high/low_overall',
+          groupBy: 'zone',
+          data: [
+            {
+              high: { zone: 'District 100', sum_revenue: 9 },
+              low: { zone: 'Room 101', sum_revenue: 5 },
+            },
+          ],
+        },
+      ],
+    });
   });
 
   it('sums a KPI under aggregations_column', () => {

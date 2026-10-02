@@ -165,6 +165,8 @@ describe('show_workspace', () => {
     expect(bytes).toBeLessThanOrEqual(3072);
     expect(SHOW_WORKSPACE_DESCRIPTION.includes('bar-chart')).toBe(false);
     expect(SHOW_WORKSPACE_DESCRIPTION.includes('network-graph')).toBe(false);
+    expect(SHOW_WORKSPACE_DESCRIPTION).toContain('which group is highest or lowest');
+    expect(SHOW_WORKSPACE_DESCRIPTION).not.toContain('high and low');
     expect(SHOW_WORKSPACE_DESCRIPTION).toContain('A refusal is not awaitingUser');
     expect(SHOW_WORKSPACE_DESCRIPTION).toContain('Do not replace their chart with suggestion');
     const step1 = SHOW_WORKSPACE_DESCRIPTION.indexOf('1. Read the table');
