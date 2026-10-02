@@ -96,9 +96,8 @@ export async function runS321Demo(): Promise<S321DemoReport> {
         }),
       },
     );
-    if (!shown.ok || shown.awaitingUser) {
-      const detail = shown.ok ? shown.message : `${shown.code} ${shown.reason}`;
-      throw new Error(`show_workspace ${intent} failed: ${detail}`);
+    if (!shown.ok) {
+      throw new Error(`show_workspace ${intent} failed: ${shown.code} ${shown.reason}`);
     }
 
     workspaces.push({

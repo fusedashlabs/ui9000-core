@@ -16,7 +16,7 @@ import {
 } from '../../../src/tool/show-workspace.js';
 
 function isDrawn(result: ShowWorkspaceResult): result is Extract<ShowWorkspaceResult, { ok: true; spec: unknown }> {
-  return result.ok === true && result.awaitingUser !== true;
+  return result.ok === true;
 }
 
 function session(csv: string) {
@@ -76,12 +76,12 @@ describe('show_workspace from csv', () => {
     });
   });
 
-  it('does not draw a bar when spatial has no geography', async () => {
+  it('draws a chart when spatial has no geography', async () => {
     const { context } = session('team,incidents\nAlpha,4\nBeta,9\n');
     const result = await handleShowWorkspace({ intent: 'spatial' }, context);
-    expect(result.ok && result.awaitingUser).toBe(true);
-    if (!result.ok || !result.awaitingUser) return;
-    expect(result.message).toContain('spatial');
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('bar-chart');
   });
 
   it('keeps a metric when one cell is n/a and still builds a map', async () => {

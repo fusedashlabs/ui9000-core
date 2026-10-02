@@ -76,7 +76,6 @@ export type ShowWorkspaceCode = (typeof SHOW_WORKSPACE_CODES)[number];
 
 export type ShowWorkspaceOk = {
   ok: true;
-  awaitingUser?: undefined;
   spec: WorkspaceSpec;
   summary: string;
   /** Why this chart was drawn. The model should say it to the user. */
@@ -102,25 +101,7 @@ export type ShowWorkspaceFail = {
   reason: string;
 };
 
-/**
- * The named chart cannot be drawn. Nothing is generated in its place.
- * `suggestion` describes a closer chart. The model shows `message` and stops
- * unless the user asks for a chart this server can draw.
- */
-export type ShowWorkspaceAwaiting = {
-  ok: true;
-  awaitingUser: true;
-  message: string;
-  dataFamilies: readonly string[];
-  suggestion?: string;
-  suggestionWhy: string;
-  requestedChart?: string;
-  datasetId?: string;
-  rowCount?: number;
-  columns?: string[];
-};
-
-export type ShowWorkspaceResult = ShowWorkspaceOk | ShowWorkspaceAwaiting | ShowWorkspaceFail;
+export type ShowWorkspaceResult = ShowWorkspaceOk | ShowWorkspaceFail;
 
 export type ShowWorkspaceContext = {
   catalog: EngineCatalog;
@@ -242,16 +223,14 @@ export const SHOW_WORKSPACE_DESCRIPTION = [
   '',
   '4. Draw the chart they named when it is in the class Jev chose and this server can draw it. chartWhy says why it stays.',
   'Jev chooses a class, then a chart in that class. chartWhy argues both, and what was passed over.',
-  'Another class returns awaitingUser. Show message. Do not draw. suggestion is the chart Jev would draw. Call again only with the chart the user picks and the same datasetId.',
+  'Another class still draws a chart: the one they named when it fits, otherwise Jev\'s chart. Do not ask the user to choose, and do not say nothing was drawn.',
   'No named chart and a clear class: spec.component is Jev\'s chart.',
-  'An unclear class returns awaitingUser. Argue both. Do not draw the thinner one.',
+  'An unclear class still draws the leading chart. Do not ask the user to choose, and do not say nothing was drawn.',
   'If chartWhy says Jev did not select, the drawing is the engine choice.',
   'Output is { spec, summary, datasetId, rowCount, columns }. spec.dataUrl is a signed handle. No row objects.',
   '',
-  '5. If the named chart cannot be drawn, return awaitingUser and do not draw a substitute.',
-  'Show message. suggestion, when present, is Jev\'s chart. Call again only with the chart the user picks and the same datasetId.',
-  'If message says the utterance names a chart, pass it as requestedChart and call again with the same datasetId.',
-  'If suggestion is absent, stop.',
+  '5. If the named chart cannot be drawn, draw the chart the columns support. The user always receives a chart.',
+  'Do not answer that nothing was drawn, and do not ask them to pick between two charts.',
   'confirm does not change the chart.',
   '',
   'A refusal is not awaitingUser. Retry a refusal only with a different intent or source.',
@@ -355,21 +334,6 @@ export async function handleShowWorkspace(
     classified: runtime.classified,
     catalogIds,
   });
-  if (jev.kind === 'hold') {
-    const columns = listedColumns(runtime.fields);
-    return {
-      ok: true,
-      awaitingUser: true,
-      message: jev.message,
-      dataFamilies: jev.dataFamilies,
-      suggestionWhy: jev.suggestionWhy,
-      ...(jev.suggestion ? { suggestion: jev.suggestion } : {}),
-      ...(jev.requestedChart ? { requestedChart: jev.requestedChart } : {}),
-      ...(datasetId ? { datasetId } : {}),
-      ...(typeof runtime.profile.rowCount === 'number' ? { rowCount: runtime.profile.rowCount } : {}),
-      ...(columns ? { columns } : {}),
-    };
-  }
   const discussion =
     jev.kind !== 'draw' && requestedChart
       ? discussChart({
@@ -384,45 +348,21 @@ export async function handleShowWorkspace(
   const namedDraw = jev.kind === 'draw' && jev.by === 'named' ? jev.chartId : undefined;
   const jevMissed = jev.kind === 'miss';
 
-  if (discussion?.awaitingUser) {
-    const columns = listedColumns(runtime.fields);
-    return {
-      ok: true,
-      awaitingUser: true,
-      message: discussion.message,
-      dataFamilies: discussion.dataFamilies,
-      suggestionWhy: discussion.suggestionWhy,
-      ...(discussion.suggestion ? { suggestion: discussion.suggestion } : {}),
-      ...(discussion.requestedChart ? { requestedChart: discussion.requestedChart } : {}),
-      ...(datasetId ? { datasetId } : {}),
-      ...(typeof runtime.profile.rowCount === 'number' ? { rowCount: runtime.profile.rowCount } : {}),
-      ...(columns ? { columns } : {}),
-    };
-  }
-
   const decision = decide({
     intent: parsed.intent,
     profile: runtime.profile,
     catalog: runtime.catalog,
   });
-  let componentId = namedDraw ?? discussion?.drawId ?? jevDraw ?? decision.winner;
+  let componentId =
+    namedDraw ??
+    discussion?.drawId ??
+    jevDraw ??
+    (discussion?.awaitingUser ? discussion.suggestion : undefined) ??
+    decision.winner;
   let hostChart = false;
   let choiceWhy = '';
   const guided = guidedChartFamilies(runtime.profile, runtime.classified, parsed.intent);
   if (!namedDraw && !discussion?.drawId && !jevDraw && intentGuidesCharts(parsed.intent)) {
-    if (guided.length === 0 && (parsed.intent === 'spatial' || parsed.intent === 'graph')) {
-      const columns = listedColumns(runtime.fields);
-      return {
-        ok: true,
-        awaitingUser: true,
-        message: `No chart family matches ${parsed.intent} for these columns. Nothing was drawn.`,
-        dataFamilies: [],
-        suggestionWhy: `Intent ${parsed.intent} has no compatible chart for this table.`,
-        ...(datasetId ? { datasetId } : {}),
-        ...(typeof runtime.profile.rowCount === 'number' ? { rowCount: runtime.profile.rowCount } : {}),
-        ...(columns ? { columns } : {}),
-      };
-    }
     const best = guided.find((family) => canDraw(family.main, runtime.profile, catalogIds));
     const inBest =
       !!best &&
@@ -457,64 +397,99 @@ export async function handleShowWorkspace(
     return fail('no_winner', reason || 'No eligible catalog component for this intent and profile.');
   }
 
-  const winner = drawingCatalog.find((item) => item.id === componentId);
   const chosenByJev = Boolean(namedDraw || discussion?.drawId || jevDraw);
-  const allowedActions =
-    chosenByJev || hostChart
-      ? (winner?.allowedActions ?? []).filter((action) => SPEC_ACTION_SET.has(action))
-      : decision.trace.actions;
-  const shaped = shapeSpec(
+  const candidates = [
+    componentId,
+    discussion?.suggestion,
+    ...guided.map((family) => family.main),
+    decision.winner,
+  ].filter((id): id is string => typeof id === 'string' && canDraw(id, runtime.profile, catalogIds));
+  const ordered = [...new Set([componentId, ...candidates])];
+  let winner = drawingCatalog.find((item) => item.id === componentId);
+  let shaped = shapeSpec(
     {
       component: componentId,
-      allowedActions,
+      allowedActions:
+        chosenByJev || hostChart
+          ? (winner?.allowedActions ?? []).filter((action) => SPEC_ACTION_SET.has(action))
+          : decision.trace.actions,
     },
     winner,
     runtime.fields,
     runtime.classified,
   );
-  if (!shaped.ok) {
-    const kept = namedDraw ?? jevDraw ?? discussion?.drawId;
-    if (kept) {
-      const columns = listedColumns(runtime.fields);
-      const closer = discussion?.suggestion
-        ? `${discussion.suggestionWhy} A closer chart would be ${discussion.suggestion}. That is a suggestion only. Call again with it only if the user asks for that chart.`
-        : 'I am not switching it to another chart. Do not call again.';
-      return {
-        ok: true,
-        awaitingUser: true,
-        message: `You asked for ${kept}. These columns do not fill it, so nothing was generated in its place. ${closer}`,
-        dataFamilies: discussion?.dataFamilies ?? chartFamiliesFor(runtime.profile, runtime.classified).map((family) => family.id),
-        suggestionWhy: discussion?.suggestionWhy ?? closer,
-        ...(discussion?.suggestion ? { suggestion: discussion.suggestion } : {}),
-        ...(discussion?.requestedChart ? { requestedChart: discussion.requestedChart } : {}),
-        ...(datasetId ? { datasetId } : {}),
-        ...(typeof runtime.profile.rowCount === 'number' ? { rowCount: runtime.profile.rowCount } : {}),
-        ...(columns ? { columns } : {}),
-      };
+  let payload: unknown;
+  let chartType = '';
+  let mapRefusal: string | undefined;
+  let switched = false;
+  let switchWhy = '';
+  for (const id of ordered) {
+    const nextWinner = id === componentId ? winner : drawingCatalog.find((item) => item.id === id);
+    const nextShaped =
+      id === componentId
+        ? shaped
+        : shapeSpec(
+            {
+              component: id,
+              allowedActions: (nextWinner?.allowedActions ?? []).filter((action) =>
+                SPEC_ACTION_SET.has(action),
+              ),
+            },
+            nextWinner,
+            runtime.fields,
+            runtime.classified,
+          );
+    if (!nextShaped.ok) {
+      if (id === componentId) switchWhy = 'The first chart did not fit these columns';
+      shaped = nextShaped;
+      continue;
     }
-    return shaped;
+    const nextType = chartTypeForComponent(id, nextWinner?.chartTypeKeys);
+    const nextPayload = workspaceWidgetPayload(
+      id,
+      nextType,
+      nextShaped.spec.binds,
+      runtime.payload,
+      runtime.classified?.map((column) => ({ name: column.column.name, role: column.role })),
+    );
+    if (nextPayload == null) {
+      if (id === componentId) switchWhy = 'The first chart did not fit these columns';
+      continue;
+    }
+    if (id === 'map-chart') {
+      const refusal = await mapSignRefusal(nextPayload);
+      if (refusal) {
+        if (id === componentId) switchWhy = 'These values do not match a map region';
+        mapRefusal = refusal;
+        continue;
+      }
+    }
+    if (id !== componentId) {
+      switched = true;
+      hostChart = true;
+      choiceWhy = `${switchWhy || 'The first chart did not fit these columns'}, so this is ${id}.`;
+    }
+    componentId = id;
+    winner = nextWinner;
+    shaped = nextShaped;
+    payload = nextPayload;
+    chartType = chartTypeFromPayload(nextPayload) ?? nextType;
+    break;
   }
-
-  const fallbackType = chartTypeForComponent(componentId, winner?.chartTypeKeys);
-  const payload = workspaceWidgetPayload(
-    componentId,
-    fallbackType,
-    shaped.spec.binds,
-    runtime.payload,
-    runtime.classified?.map((column) => ({ name: column.column.name, role: column.role })),
-  );
   if (payload == null) {
+    if (mapRefusal) return fail('map_unrenderable', mapRefusal);
+    if (!shaped.ok) return shaped;
     return fail(
       'chart_unbuilt',
       'The chart could not be built from these columns, so nothing was signed.',
     );
   }
-  const chartType = chartTypeFromPayload(payload) ?? fallbackType;
+  if (!shaped.ok) return shaped;
 
-  if (componentId === 'map-chart') {
-    const refusal = await mapSignRefusal(payload);
-    if (refusal) return fail('map_unrenderable', refusal);
-  }
+  const allowedActions =
+    chosenByJev || hostChart
+      ? (winner?.allowedActions ?? []).filter((action) => SPEC_ACTION_SET.has(action))
+      : decision.trace.actions;
 
   let spec: WorkspaceSpec;
   try {
@@ -550,12 +525,13 @@ export async function handleShowWorkspace(
         .filter(Boolean)
         .join(' ')
     : '';
-  const chartWhy =
+  const argued =
     jev.kind === 'draw'
       ? jev.why
       : jevMissed
         ? [missedWhy, discussion?.chartWhy].filter(Boolean).join(' ')
         : discussion?.chartWhy || engineWhy;
+  const chartWhy = switched ? choiceWhy : argued;
   const recorded = chosenByJev
     ? governTrace(
         {
@@ -569,7 +545,13 @@ export async function handleShowWorkspace(
         (winner?.allowedActions ?? allowedActions).filter((action) => SPEC_ACTION_SET.has(action)),
       )
     : decision.trace;
-  const by: TraceChooser = jev.kind === 'draw' ? jev.by : discussion?.drawId ? 'named' : 'engine';
+  const by: TraceChooser = switched
+    ? 'engine'
+    : jev.kind === 'draw'
+      ? jev.by
+      : discussion?.drawId
+        ? 'named'
+        : 'engine';
   const trace: Trace = {
     ...recorded,
     ...(choiceWhy ? { tieBreak: choiceWhy } : {}),

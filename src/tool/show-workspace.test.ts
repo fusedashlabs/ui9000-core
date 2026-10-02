@@ -143,7 +143,7 @@ function columnSession(channel: ReturnType<typeof memoryChannel>) {
 }
 
 function isDrawn(result: ShowWorkspaceResult): result is ShowWorkspaceOk {
-  return result.ok === true && result.awaitingUser !== true;
+  return result.ok === true;
 }
 
 function hasRowObjects(value: unknown): boolean {
@@ -632,6 +632,31 @@ describe('show_workspace fail-closed', () => {
     expect(result).toMatchObject({ ok: false, code: 'map_unrenderable' });
   });
 
+  it('draws the next chart when a shaped map matches no region', async () => {
+    const table = parseCsvTable('team,country,incidents\nAlpha,NotACountry,12\nBeta,AlsoNo,11\n');
+    const result = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        utterance: 'Show a map of incidents.',
+        requestedChart: 'map',
+      },
+      context({
+        fields: table.columns.map((column) => column.name),
+        classified: classifyColumns(table).columns,
+        payload: [
+          { team: 'Alpha', country: 'NotACountry', incidents: '12' },
+          { team: 'Beta', country: 'AlsoNo', incidents: '11' },
+        ],
+      }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('bar-chart');
+    expect(result.chartWhy).toContain('map region');
+    expect(result.chartWhy).toContain('bar-chart');
+    expect(result.chartWhy).not.toContain('map-chart');
+  });
+
   it('binds histogram distribution to the profiler metric column', async () => {
     const table = parseCsvTable('score\n1\n4\n4\n8\n');
     const result = await handleShowWorkspace(
@@ -710,17 +735,15 @@ describe('show_workspace fail-closed', () => {
       },
       session(),
     );
-    expect(first.ok).toBe(true);
-    if (!first.ok || !first.awaitingUser) return;
+    expect(isDrawn(first)).toBe(true);
+    if (!isDrawn(first)) return;
     expect(first.columns).toEqual(['team', 'score']);
-    expect(first).not.toHaveProperty('spec');
-    expect(first.suggestion).toBe('bar-chart');
-    expect(first.message).toContain('nothing was generated');
+    expect(first.spec.component).toBe('bar-chart');
 
     const second = await handleShowWorkspace(
       {
         intent: 'comparison',
-        requestedChart: first.suggestion,
+        requestedChart: 'bar',
         datasetId: first.datasetId,
       },
       session(),
@@ -880,17 +903,14 @@ describe('show_workspace fail-closed', () => {
     expect(result.suggestion).toBe('bar-chart');
   });
 
-  it('does not generate a substitute when the named chart is unknown', async () => {
+  it('draws a supported chart when the named chart is unknown', async () => {
     const result = await handleShowWorkspace(
       { intent: 'comparison', requestedChart: 'not-a-chart' },
       context(),
     );
-    expect(result.ok).toBe(true);
-    if (!result.ok || !result.awaitingUser) return;
-    expect(result).not.toHaveProperty('spec');
-    expect(result.suggestion).toBe('bar-chart');
-    expect(result.message).toContain('nothing was generated');
-    expect(result.message).toContain('not-a-chart');
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('bar-chart');
   });
 
   it('draws the chart the user asked for when it is the main fit', async () => {
@@ -1110,7 +1130,7 @@ describe('show_workspace fail-closed', () => {
     expect(result.trace.chosen).toMatchObject({ id: 'bar-chart', by: 'named' });
   });
 
-  it('waits when the named chart sits in another class', async () => {
+  it('draws the named chart when it sits in another class', async () => {
     const result = await handleShowWorkspace(
       {
         intent: 'comparison',
@@ -1126,14 +1146,10 @@ describe('show_workspace fail-closed', () => {
         }),
       }),
     );
-    expect(result.ok && result.awaitingUser).toBe(true);
-    if (!result.ok || !result.awaitingUser) return;
-    expect(result).not.toHaveProperty('spec');
-    expect(result.suggestion).toBe('bar-chart');
-    expect(result.message).toContain('Source, target, and a value');
-    expect(result.message).toContain('Jev would draw bar-chart');
-    expect(result.message).toContain('Nothing was generated');
-    expect(result.message).toContain('Say which of the two you want');
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('sankey-chart');
+    expect(result.chartWhy).toContain('sankey');
   });
 
   it('draws the class main when the mark call fails', async () => {
@@ -1160,7 +1176,7 @@ describe('show_workspace fail-closed', () => {
     expect(result.trace.chosen).toMatchObject({ by: 'jev' });
   });
 
-  it('waits when Jev cannot separate two classes', async () => {
+  it('draws the leading chart when Jev cannot separate two classes', async () => {
     const result = await handleShowWorkspace(
       { intent: 'comparison', utterance: 'Compare incidents by city.' },
       context({
@@ -1176,12 +1192,12 @@ describe('show_workspace fail-closed', () => {
         }),
       }),
     );
-    expect(result.ok && result.awaitingUser).toBe(true);
-    if (!result.ok || !result.awaitingUser) return;
-    expect(result).not.toHaveProperty('spec');
-    expect(result.suggestion).toBeUndefined();
-    expect(result.message).toContain('hesitated between bar-chart and map-chart');
-    expect(result.message).toContain('Nothing was generated');
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('bar-chart');
+    expect(result.chartWhy).toContain('hesitated between bar-chart and map-chart');
+    expect(result.chartWhy).toContain('drew bar-chart');
+    expect(result.chartWhy).not.toContain('Nothing was generated');
   });
 
   it('draws with decide when Jev does not answer', async () => {
@@ -1200,7 +1216,7 @@ describe('show_workspace fail-closed', () => {
     expect(result.chartWhy).toContain("not Jev's");
   });
 
-  it('does not draw Jev when the utterance names a chart and requestedChart is missing', async () => {
+  it('draws a chart when the utterance names one and requestedChart is missing', async () => {
     const result = await handleShowWorkspace(
       { intent: 'comparison', utterance: 'Compare incidents as a line, not a bar.' },
       context({
@@ -1212,15 +1228,14 @@ describe('show_workspace fail-closed', () => {
         }),
       }),
     );
-    expect(result.ok && result.awaitingUser).toBe(true);
-    if (!result.ok || !result.awaitingUser) return;
-    expect(result).not.toHaveProperty('spec');
-    expect(result.suggestion).toBeUndefined();
-    expect(result.message).toContain('requestedChart');
-    expect(result.message).toContain('names a chart');
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('bar-chart');
+    expect(result.chartWhy).toContain('bar-chart');
+    expect(result.chartWhy).not.toContain('Nothing was generated');
   });
 
-  it('uses Jev as the suggestion when the named chart cannot be drawn', async () => {
+  it('draws Jev\'s chart when the named chart cannot be drawn', async () => {
     const result = await handleShowWorkspace(
       { intent: 'comparison', utterance: 'Show a sankey.', requestedChart: 'not-a-chart' },
       context({
@@ -1231,16 +1246,12 @@ describe('show_workspace fail-closed', () => {
         }),
       }),
     );
-    expect(result.ok && result.awaitingUser).toBe(true);
-    if (!result.ok || !result.awaitingUser) return;
-    expect(result).not.toHaveProperty('spec');
-    expect(result.suggestion).toBe('bar-chart');
-    expect(result.message).toContain('not a chart I know');
-    expect(result.message).toContain('Jev would draw bar-chart');
-    expect(result.message).toContain('Nothing was generated');
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('bar-chart');
   });
 
-  it('does not draw when Jev selects a chart this workspace cannot draw', async () => {
+  it('draws another chart when Jev selects one this workspace cannot draw', async () => {
     const result = await handleShowWorkspace(
       { intent: 'comparison', utterance: 'Show incidents on a map.' },
       context({
@@ -1253,18 +1264,13 @@ describe('show_workspace fail-closed', () => {
         }),
       }),
     );
-    expect(result.ok && result.awaitingUser).toBe(true);
-    if (!result.ok || !result.awaitingUser) return;
-    expect(result).not.toHaveProperty('spec');
-    expect(result.suggestion).toBeUndefined();
-    expect(result.message).toContain('Jev selected map-chart');
-    expect(result.message).toContain('cannot draw');
-    expect(result.message).toContain('Nothing was generated');
-    expect(result.message).not.toContain("not Jev's");
-    expect(result.message).not.toContain('Jev did not select');
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('bar-chart');
+    expect(result.chartWhy).toContain('bar-chart');
   });
 
-  it('recommends Jev when an undrawable named chart is outside Jev\'s class', async () => {
+  it('draws Jev\'s chart when an undrawable named chart is outside Jev\'s class', async () => {
     const result = await handleShowWorkspace(
       { intent: 'spatial', utterance: 'Show a map.', requestedChart: 'map' },
       context({
@@ -1276,18 +1282,12 @@ describe('show_workspace fail-closed', () => {
         }),
       }),
     );
-    expect(result.ok && result.awaitingUser).toBe(true);
-    if (!result.ok || !result.awaitingUser) return;
-    expect(result).not.toHaveProperty('spec');
-    expect(result.suggestion).toBe('bar-chart');
-    expect(result.message).toContain('Region id or lat/lng');
-    expect(result.message).toContain('Jev would draw bar-chart');
-    expect(result.message).toContain('Nothing was generated');
-    expect(result.message).toContain('Say which of the two you want');
-    expect(result.message).not.toContain('I am not switching');
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('bar-chart');
   });
 
-  it('argues an undrawable named chart that shares Jev\'s class', async () => {
+  it('draws a supported chart when the named chart shares Jev\'s class but cannot be drawn', async () => {
     const result = await handleShowWorkspace(
       { intent: 'spatial', utterance: 'Show a map.', requestedChart: 'map' },
       context({
@@ -1299,19 +1299,13 @@ describe('show_workspace fail-closed', () => {
         }),
       }),
     );
-    expect(result.ok && result.awaitingUser).toBe(true);
-    if (!result.ok || !result.awaitingUser) return;
-    expect(result).not.toHaveProperty('spec');
-    expect(result.suggestion).toBeUndefined();
-    expect(result.message).toContain('Region id or lat/lng');
-    expect(result.message).toContain('Jev selected map-chart');
-    expect(result.message).toContain('cannot draw');
-    expect(result.message).toContain('Nothing was generated');
-    expect(result.message).not.toContain('I am not switching');
-    expect(result.message).not.toContain('Jev would draw');
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('bar-chart');
+    expect(result.chartWhy).toContain('bar-chart');
   });
 
-  it('does not draw a named chart that the columns do not support', async () => {
+  it('draws a supported chart when the named chart does not fit the columns', async () => {
     const result = await handleShowWorkspace(
       {
         intent: 'comparison',
@@ -1327,13 +1321,11 @@ describe('show_workspace fail-closed', () => {
         }),
       }),
     );
-    expect(result.ok && result.awaitingUser).toBe(true);
-    if (!result.ok || !result.awaitingUser) return;
-    expect(result).not.toHaveProperty('spec');
-    expect(result.suggestion).toBe('bar-chart');
-    expect(result.message).toContain('Source, target, and a value');
-    expect(result.message).toContain('Jev would draw bar-chart');
-    expect(result.message).not.toContain('A closer chart would be');
-    expect(result.message.match(/Jev would draw/g)).toHaveLength(1);
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('bar-chart');
+    expect(result.chartWhy).toContain('columns');
+    expect(result.chartWhy).toContain('bar-chart');
+    expect(result.chartWhy).not.toContain('sankey');
   });
 });

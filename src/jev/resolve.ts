@@ -1,6 +1,6 @@
 /**
- * Two Jev calls, then one outcome: draw, hold for the user, or miss.
- * A miss leaves the engine draw in place. A clear class never falls through to it.
+ * Two Jev calls, then one outcome: draw or miss.
+ * A miss leaves the engine draw in place. A clear class does the same when its chart cannot be drawn.
  */
 
 import {
@@ -33,16 +33,7 @@ export type JevDraw = {
   by: 'named' | 'jev';
 };
 
-export type JevHold = {
-  kind: 'hold';
-  message: string;
-  suggestionWhy: string;
-  suggestion?: string;
-  dataFamilies: string[];
-  requestedChart?: string;
-};
-
-export type JevOutcome = JevDraw | JevHold | { kind: 'miss' } | { kind: 'skip' };
+export type JevOutcome = JevDraw | { kind: 'miss' } | { kind: 'skip' };
 
 export async function resolveJev(input: {
   ask?: JevAsk;
@@ -55,7 +46,6 @@ export async function resolveJev(input: {
 }): Promise<JevOutcome> {
   if (!input.ask) return { kind: 'skip' };
   const families = chartFamiliesFor(input.profile, input.classified, intentFrom(input.intent));
-  const dataFamilies = families.map((family) => family.id);
   if (families.length === 0) return { kind: 'miss' };
 
   const columns: JevColumn[] = (input.classified ?? []).map((column) => ({
@@ -85,10 +75,7 @@ export async function resolveJev(input: {
     const local = chartNamedByWords(input.utterance);
     const family = families.find((item) => item.main === reading.top);
     if (
-      reading.clear &&
-      family &&
       local &&
-      inFamily(local, family) &&
       canDraw(local, input.profile, input.catalogIds) &&
       chartFitsProfile(local, input.profile)
     ) {
@@ -96,19 +83,15 @@ export async function resolveJev(input: {
         kind: 'draw',
         chartId: local,
         by: 'named',
-        why: `You asked for ${local}. Jev selected the same class, ${family.question} so this chart stays.`,
+        why:
+          reading.clear && family && inFamily(local, family)
+            ? `You asked for ${local}. Jev selected the same class, ${family.question} so this chart stays.`
+            : `You asked for ${local}, so this chart is drawn.`,
       };
     }
-    return {
-      kind: 'hold',
-      dataFamilies,
-      message:
-        'The utterance names a chart. Pass that chart as requestedChart and call again with the same datasetId. Do not draw another chart in its place.',
-      suggestionWhy: 'The utterance names a chart. This call did not draw a substitute.',
-    };
   }
   if (!reading.clear || !reading.top) {
-    return hesitate(input, families, dataFamilies, named, reading.top, reading.runnerUp);
+    return hesitate(input, families, named, reading.top, reading.runnerUp);
   }
 
   const family = families.find((item) => item.main === reading.top);
@@ -128,39 +111,22 @@ export async function resolveJev(input: {
   const chartId = picked.id;
   const why = drawWhy(family, runner, chartId, picked.runnerUp, picked.fromMark);
 
-  if (!askedForChart) {
-    if (!canDraw(chartId, input.profile, input.catalogIds)) {
-      const role = chartRole(chartId);
-      return {
-        kind: 'hold',
-        dataFamilies,
-        message: `${why} ${role?.data ?? ''} This workspace cannot draw it. Nothing was generated.`.replace(/\s+/g, ' ').trim(),
-        suggestionWhy: why,
-      };
-    }
+  if (
+    named &&
+    canDraw(named, input.profile, input.catalogIds) &&
+    chartFitsProfile(named, input.profile)
+  ) {
+    return {
+      kind: 'draw',
+      chartId: named,
+      by: 'named',
+      why: `You asked for ${named}, so this chart is drawn.`,
+    };
+  }
+  if (canDraw(chartId, input.profile, input.catalogIds) && chartFitsProfile(chartId, input.profile)) {
     return { kind: 'draw', chartId, by: 'jev', why };
   }
-
-  const asked = named ? chartRole(named) : undefined;
-  const askedFamily = named ? families.find((item) => inFamily(named, item)) : undefined;
-  const recommend = canDraw(chartId, input.profile, input.catalogIds) ? chartId : undefined;
-  const recommendation = recommend
-    ? `Jev would draw ${recommend}, because ${markBecause(family, recommend)} Nothing was generated. Say which of the two you want.`
-    : `${why} This workspace cannot draw it. Nothing was generated.`;
-  const known = !asked || !named
-    ? `You selected "${input.requestedChart?.trim()}", which is not a chart I know.`
-    : askedFamily && canDraw(named, input.profile, input.catalogIds)
-      ? `You asked for ${named}. ${asked.role} That reading is: ${askedFamily.question}`
-      : `You asked for ${named}. ${asked.data}`;
-  const message = `${known} ${recommendation}`.replace(/\s+/g, ' ').trim();
-  return {
-    kind: 'hold',
-    dataFamilies,
-    ...(named ? { requestedChart: named } : {}),
-    ...(recommend ? { suggestion: recommend } : {}),
-    suggestionWhy: recommend ? `Jev would draw ${recommend}, because ${markBecause(family, recommend)}` : message,
-    message,
-  };
+  return { kind: 'miss' };
 }
 
 async function pickMark(
@@ -208,7 +174,6 @@ function hesitate(
     catalogIds: ReadonlySet<string>;
   },
   families: readonly ChartFamily[],
-  dataFamilies: string[],
   named: string | undefined,
   top: string | null,
   runnerUp: string | null,
@@ -226,28 +191,30 @@ function hesitate(
     };
   }
 
-  const both = `Jev hesitated between ${first.main} and ${second.main}. ${first.question} ${second.question}`;
-  if (!input.requestedChart?.trim()) {
+  const lead = [first, second].find((family) =>
+    canDraw(family.main, input.profile, input.catalogIds),
+  );
+  if (
+    named &&
+    canDraw(named, input.profile, input.catalogIds) &&
+    chartFitsProfile(named, input.profile)
+  ) {
     return {
-      kind: 'hold',
-      dataFamilies,
-      message: `${both} Nothing was generated. Say which you want.`,
-      suggestionWhy: both,
+      kind: 'draw',
+      chartId: named,
+      by: 'named',
+      why: `You asked for ${named}. Jev hesitated between ${first.main} and ${second.main}, and this chart is drawn.`,
     };
   }
-
-  const asked = named ? chartRole(named) : undefined;
-  const unfit = asked
-    ? `You asked for ${named}. ${asked.data}`
-    : `You selected "${input.requestedChart?.trim()}", which is not a chart I know.`;
-  const message = `${unfit} ${both} Nothing was generated. Say which you want.`.replace(/\s+/g, ' ').trim();
-  return {
-    kind: 'hold',
-    dataFamilies,
-    ...(named ? { requestedChart: named } : {}),
-    message,
-    suggestionWhy: both,
-  };
+  if (lead) {
+    return {
+      kind: 'draw',
+      chartId: lead.main,
+      by: 'jev',
+      why: `Jev hesitated between ${first.main} and ${second.main}, and drew ${lead.main}, because ${because(lead.question)}`,
+    };
+  }
+  return { kind: 'miss' };
 }
 
 function drawWhy(

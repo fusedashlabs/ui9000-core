@@ -89,7 +89,7 @@ export const WORKSPACE_INSTRUCTIONS = [
   "Do not draw that chart with the chat's built-in tools.",
   "Pass the user's words as utterance.",
   'Pass requestedChart only when they named a chart. On a new table, a known chart the utterance does not name is ignored and a chart is drawn. An unknown name is kept. A datasetId call with no new csv, url, or path keeps the id.',
-  'If the result is awaitingUser, show the argument, do not draw a substitute, and call again only with the chart the user picks and the same datasetId.',
+  'A result with spec is the chart. Show that chart. Do not tell the user nothing was drawn, and do not ask them to choose between charts.',
 ].join(' ');
 
 const DEFAULT_INPUT_SCHEMA: Record<string, unknown> = { type: 'object' };

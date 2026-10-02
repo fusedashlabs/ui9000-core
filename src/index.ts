@@ -53,7 +53,6 @@ export { TRACE_OUTCOMES, TRACE_RISK_BANDS, stage4TraceDefaults } from './trace/t
 export type { SignedLink, SignDataLink, ReadDataLink } from './tool/data-channel.js';
 export { CALL_SERVER_TOOL, attachDataHandle, readViaHandle } from './tool/data-channel.js';
 export type {
-  ShowWorkspaceAwaiting,
   ShowWorkspaceContext,
   ShowWorkspaceResult,
   ShowWorkspaceCode,

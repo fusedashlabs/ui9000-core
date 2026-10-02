@@ -12,7 +12,7 @@ describe('eval gates', () => {
     let held = 0;
     for (const evalCase of cases) {
       const run = await runEvalCase(evalCase);
-      if (!run.shown?.ok || run.shown.awaitingUser) continue;
+      if (!run.shown?.ok) continue;
       if (!run.shown.trace.risk.some((item) => item.band === 'held')) continue;
       held += 1;
       expect(run.shown.trace.outcome, evalCase.id).toBe('held');
@@ -39,7 +39,7 @@ describe('eval gates', () => {
     const run = await runEvalCase(approval!);
     expect(run.shown?.ok).toBe(true);
     expect(run.spec?.label).toBe('approval-bar');
-    if (run.shown?.ok && !run.shown.awaitingUser) {
+    if (run.shown?.ok) {
       expect(run.shown.trace.outcome).toBe('held');
     }
 
