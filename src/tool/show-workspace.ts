@@ -26,6 +26,7 @@ import {
 } from './ingest-table.js';
 import { chartTypeForComponent, workspaceWidgetPayload } from './widget-payload.js';
 import { statusGaugeFits } from './payload/status-gauge-widget.js';
+import { powerPathFits } from './payload/power-path-card.js';
 import { shapeSpec } from './shape-spec.js';
 import {
   assertTraceHasNoRows,
@@ -373,14 +374,13 @@ export async function handleShowWorkspace(
       choiceWhy = `The columns answer "${best.question}", so this is ${chartLabel(best.main)}.`;
     }
   }
-  if (
-    !namedDraw &&
-    !discussion?.drawId &&
-    !jevDraw &&
-    componentId === 'kpi-widget' &&
-    statusGaugeFits(runtime.payload)
-  ) {
-    componentId = 'status-gauge-widget';
+  // A health score with status on every metric is the power path card. Without those statuses it is the dial.
+  if (!namedDraw && !discussion?.drawId && !jevDraw && componentId === 'kpi-widget') {
+    if (canDraw('power-path-card', runtime.profile, catalogIds) && powerPathFits(runtime.payload)) {
+      componentId = 'power-path-card';
+    } else if (statusGaugeFits(runtime.payload)) {
+      componentId = 'status-gauge-widget';
+    }
   }
   if (!componentId) {
     const family = chartFamiliesFor(runtime.profile, runtime.classified, parsed.intent).find((item) =>

@@ -50,7 +50,7 @@ const RAW = new Set([
 ]);
 
 export function dataRolesForChart(id: string): CatalogDataRole[] {
-  if (id === 'status-gauge-widget') return [];
+  if (id === 'status-gauge-widget' || id === 'power-path-card') return [];
   if (POINTS.has(id) || MODEL.has(id)) {
     return [
       { id: 'mx', required: true },

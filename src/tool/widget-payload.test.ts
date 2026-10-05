@@ -320,6 +320,100 @@ describe('workspaceWidgetPayload', () => {
     });
   });
 
+  const POWER_PATH_ROWS = [
+    {
+      power_path: 'Sector 1 Power Path',
+      asset: '5G-TX-303',
+      metric: 'Electricity Health',
+      value: 69.9,
+      unit: '%',
+      status: 'Critical',
+      points: '72.8 73.6 75.1 74.3 70.8 69.9',
+      fault: 'Critical fault detected · Circuit L2 · RF Line 3 · Downtime 24 sec',
+    },
+    { power_path: 'Sector 1 Power Path', asset: '5G-TX-303', metric: 'Input Voltage', value: 48.1, unit: 'V', status: 'Stable', points: '', fault: '' },
+    { power_path: 'Sector 1 Power Path', asset: '5G-TX-303', metric: 'Output Voltage', value: 36.4, unit: 'V', status: 'Critical', points: '', fault: '' },
+    { power_path: 'Sector 1 Power Path', asset: '5G-TX-303', metric: 'Current Draw', value: 18.7, unit: 'A', status: 'Critical', points: '', fault: '' },
+    { power_path: 'Sector 1 Power Path', asset: '5G-TX-303', metric: 'Power Loss', value: 24.3, unit: '%', status: 'High', points: '', fault: '' },
+    { power_path: 'Sector 1 Power Path', asset: '5G-TX-303', metric: 'Connector Temperature', value: 63, unit: '°C', status: 'Critical', points: '', fault: '' },
+  ];
+
+  it('sends the power path card the badge, the health score with its points, the fault, and the metric rows', () => {
+    expect(workspaceWidgetPayload('power-path-card', 'powerPathCard', [], POWER_PATH_ROWS)).toEqual({
+      chartType: 'powerPathCard',
+      name: 'Sector 1 Power Path',
+      badge: '5G-TX-303',
+      health: {
+        label: 'Electricity Health',
+        value: 69.9,
+        unit: '%',
+        status: 'Critical',
+        points: [72.8, 73.6, 75.1, 74.3, 70.8, 69.9],
+      },
+      fault: {
+        active: true,
+        message: 'Critical fault detected · Circuit L2 · RF Line 3 · Downtime 24 sec',
+      },
+      data: [
+        { key: 'inputVoltage', label: 'Input Voltage', value: 48.1, unit: 'V', status: 'Stable' },
+        { key: 'outputVoltage', label: 'Output Voltage', value: 36.4, unit: 'V', status: 'Critical' },
+        { key: 'currentDraw', label: 'Current Draw', value: 18.7, unit: 'A', status: 'Critical' },
+        { key: 'powerLoss', label: 'Power Loss', value: 24.3, unit: '%', status: 'High' },
+        { key: 'connectorTemperature', label: 'Connector Temperature', value: 63, unit: '°C', status: 'Critical' },
+      ],
+    });
+  });
+
+  it('leaves out the power path fault and points when the table has none', () => {
+    const rows = POWER_PATH_ROWS.map((row) => ({ ...row, points: '', fault: 'none' }));
+    const payload = workspaceWidgetPayload('power-path-card', 'powerPathCard', [], rows) as Record<
+      string,
+      unknown
+    >;
+    expect(payload).not.toHaveProperty('fault');
+    expect(payload.health).toEqual({ label: 'Electricity Health', value: 69.9, unit: '%', status: 'Critical' });
+  });
+
+  it('does not invent a power path health score', () => {
+    const rows = POWER_PATH_ROWS.slice(1);
+    const payload = workspaceWidgetPayload('power-path-card', 'powerPathCard', [], rows) as Record<
+      string,
+      unknown
+    >;
+    expect(payload).not.toHaveProperty('health');
+    expect(payload.data).toHaveLength(5);
+  });
+
+  it('sends power path thresholds and keeps a row without status bare', () => {
+    expect(
+      workspaceWidgetPayload(
+        'power-path-card',
+        'powerPathCard',
+        [],
+        [
+          { metric: 'Health', value: 80 },
+          { metric: 'Input Voltage', value: 44, unit: 'V', warning: 46, critical: 42, direction: 'below' },
+          { metric: 'Uptime', value: 99.2, unit: '%' },
+        ],
+      ),
+    ).toMatchObject({
+      name: 'Power Path',
+      health: { label: 'Health', value: 80 },
+      data: [
+        { key: 'inputVoltage', thresholds: { warning: 46, critical: 42, direction: 'below' } },
+        { key: 'uptime', label: 'Uptime', value: 99.2, unit: '%' },
+      ],
+    });
+  });
+
+  it('refuses one power path card for several equipment groups', () => {
+    const rows = [
+      { asset: '5G-TX-303', metric: 'Health', value: 70, status: 'High' },
+      { asset: '5G-TX-404', metric: 'Health', value: 90, status: 'Stable' },
+    ];
+    expect(workspaceWidgetPayload('power-path-card', 'powerPathCard', [], rows)).toBeNull();
+  });
+
   it('averages a score and does not average a name that merely contains those letters', () => {
     const rows = [{ health_score: 2 }, { health_score: 4 }];
     expect(

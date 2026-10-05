@@ -226,6 +226,13 @@ export const CHART_ROLES = {
     data: 'A health or condition score that already exists, plus at least one other measure. Optional unit, status, min, and max.',
     visual: 'Semicircular health gauge and KPI cards with ticked range bars.',
   },
+  'power-path-card': {
+    id: 'power-path-card',
+    chartTypeKeys: ['powerPathCard'],
+    role: 'Monitor one equipment group: its health score, any active fault, and each metric with its status.',
+    data: 'A health score that already exists, plus metric rows each with a value and a status or threshold. Optional asset badge, recent points, and an active fault.',
+    visual: 'Card with an asset badge, the score beside a compact line, a fault banner only while a fault is active, and a metric list with status dots.',
+  },
   'step-line-chart': {
     id: 'step-line-chart',
     chartTypeKeys: ['stepLineChart', 'ksPlotChart', 'rocCurveChart'],
@@ -403,6 +410,10 @@ export const CHART_FAMILIES = [
     main: 'kpi-widget',
     alternatives: [
       { id: 'status-gauge-widget', when: 'At least two measures, and one of them is already a health or condition score. The dial is that score. Do not invent it.' },
+      {
+        id: 'power-path-card',
+        when: 'One equipment group already has a health score, plus the metrics behind it, each with a status. The compact line and the fault are optional. Do not invent the score.',
+      },
     ],
   },
   {

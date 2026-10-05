@@ -64,6 +64,23 @@ describe('chart roles', () => {
     ]);
   });
 
+  it('keeps KPI as the headline main, with the dial and the power path card as alternatives', () => {
+    const drawings = drawingsFor('kpi-widget');
+    expect(drawings?.family.id).toBe('headline');
+    expect(drawings?.alternatives.map((role) => role.id)).toEqual([
+      'status-gauge-widget',
+      'power-path-card',
+    ]);
+    expect(drawingsFor('power-path-card')).toBeUndefined();
+    expect(familiesForChart('power-path-card').map((family) => family.id)).toEqual(['headline']);
+    const headline = CHART_FAMILIES.find((family) => family.id === 'headline');
+    const when = headline?.alternatives.find((alt) => alt.id === 'power-path-card')?.when;
+    expect(when).toContain('already has a health score');
+    expect(when).toContain('each with a status');
+    expect(when).toContain('Do not invent the score');
+    expect(CHART_ROLES['power-path-card'].chartTypeKeys).toEqual(['powerPathCard']);
+  });
+
   it('names a chart by what it shows', () => {
     expect(chartLabel('bar-chart')).toBe('bar chart (compare discrete groups on one metric)');
     expect(chartLabel('map-chart')).toBe('map chart (place a metric on geography)');

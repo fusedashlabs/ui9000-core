@@ -263,6 +263,88 @@ describe('show_workspace', () => {
     expect(result.spec.component).toBe('status-gauge-widget');
   });
 
+  const POWER_PATH_CSV = [
+    'asset,metric,value,unit,status,points,fault',
+    '5G-TX-303,Electricity Health,69.9,%,Critical,72.8 74.3 70.8 69.9,Critical fault detected · Circuit L2',
+    '5G-TX-303,Input Voltage,48.1,V,Stable,,',
+    '5G-TX-303,Output Voltage,36.4,V,Critical,,',
+    '5G-TX-303,Power Loss,24.3,%,High,,',
+    '5G-TX-303,Connector Temperature,63,°C,Critical,,',
+  ].join('\n');
+
+  it('draws the power path card when a health score sits beside metrics that each have a status', async () => {
+    const result = await handleShowWorkspace({ intent: 'summary', csv: POWER_PATH_CSV }, context());
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('power-path-card');
+    expect(result.chartType).toBe('powerPathCard');
+  });
+
+  it('draws the power path card without a fault or points', async () => {
+    const csv = [
+      'asset,metric,value,unit,status',
+      '5G-TX-303,Electricity Health,69.9,%,',
+      '5G-TX-303,Input Voltage,48.1,V,Stable',
+      '5G-TX-303,Output Voltage,36.4,V,Critical',
+    ].join('\n');
+    const result = await handleShowWorkspace({ intent: 'summary', csv }, context());
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('power-path-card');
+  });
+
+  it('keeps the dial when the metrics beside the health score have no status', async () => {
+    const csv = [
+      'asset,metric,value,unit',
+      '5G-TX-303,Electricity Health,69.9,%',
+      '5G-TX-303,Input Voltage,48.1,V',
+      '5G-TX-303,Output Voltage,36.4,V',
+    ].join('\n');
+    const result = await handleShowWorkspace({ intent: 'summary', csv }, context());
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('status-gauge-widget');
+  });
+
+  it('keeps the dial when the health row asks for a gauge', async () => {
+    const csv = [
+      'metric,value,unit,status,role',
+      'Electricity Health,69.9,%,,gauge',
+      'Input Voltage,48.1,V,Stable,',
+      'Output Voltage,36.4,V,Critical,',
+    ].join('\n');
+    const result = await handleShowWorkspace({ intent: 'summary', csv }, context());
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('status-gauge-widget');
+  });
+
+  it('keeps a KPI when metrics have a status but no health score exists', async () => {
+    const csv = [
+      'metric,value,unit,status',
+      'Input Voltage,48.1,V,Stable',
+      'Output Voltage,36.4,V,Critical',
+    ].join('\n');
+    const result = await handleShowWorkspace({ intent: 'summary', csv }, context());
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).not.toBe('power-path-card');
+  });
+
+  it('draws a named power path card without inventing the health score', async () => {
+    const csv = ['metric,value,unit,status', 'Input Voltage,48.1,V,Stable', 'Output Voltage,36.4,V,Critical'].join(
+      '\n',
+    );
+    const result = await handleShowWorkspace(
+      { intent: 'summary', requestedChart: 'powerPathCard', csv },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('power-path-card');
+    expect(JSON.stringify(result)).not.toContain('"health"');
+  });
+
   it('refuses csv and datasetId together', async () => {
     const result = await handleShowWorkspace(
       { intent: 'comparison', csv: 'a,b\n1,2\n', datasetId: 'x' },
