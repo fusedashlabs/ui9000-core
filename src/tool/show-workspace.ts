@@ -26,6 +26,7 @@ import {
 } from './ingest-table.js';
 import { chartTypeForComponent, workspaceWidgetPayload } from './widget-payload.js';
 import { statusGaugeFits } from './payload/status-gauge-widget.js';
+import { flowSankeyFits } from './payload/flow-sankey-chart.js';
 import { shapeSpec } from './shape-spec.js';
 import {
   assertTraceHasNoRows,
@@ -34,7 +35,7 @@ import {
   type TraceChooser,
   type TraceProposal,
 } from '../trace/trace.js';
-import { CHART_ROLES, chartLabel } from '../catalog/chart-roles.js';
+import { CHART_ROLES, chartLabel, chartName } from '../catalog/chart-roles.js';
 import { dataRolesForChart } from './payload/hosted-chart.js';
 import {
   canDraw,
@@ -353,12 +354,26 @@ export async function handleShowWorkspace(
     profile: runtime.profile,
     catalog: runtime.catalog,
   });
+  const hints = runtime.classified?.map((column) => ({ name: column.column.name, role: column.role }));
+  // Three or more stages draw the flow as flow-sankey-chart. A named chart stays as named.
+  const staged = (id: string | null | undefined) =>
+    id === 'sankey-chart' &&
+    canDraw('flow-sankey-chart', runtime.profile, catalogIds) &&
+    flowSankeyFits(runtime.payload, hints)
+      ? 'flow-sankey-chart'
+      : id;
   let componentId =
     namedDraw ??
     discussion?.drawId ??
-    jevDraw ??
-    (discussion?.awaitingUser ? discussion.suggestion : undefined) ??
-    decision.winner;
+    staged(
+      jevDraw ??
+        (discussion?.awaitingUser ? discussion.suggestion : undefined) ??
+        decision.winner,
+    );
+  const stageWhy =
+    jevDraw && componentId !== jevDraw
+      ? `The flow passes through three or more stages, so it is drawn as ${chartName(componentId!)}.`
+      : '';
   let hostChart = false;
   let choiceWhy = '';
   const guided = guidedChartFamilies(runtime.profile, runtime.classified, parsed.intent);
@@ -368,9 +383,9 @@ export async function handleShowWorkspace(
       !!best &&
       (componentId === best.main || best.alternatives.some((alt) => alt.id === componentId));
     if (best && !inBest) {
-      componentId = best.main;
+      componentId = staged(best.main)!;
       hostChart = true;
-      choiceWhy = `The columns answer "${best.question}", so this is ${chartLabel(best.main)}.`;
+      choiceWhy = `The columns answer "${best.question}", so this is ${chartLabel(componentId)}.`;
     }
   }
   if (
@@ -387,9 +402,9 @@ export async function handleShowWorkspace(
       canDraw(item.main, runtime.profile, catalogIds),
     );
     if (family) {
-      componentId = family.main;
+      componentId = staged(family.main)!;
       hostChart = true;
-      choiceWhy = `The columns answer "${family.question}", so this is ${chartLabel(family.main)}.`;
+      choiceWhy = `The columns answer "${family.question}", so this is ${chartLabel(componentId)}.`;
     }
   }
   if (!componentId) {
@@ -400,6 +415,8 @@ export async function handleShowWorkspace(
   const chosenByJev = Boolean(namedDraw || discussion?.drawId || jevDraw);
   const candidates = [
     componentId,
+    // Below three stages the flow cannot be built as flow-sankey-chart. It stays a two-column Sankey.
+    ...(componentId === 'flow-sankey-chart' ? ['sankey-chart'] : []),
     discussion?.suggestion,
     ...guided.map((family) => family.main),
     decision.winner,
@@ -450,7 +467,7 @@ export async function handleShowWorkspace(
       nextType,
       nextShaped.spec.binds,
       runtime.payload,
-      runtime.classified?.map((column) => ({ name: column.column.name, role: column.role })),
+      hints,
     );
     if (nextPayload == null) {
       if (id === componentId) switchWhy = 'The first chart did not fit these columns';
@@ -527,7 +544,7 @@ export async function handleShowWorkspace(
     : '';
   const argued =
     jev.kind === 'draw'
-      ? jev.why
+      ? [jev.why, stageWhy].filter(Boolean).join(' ')
       : jevMissed
         ? [missedWhy, discussion?.chartWhy].filter(Boolean).join(' ')
         : discussion?.chartWhy || engineWhy;

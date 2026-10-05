@@ -1,6 +1,27 @@
 import { describe, expect, it } from 'vitest';
 
+import { classifyColumns } from '../profiler/roles.js';
+import { parseCsvTable, tableToRows } from '../profiler/table.js';
+import { flowSankeyFits } from './payload/flow-sankey-chart.js';
 import { chartTypeForComponent, workspaceWidgetPayload } from './widget-payload.js';
+
+/** Rows plus the profiler's column roles, the way show_workspace passes them. */
+function flowTable(csv: string) {
+  const table = parseCsvTable(csv);
+  return {
+    rows: tableToRows(table),
+    hints: classifyColumns(table).columns.map((column) => ({
+      name: column.column.name,
+      role: column.role,
+    })),
+  };
+}
+
+const LINK_BINDS = [
+  { role: 'source', field: 'source' },
+  { role: 'target', field: 'target' },
+  { role: 'y', field: 'event_count' },
+];
 
 describe('workspaceWidgetPayload', () => {
   it('maps engine ids to FuseDash chartType when catalog keys are empty', () => {
@@ -662,5 +683,116 @@ describe('workspaceWidgetPayload', () => {
         { team: 'Beta', score: 4 },
       ],
     });
+  });
+});
+
+describe('flow-sankey-chart payload', () => {
+  const fourStages = [
+    'source,target,event_count,severity',
+    'Power Loss,Cable Loss,58,medium',
+    'Power Loss,Connector Loss,42,medium',
+    'Cable Loss,Cable Damage,14,medium',
+    'Connector Loss,Lose Connector,20,medium',
+    'Cable Damage,Output Voltage Low,14,high',
+    'Lose Connector,Output Voltage Low,20,high',
+  ].join('\n');
+
+  it('stages a link table by its longest path and keeps the severity on each link', () => {
+    const { rows, hints } = flowTable(fourStages);
+    expect(
+      workspaceWidgetPayload('flow-sankey-chart', 'flowSankeyChart', LINK_BINDS, rows, hints),
+    ).toEqual({
+      chartType: 'flowSankeyChart',
+      name: 'flow-sankey-chart',
+      stages: ['', '', '', ''],
+      nodes: [
+        { id: 'Power Loss', label: 'Power Loss', stage: 0, value: 100, share: 1 },
+        { id: 'Cable Loss', label: 'Cable Loss', stage: 1, value: 58, share: 0.58 },
+        { id: 'Connector Loss', label: 'Connector Loss', stage: 1, value: 42, share: 0.42 },
+        { id: 'Cable Damage', label: 'Cable Damage', stage: 2, value: 14, share: 0.2414 },
+        { id: 'Lose Connector', label: 'Lose Connector', stage: 2, value: 20, share: 0.4762 },
+        { id: 'Output Voltage Low', label: 'Output Voltage Low', stage: 3, value: 34, share: 0.34 },
+      ],
+      links: [
+        { source: 'Power Loss', target: 'Cable Loss', value: 58, severity: 'medium' },
+        { source: 'Power Loss', target: 'Connector Loss', value: 42, severity: 'medium' },
+        { source: 'Cable Loss', target: 'Cable Damage', value: 14, severity: 'medium' },
+        { source: 'Connector Loss', target: 'Lose Connector', value: 20, severity: 'medium' },
+        { source: 'Cable Damage', target: 'Output Voltage Low', value: 14, severity: 'high' },
+        { source: 'Lose Connector', target: 'Output Voltage Low', value: 20, severity: 'high' },
+      ],
+      valueLabel: 'Event Count',
+      summary: [{ label: 'Total Event Count', value: '100', caption: '', icon: 'list' }],
+    });
+    expect(flowSankeyFits(rows, hints)).toBe(true);
+  });
+
+  it('reads one category column per stage, and keeps a label that sits in two stages apart', () => {
+    const { rows, hints } = flowTable(
+      [
+        'date,root_cause_category,subcategory,specific_cause,impact,event_count,severity',
+        '2026-06-23,Power Loss,Cable Loss,Cable Damage,Output Voltage Low,14,medium',
+        '2026-06-25,Power Loss,Connector Loss,Lose Connector,Output Voltage Low,20,medium',
+        '2026-06-27,Connector Temp,Filter Loss,Filter Loss,Output Voltage High,14,low',
+        '2026-06-29,Power Loss,Cable Loss,Cable Damage,Output Voltage Low,6,medium',
+      ].join('\n'),
+    );
+    const payload = workspaceWidgetPayload(
+      'flow-sankey-chart',
+      'flowSankeyChart',
+      [
+        { role: 'source', field: 'root_cause_category' },
+        { role: 'target', field: 'subcategory' },
+        { role: 'y', field: 'event_count' },
+      ],
+      rows,
+      hints,
+    ) as {
+      stages: string[];
+      nodes: { id: string; label: string; stage: number }[];
+      links: { source: string; target: string; value: number; severity?: string }[];
+      summary: unknown[];
+    };
+    expect(payload.stages).toEqual(['Root Cause Category', 'Subcategory', 'Specific Cause', 'Impact']);
+    expect(payload.nodes.filter((node) => node.label === 'Filter Loss')).toEqual([
+      expect.objectContaining({ id: '1:Filter Loss', stage: 1 }),
+      expect.objectContaining({ id: '2:Filter Loss', stage: 2 }),
+    ]);
+    expect(payload.links).toContainEqual({
+      source: '0:Power Loss',
+      target: '1:Cable Loss',
+      value: 20,
+      severity: 'medium',
+    });
+    expect(payload.links).toContainEqual({
+      source: '1:Filter Loss',
+      target: '2:Filter Loss',
+      value: 14,
+      severity: 'low',
+    });
+    expect(payload.summary).toEqual([
+      { label: 'Total Event Count', value: '54', caption: 'For 7 days', icon: 'list' },
+      { label: 'Time range', value: '', caption: 'June 23 – June 29, 2026', icon: 'calendar' },
+    ]);
+  });
+
+  it('leaves a two-stage flow to the two-column sankey', () => {
+    const { rows, hints } = flowTable(
+      'source,target,event_count\nPower Loss,Cable Loss,58\nInput Voltage,AC Main Low,62\n',
+    );
+    expect(
+      workspaceWidgetPayload('flow-sankey-chart', 'flowSankeyChart', LINK_BINDS, rows, hints),
+    ).toBeNull();
+    expect(flowSankeyFits(rows, hints)).toBe(false);
+  });
+
+  it('refuses a cycle', () => {
+    const { rows, hints } = flowTable(
+      'source,target,event_count\nA,B,5\nB,C,4\nC,A,3\nC,D,2\n',
+    );
+    expect(
+      workspaceWidgetPayload('flow-sankey-chart', 'flowSankeyChart', LINK_BINDS, rows, hints),
+    ).toBeNull();
+    expect(flowSankeyFits(rows, hints)).toBe(false);
   });
 });

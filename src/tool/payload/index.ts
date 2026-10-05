@@ -3,6 +3,7 @@ import type { WorkspaceSpec } from '../../spec/workspace-spec.js';
 import { bindFieldMap } from './bind-fields.js';
 import { barChartPayload } from './bar-chart.js';
 import { chartTypeForComponent } from './chart-type.js';
+import { flowSankeyChartPayload } from './flow-sankey-chart.js';
 import { histogramChartPayload } from './histogram-chart.js';
 import { kpiWidgetPayload } from './kpi-widget.js';
 import { hostedChartPayload } from './hosted-chart.js';
@@ -26,6 +27,7 @@ const PAYLOAD_BY_COMPONENT: Record<string, PayloadBuilder> = {
   'histogram-chart': histogramChartPayload,
   'map-chart': mapChartPayload,
   'network-graph': networkGraphPayload,
+  'flow-sankey-chart': flowSankeyChartPayload,
   'kpi-widget': (chartType, fields, rows, columns) => {
     void chartType;
     return kpiWidgetPayload(fields, rows, columns);

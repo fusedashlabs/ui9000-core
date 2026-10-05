@@ -903,6 +903,110 @@ describe('show_workspace fail-closed', () => {
     expect(result.suggestion).toBe('bar-chart');
   });
 
+  const FOUR_STAGE_FLOW = [
+    'source,target,event_count,severity',
+    'Power Loss,Cable Loss,58,medium',
+    'Power Loss,Connector Loss,42,medium',
+    'Cable Loss,Cable Damage,14,medium',
+    'Connector Loss,Lose Connector,20,medium',
+    'Cable Damage,Output Voltage Low,14,high',
+    'Lose Connector,Output Voltage Low,20,high',
+  ].join('\n');
+  const TWO_STAGE_FLOW = 'source,target,event_count\nPower Loss,Cable Loss,58\nInput Voltage,AC Main Low,62\n';
+  const jevChooses = (choice: string) => ({
+    askJev: async () => ({ answers: { chart: { type: 'choice' as const, choice, confidence: 0.9 } } }),
+  });
+
+  it('draws a flow through three or more stages as the flow sankey', async () => {
+    const result = await handleShowWorkspace({ intent: 'graph', csv: FOUR_STAGE_FLOW }, context());
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('flow-sankey-chart');
+    expect(result.chartType).toBe('flowSankeyChart');
+    expect(result.spec.binds).toEqual([
+      { role: 'source', field: 'source' },
+      { role: 'target', field: 'target' },
+      { role: 'y', field: 'event_count' },
+    ]);
+    expect(result.chartWhy).toContain('flow sankey chart (trace how much flows through three or more stages');
+    expect(result.chartWhy).not.toContain('flow-sankey-chart');
+  });
+
+  it('keeps a two-stage flow on the sankey', async () => {
+    const result = await handleShowWorkspace({ intent: 'graph', csv: TWO_STAGE_FLOW }, context());
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('sankey-chart');
+    expect(result.chartType).toBe('sankeyChart');
+  });
+
+  it('draws the flow class as the flow sankey when Jev picks it for three or more stages', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'graph', utterance: 'Trace power loss from cause to impact.', csv: FOUR_STAGE_FLOW },
+      context(jevChooses('sankey-chart')),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('flow-sankey-chart');
+    expect(result.chartWhy).toContain('Jev selected sankey chart');
+    expect(result.chartWhy).toContain('three or more stages, so it is drawn as flow sankey chart');
+    expect(result.trace.chosen).toMatchObject({ id: 'flow-sankey-chart', by: 'jev' });
+  });
+
+  it('keeps the flow class on the sankey when Jev picks it for two stages', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'graph', utterance: 'Trace the moves.', csv: TWO_STAGE_FLOW },
+      context(jevChooses('sankey-chart')),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('sankey-chart');
+    expect(result.chartWhy).not.toContain('three or more stages');
+  });
+
+  it('draws a named flow sankey', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'graph',
+        utterance: 'Show it as a flow sankey.',
+        requestedChart: 'flow sankey',
+        csv: FOUR_STAGE_FLOW,
+      },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('flow-sankey-chart');
+    expect(result.chartWhy).toContain('is in this group, so it stays');
+    expect(result.trace.chosen).toMatchObject({ id: 'flow-sankey-chart', by: 'named' });
+  });
+
+  it('draws the sankey when a named flow sankey has only two stages', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'graph',
+        utterance: 'Show it as a flow sankey.',
+        requestedChart: 'flow sankey',
+        csv: TWO_STAGE_FLOW,
+      },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('sankey-chart');
+    expect(result.chartWhy).toContain('did not fit these columns, so this is sankey chart');
+  });
+
+  it('keeps a named sankey on three or more stages', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'graph', utterance: 'Show it as a sankey.', requestedChart: 'sankey', csv: FOUR_STAGE_FLOW },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('sankey-chart');
+  });
+
   it('draws a supported chart when the named chart is unknown', async () => {
     const result = await handleShowWorkspace(
       { intent: 'comparison', requestedChart: 'not-a-chart' },
