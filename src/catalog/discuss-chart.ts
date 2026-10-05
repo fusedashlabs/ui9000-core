@@ -288,15 +288,19 @@ export function chartFitsProfile(id: string, profile: DataProfile): boolean {
   return true;
 }
 
-/** The one chart the words name, or nothing when they name zero or several. */
+/**
+ * The one chart the words name, or nothing when they name zero or several.
+ * A name inside a longer one is that longer chart: "flow sankey" is not also "sankey".
+ */
 export function chartNamedByWords(utterance: string): ChartId | undefined {
-  let found: ChartId | undefined;
-  for (const id of Object.keys(CHART_ROLES) as ChartId[]) {
-    if (!utteranceNamesChart(utterance, id)) continue;
-    if (found && found !== id) return undefined;
-    found = id;
-  }
-  return found;
+  const named = (Object.keys(CHART_ROLES) as ChartId[]).filter((id) =>
+    utteranceNamesChart(utterance, id),
+  );
+  const stem = (id: string) => normalizeName(id.replace(/-chart$/, ''));
+  const found = named.filter(
+    (id) => !named.some((other) => other !== id && stem(other).includes(stem(id))),
+  );
+  return found.length === 1 ? found[0] : undefined;
 }
 
 function preferenceFor(intent: Intent, profile: DataProfile): string[] {
@@ -437,9 +441,11 @@ function whyInFamily(id: string, family: ChartFamily): string {
 
 function whyChart(id: string): string {
   const named = chartLabel(id);
-  const family = CHART_FAMILIES.find((item) => item.main === id);
-  if (!family) return named;
-  return `${named}. The columns answer "${family.question}" (${family.data}).`;
+  const host =
+    CHART_FAMILIES.find((item) => item.main === id) ??
+    CHART_FAMILIES.find((item) => item.alternatives.some((alt) => alt.id === id));
+  if (!host) return named;
+  return `${named}. The columns answer "${host.question}" (${host.data}).`;
 }
 
 function whyDrawnAnyway(id: string, suggestionWhy: string): string {
