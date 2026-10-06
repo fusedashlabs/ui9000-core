@@ -253,6 +253,79 @@ describe('show_workspace', () => {
     expect(result.spec.component).toBe('kpi-widget');
   });
 
+  it('still draws a loss indicator when Jev stopped on the KPI card', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'summary',
+        utterance: 'Summarise electrical loss.',
+        csv: 'label,value,unit,min,max,okTo,warningTo,trend\nElectrical Loss,24.3,%,0,30,10,20,down\n',
+      },
+      context({
+        askJev: async () => ({
+          answers: {
+            chart: { type: 'choice', choice: 'kpi-widget', confidence: 0.9 },
+          },
+        }),
+      }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('loss-indicator');
+    expect(result.chartType).toBe('lossIndicator');
+    expect(result.trace.chosen.by).toBe('engine');
+  });
+
+  it('draws a loss indicator when one metric already has a scale and thresholds', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'summary',
+        csv: 'label,value,unit,min,max,okTo,warningTo,trend\nElectrical Loss,24.3,%,0,30,10,20,down\n',
+      },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('loss-indicator');
+    expect(result.chartType).toBe('lossIndicator');
+  });
+
+  it('draws a loss indicator when a health score has only its own scale', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'summary',
+        csv: 'unitHealth,min,max,okTo\n72.8,0,100,80\n',
+      },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('loss-indicator');
+    expect(result.chartType).toBe('lossIndicator');
+  });
+
+  it('keeps a dial when a health score sits beside other measures', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'summary',
+        csv: 'unitHealth,txPower,min,max,okTo\n72.8,28,0,100,80\n',
+      },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('status-gauge-widget');
+  });
+
+  it('keeps a KPI for a plain number without a threshold scale', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'summary', csv: 'loss\n24.3\n' },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('kpi-widget');
+  });
+
   it('draws status cards when the gauge is requested without a health score', async () => {
     const result = await handleShowWorkspace(
       { intent: 'summary', requestedChart: 'statusGaugeWidget', csv: 'txPower,temp\n28,68\n' },
@@ -393,6 +466,8 @@ describe('show_workspace', () => {
     expect(isDrawn(held)).toBe(true);
     if (!isDrawn(held)) return;
     expect(held.spec.component).toBe('approval-bar');
+    expect(held.summary.startsWith('approval bar for form')).toBe(true);
+    expect(held.summary).not.toContain('this chart');
     expect(held.trace.outcome).toBe('held');
     expect(held.proposal).toMatchObject({
       action: 'approve',

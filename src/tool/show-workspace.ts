@@ -25,7 +25,7 @@ import {
   type StoredDataset,
 } from './ingest-table.js';
 import { chartTypeForComponent, workspaceWidgetPayload } from './widget-payload.js';
-import { statusGaugeFits } from './payload/status-gauge-widget.js';
+import { headlineChart, isHeadlineChart } from './payload/headline.js';
 import { shapeSpec } from './shape-spec.js';
 import {
   assertTraceHasNoRows,
@@ -34,7 +34,7 @@ import {
   type TraceChooser,
   type TraceProposal,
 } from '../trace/trace.js';
-import { CHART_ROLES, chartLabel } from '../catalog/chart-roles.js';
+import { CHART_ROLES, chartLabel, chartName, chartRole } from '../catalog/chart-roles.js';
 import { dataRolesForChart } from './payload/hosted-chart.js';
 import {
   canDraw,
@@ -361,6 +361,7 @@ export async function handleShowWorkspace(
     decision.winner;
   let hostChart = false;
   let choiceWhy = '';
+  let headlineShift = false;
   const guided = guidedChartFamilies(runtime.profile, runtime.classified, parsed.intent);
   if (!namedDraw && !discussion?.drawId && !jevDraw && intentGuidesCharts(parsed.intent)) {
     const best = guided.find((family) => canDraw(family.main, runtime.profile, catalogIds));
@@ -373,14 +374,21 @@ export async function handleShowWorkspace(
       choiceWhy = `The columns answer "${best.question}", so this is ${chartLabel(best.main)}.`;
     }
   }
-  if (
-    !namedDraw &&
-    !discussion?.drawId &&
-    !jevDraw &&
-    componentId === 'kpi-widget' &&
-    statusGaugeFits(runtime.payload)
-  ) {
-    componentId = 'status-gauge-widget';
+  const pinned = Boolean(namedDraw || discussion?.drawId);
+  if (!pinned && componentId && isHeadlineChart(componentId)) {
+    const drawing = headlineChart(runtime.payload);
+    if (drawing !== componentId) {
+      const family = chartFamiliesFor(runtime.profile, runtime.classified, parsed.intent).find(
+        (item) => item.id === 'headline',
+      );
+      const when = family?.alternatives.find((item) => item.id === drawing)?.when;
+      componentId = drawing;
+      hostChart = true;
+      headlineShift = true;
+      choiceWhy = when
+        ? `${when} So this is ${chartLabel(drawing)}.`
+        : `So this is ${chartLabel(drawing)}.`;
+    }
   }
   if (!componentId) {
     const family = chartFamiliesFor(runtime.profile, runtime.classified, parsed.intent).find((item) =>
@@ -531,7 +539,7 @@ export async function handleShowWorkspace(
       : jevMissed
         ? [missedWhy, discussion?.chartWhy].filter(Boolean).join(' ')
         : discussion?.chartWhy || engineWhy;
-  const chartWhy = switched ? choiceWhy : argued;
+  const chartWhy = switched || headlineShift ? choiceWhy : argued;
   const recorded = chosenByJev
     ? governTrace(
         {
@@ -545,7 +553,7 @@ export async function handleShowWorkspace(
         (winner?.allowedActions ?? allowedActions).filter((action) => SPEC_ACTION_SET.has(action)),
       )
     : decision.trace;
-  const by: TraceChooser = switched
+  const by: TraceChooser = switched || headlineShift
     ? 'engine'
     : jev.kind === 'draw'
       ? jev.by
@@ -570,7 +578,7 @@ export async function handleShowWorkspace(
     summary: buildSummary(
       validated.spec,
       parsed.intent,
-      chartLabel(componentId),
+      chartRole(componentId) ? chartLabel(componentId) : chartName(componentId),
       choiceWhy || (hostChart ? '' : trace.tieBreak),
     ),
     ...(chartWhy ? { chartWhy } : {}),

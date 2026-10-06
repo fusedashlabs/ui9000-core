@@ -226,6 +226,13 @@ export const CHART_ROLES = {
     data: 'A health or condition score that already exists, plus at least one other measure. Optional unit, status, min, and max.',
     visual: 'Semicircular health gauge and KPI cards with ticked range bars.',
   },
+  'loss-indicator': {
+    id: 'loss-indicator',
+    chartTypeKeys: ['lossIndicator'],
+    role: 'Read one metric as its position on a threshold scale.',
+    data: 'Exactly one metric that already has a minimum, a maximum, and operating thresholds. Optional unit and trend. Not a health score beside other measures, and not several metrics.',
+    visual: 'Coloured ticks, a marker on the current value, and an optional trend arrow. Ticks past the marker stay grey.',
+  },
   'step-line-chart': {
     id: 'step-line-chart',
     chartTypeKeys: ['stepLineChart', 'ksPlotChart', 'rocCurveChart'],
@@ -403,6 +410,10 @@ export const CHART_FAMILIES = [
     main: 'kpi-widget',
     alternatives: [
       { id: 'status-gauge-widget', when: 'At least two measures, and one of them is already a health or condition score. The dial is that score. Do not invent it.' },
+      {
+        id: 'loss-indicator',
+        when: 'Exactly one metric already has a minimum, a maximum, and operating thresholds. Draw that reading on the scale. A health score beside other measures stays the dial. A plain number, or several metrics, stays the KPI card.',
+      },
     ],
   },
   {

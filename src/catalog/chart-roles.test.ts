@@ -47,6 +47,19 @@ describe('chart roles', () => {
     expect([...seen].sort()).toEqual([...widgets.keys()].sort());
   });
 
+  it('keeps the dial and the loss indicator as headline alternatives, in that order', () => {
+    const drawings = drawingsFor('kpi-widget');
+    expect(drawings?.family.id).toBe('headline');
+    expect(drawings?.alternatives.map((role) => role.id)).toEqual([
+      'status-gauge-widget',
+      'loss-indicator',
+    ]);
+    expect(drawings?.family.alternatives.map((alt) => alt.id)).toEqual([
+      'status-gauge-widget',
+      'loss-indicator',
+    ]);
+  });
+
   it('treats bar as the comparison main, with lollipop, line, and area as the same data', () => {
     const drawings = drawingsFor('bar-chart');
     expect(drawings?.family.id).toBe('category-magnitude');

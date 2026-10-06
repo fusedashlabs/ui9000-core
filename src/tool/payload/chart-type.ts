@@ -4,6 +4,7 @@ const CHART_TYPE_BY_COMPONENT: Record<string, string> = {
   'map-chart': 'mapChart',
   'kpi-widget': 'KPI',
   'status-gauge-widget': 'statusGaugeWidget',
+  'loss-indicator': 'lossIndicator',
   'network-graph': 'networkGraphChart',
   table: 'customWidget',
   text: 'customWidget',

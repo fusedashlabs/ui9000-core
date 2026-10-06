@@ -293,6 +293,19 @@ describe('workspaceWidgetPayload', () => {
     });
   });
 
+  it('does not turn the scale columns into dial cards', () => {
+    const payload = workspaceWidgetPayload(
+      'status-gauge-widget',
+      'statusGaugeWidget',
+      [],
+      [{ unitHealth: 72.8, txPower: 28, min: 0, max: 100, okTo: 80 }],
+    ) as { data: Array<{ key: string; role: string; value: number }> };
+    expect(payload.data).toEqual([
+      { key: 'unitHealth', role: 'gauge', value: 72.8 },
+      { key: 'txPower', role: 'metric', value: 28 },
+    ]);
+  });
+
   it('keeps status rows as cards when no health score is present', () => {
     expect(
       workspaceWidgetPayload(
@@ -310,6 +323,49 @@ describe('workspaceWidgetPayload', () => {
         { key: 'temp', role: 'metric', value: 68 },
       ],
     });
+  });
+
+  it('builds a loss indicator from one scaled metric and its thresholds', () => {
+    const payload = workspaceWidgetPayload(
+      'loss-indicator',
+      'lossIndicator',
+      [],
+      [
+        {
+          label: 'Electrical Loss',
+          value: 24.3,
+          unit: '%',
+          min: 0,
+          max: 30,
+          ticks: '0,10,20,30',
+          okTo: 10,
+          warningTo: 20,
+          trend: 'down',
+        },
+      ],
+    );
+    expect(payload).toMatchObject({
+      chartType: 'lossIndicator',
+      name: 'Electrical Loss',
+      yAxe: ['value'],
+      data: [{ value: 24.3, trend: 'down', ticks: [0, 10, 20, 30] }],
+      axisDetails: {
+        value: { label: 'Electrical Loss', measure_unit: '%' },
+      },
+      limitsDomains: [[0, 30]],
+      domainsLimits: [
+        { values: [0, 10], color: '#3ad07c', level: 'ok', orientation: 'horizontal' },
+        { values: [10, 20], color: '#f5c451', level: 'warning', orientation: 'horizontal' },
+        { values: [20, 30], color: '#ef3b4a', level: 'critical', orientation: 'horizontal' },
+      ],
+    });
+    expect(payload).not.toHaveProperty('uniqueValues');
+  });
+
+  it('does not build a loss indicator from two metrics', () => {
+    expect(
+      workspaceWidgetPayload('loss-indicator', 'lossIndicator', [], [{ loss: 24.3, noise: 1, min: 0, max: 30, okTo: 10 }]),
+    ).toBeNull();
   });
 
   it('does not invent a dial from a single score column', () => {
