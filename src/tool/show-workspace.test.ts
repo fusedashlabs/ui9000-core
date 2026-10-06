@@ -391,6 +391,64 @@ describe('show_workspace', () => {
     expect(result.spec.component).toBe('status-gauge-widget');
   });
 
+  const INCIDENTS_CSV = ['status,incidents,radius_km', 'Active,89,5', 'In progress,46,5', 'Total,102,5'].join('\n');
+
+  it('draws the incidents review card for incident counts by state', async () => {
+    const result = await handleShowWorkspace({ intent: 'summary', csv: INCIDENTS_CSV }, context());
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('incidents-review-card');
+    expect(result.chartType).toBe('incidentsReviewCard');
+    expect(result.spec.component).not.toMatch(/bar|pie|donut/);
+  });
+
+  it('draws the incidents review card from one row of incident columns, without a filter', async () => {
+    const csv = ['active_incidents,in_progress_incidents,total_incidents', '89,46,102'].join('\n');
+    const result = await handleShowWorkspace({ intent: 'summary', csv }, context());
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('incidents-review-card');
+  });
+
+  it('draws the incidents review card for four states', async () => {
+    const csv = ['incident_state,count', 'New,14', 'Active,89', 'In progress,46', 'Resolved,31'].join('\n');
+    const result = await handleShowWorkspace({ intent: 'summary', csv }, context());
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('incidents-review-card');
+  });
+
+  it('keeps plain headline numbers as a KPI', async () => {
+    for (const csv of [
+      ['active,in_progress,total', '89,46,102'].join('\n'),
+      ['status,count', 'Pending,12', 'Shipped,30'].join('\n'),
+      ['incidents', '102'].join('\n'),
+    ]) {
+      const result = await handleShowWorkspace({ intent: 'summary', csv }, context());
+      expect(isDrawn(result), csv).toBe(true);
+      if (!isDrawn(result)) return;
+      expect(result.spec.component, csv).toBe('kpi-widget');
+    }
+  });
+
+  it('keeps a KPI when incident counts split by another dimension', async () => {
+    const csv = ['region,status,incidents', 'North,Active,10', 'South,Active,12', 'North,In progress,4'].join('\n');
+    const result = await handleShowWorkspace({ intent: 'summary', csv }, context());
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).not.toBe('incidents-review-card');
+  });
+
+  it('still draws the dial for a health score beside other measures', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'summary', csv: 'unitHealth,txPower,temp\n72.8,28,68\n' },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('status-gauge-widget');
+  });
+
   it('refuses csv and datasetId together', async () => {
     const result = await handleShowWorkspace(
       { intent: 'comparison', csv: 'a,b\n1,2\n', datasetId: 'x' },

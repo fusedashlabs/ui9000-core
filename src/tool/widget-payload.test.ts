@@ -376,6 +376,102 @@ describe('workspaceWidgetPayload', () => {
     });
   });
 
+  const INCIDENT_ROWS = [
+    { status: 'Active', incidents: 89, radius_km: 5 },
+    { status: 'In progress', incidents: 46, radius_km: 5 },
+    { status: 'Total', incidents: 102, radius_km: 5 },
+  ];
+
+  it('sends the incidents review card the title, the filter, the counts, the total, and the track', () => {
+    expect(workspaceWidgetPayload('incidents-review-card', 'incidentsReviewCard', [], INCIDENT_ROWS)).toEqual({
+      chartType: 'incidentsReviewCard',
+      title: 'Incidents review',
+      filter: { label: '5 km', kind: 'radius' },
+      counts: [
+        { label: 'Active', value: 89 },
+        { label: 'In progress', value: 46 },
+      ],
+      total: 102,
+      track: true,
+    });
+  });
+
+  it('keeps incident counts that do not sum to the total, and sends no filter without one', () => {
+    const rows = INCIDENT_ROWS.map(({ radius_km, ...row }) => {
+      void radius_km;
+      return row;
+    });
+    const payload = workspaceWidgetPayload('incidents-review-card', 'incidentsReviewCard', [], rows) as Record<
+      string,
+      unknown
+    >;
+    expect(payload).not.toHaveProperty('filter');
+    expect(payload.total).toBe(102);
+  });
+
+  it('reads one row of incident columns, a named scope, a title, and tones', () => {
+    expect(
+      workspaceWidgetPayload('incidents-review-card', 'incidentsReviewCard', [], [
+        { title: 'Network incidents', site: 'North-07', active_incidents: 89, incidents_in_progress: '46', incidents: 102 },
+      ]),
+    ).toEqual({
+      chartType: 'incidentsReviewCard',
+      title: 'Network incidents',
+      filter: { label: 'North-07', kind: 'site' },
+      counts: [
+        { label: 'Active', value: 89 },
+        { label: 'In progress', value: 46 },
+      ],
+      total: 102,
+      track: true,
+    });
+    const toned = workspaceWidgetPayload('incidents-review-card', 'incidentsReviewCard', [], [
+      { incident_status: 'Open', count: 3, color: 'Amber' },
+      { incident_status: 'Closed', count: 9, color: 'green' },
+    ]) as { counts: unknown };
+    expect(toned.counts).toEqual([
+      { label: 'Open', value: 3, tone: 'amber' },
+      { label: 'Closed', value: 9, tone: 'green' },
+    ]);
+  });
+
+  it('turns the track off for categories that are not a lifecycle, or when the table says so', () => {
+    const severity = workspaceWidgetPayload('incidents-review-card', 'incidentsReviewCard', [], [
+      { severity: 'Critical', incidents: 4 },
+      { severity: 'Major', incidents: 11 },
+    ]) as Record<string, unknown>;
+    expect(severity.track).toBe(false);
+    const off = workspaceWidgetPayload(
+      'incidents-review-card',
+      'incidentsReviewCard',
+      [],
+      INCIDENT_ROWS.map((row) => ({ ...row, lifecycle: 'no' })),
+    ) as Record<string, unknown>;
+    expect(off.track).toBe(false);
+    expect(off.counts).toHaveLength(2);
+    // A `lifecycle` flag before the state column is still the flag, not the states.
+    const flagFirst = workspaceWidgetPayload('incidents-review-card', 'incidentsReviewCard', [], [
+      { lifecycle: 'no', status: 'Active', incidents: 89 },
+      { lifecycle: 'no', status: 'In progress', incidents: 46 },
+    ]) as Record<string, unknown>;
+    expect(flagFirst.counts).toEqual([
+      { label: 'Active', value: 89 },
+      { label: 'In progress', value: 46 },
+    ]);
+    expect(flagFirst.track).toBe(false);
+  });
+
+  it('refuses the incidents review card without incidents, with mixed scopes, or with one number', () => {
+    const build = (rows: Record<string, unknown>[]) =>
+      workspaceWidgetPayload('incidents-review-card', 'incidentsReviewCard', [], rows);
+    expect(build([{ status: 'Active', count: 1 }, { status: 'Done', count: 2 }])).toBeNull();
+    expect(build([{ active: 89, in_progress: 46 }])).toBeNull();
+    expect(build([{ active_incidents: 89, temperature: 21 }])).toBeNull();
+    expect(build([{ status: 'Active', incidents: 1, region: 'North' }, { status: 'Done', incidents: 2, region: 'South' }])).toBeNull();
+    expect(build([{ status: 'Active', incidents: 1 }, { status: 'Active', incidents: 2 }])).toBeNull();
+    expect(build([{ incidents: 102 }])).toBeNull();
+  });
+
   it('averages a score and does not average a name that merely contains those letters', () => {
     const rows = [{ health_score: 2 }, { health_score: 4 }];
     expect(

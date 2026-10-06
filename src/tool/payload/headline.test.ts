@@ -21,6 +21,12 @@ describe('headlineChart', () => {
     expect(headlineChart([{ unitHealth: 72.8, min: 0, max: 100, okTo: 80 }])).toBe('loss-indicator');
   });
 
+  it('calls the incidents review card for incident counts by state', () => {
+    expect(headlineChart([{ openIncidents: 12, acknowledgedIncidents: 5, resolvedIncidents: 30 }])).toBe(
+      'incidents-review-card',
+    );
+  });
+
   it('keeps a KPI for a plain number or for several metrics', () => {
     expect(headlineChart([{ loss: 24.3 }])).toBe('kpi-widget');
     expect(headlineChart([{ loss: 24.3, noise: 1, min: 0, max: 30, okTo: 10 }])).toBe('kpi-widget');

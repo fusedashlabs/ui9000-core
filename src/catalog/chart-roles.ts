@@ -240,6 +240,13 @@ export const CHART_ROLES = {
     data: 'Exactly one metric that already has a minimum, a maximum, and operating thresholds. Optional unit and trend. Not a health score beside other measures, and not several metrics.',
     visual: 'Coloured ticks, a marker on the current value, and an optional trend arrow. Ticks past the marker stay grey.',
   },
+  'incidents-review-card': {
+    id: 'incidents-review-card',
+    chartTypeKeys: ['incidentsReviewCard'],
+    role: 'Summarise incidents for one scope: aggregated counts by state and a total.',
+    data: 'Incident counts by state for a network, region, site, or area. Optional total, filter, and lifecycle.',
+    visual: 'Card with a title, a filter, the counts as headline numbers, and one lifecycle track under them.',
+  },
   'step-line-chart': {
     id: 'step-line-chart',
     chartTypeKeys: ['stepLineChart', 'ksPlotChart', 'rocCurveChart'],
@@ -424,6 +431,10 @@ export const CHART_FAMILIES = [
       {
         id: 'loss-indicator',
         when: 'Exactly one metric already has a minimum, a maximum, and operating thresholds. Draw that reading on the scale. A health score beside other measures stays the dial. A plain number, or several metrics, stays the KPI card.',
+      },
+      {
+        id: 'incidents-review-card',
+        when: 'The numbers are aggregated incident counts by state, for a network, region, site, or area. The filter and the lifecycle track are optional. The counts are headlines and need not sum to the total. A plain set of headline numbers stays a KPI.',
       },
     ],
   },
