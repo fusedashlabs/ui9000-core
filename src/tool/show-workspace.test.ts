@@ -272,7 +272,7 @@ describe('show_workspace', () => {
     if (!isDrawn(result)) return;
     expect(result.spec.component).toBe('loss-indicator');
     expect(result.chartType).toBe('lossIndicator');
-    expect(result.trace.chosen.by).toBe('engine');
+    expect(result.trace.chosen).toMatchObject({ by: 'engine' });
   });
 
   it('draws a loss indicator when one metric already has a scale and thresholds', async () => {
