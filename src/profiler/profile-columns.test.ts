@@ -108,6 +108,29 @@ describe('column roles', () => {
     expect(profileColumns(table('country,value', 'FR,3', 'DE,9')).hasGeo).toBe(true);
   });
 
+  it('counts a place name as the comparison groups as well as geography', () => {
+    const profile = profileColumns(
+      table(
+        'region,sales',
+        'China,12900000',
+        'Europe,4300000',
+        'North America,1800000',
+        'Rest of World,1700000',
+      ),
+    );
+    expect(profile.hasGeo).toBe(true);
+    expect(profile.hasCategory).toBe(true);
+    expect(profile.categoryCardinality).toBe(4);
+    expect(profile.hasNumericMetric).toBe(true);
+  });
+
+  it('does not count lat/lng coordinates as comparison groups', () => {
+    const profile = profileColumns(table('lat,lng', '51.5,-0.12', '53.4,-2.24'));
+    expect(profile.hasGeo).toBe(true);
+    expect(profile.hasCategory).toBe(false);
+    expect(profile.categoryCardinality).toBe(0);
+  });
+
   it('keeps a lone lat column out of geo', () => {
     expect(profileColumns(table('lat,value', '51.5,3')).hasGeo).toBe(false);
   });

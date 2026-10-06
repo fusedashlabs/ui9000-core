@@ -190,6 +190,61 @@ describe('show_workspace', () => {
     expect(hasRowObjects(result)).toBe(false);
   });
 
+  it('draws a named bar when the groups sit in a region column', async () => {
+    const channel = memoryChannel();
+    const result = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        csv: 'region,sales\nChina,12900000\nEurope,4300000\nNorth America,1800000\nRest of World,1700000',
+        utterance: 'Compare 2025 EV sales by region as a bar chart.',
+        requestedChart: 'bar chart',
+      },
+      context({
+        signDataLink: channel.signDataLink,
+        loadDataset: channel.loadDataset,
+      }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('bar-chart');
+    expect(result.spec.binds).toEqual([
+      { role: 'category', field: 'region' },
+      { role: 'metric', field: 'sales' },
+    ]);
+    expect(result.suggestion).toBeUndefined();
+    expect(result.suggestionWhy).toBeUndefined();
+    expect(result.chartWhy).toContain('is the chart for this group');
+    expect(result.chartWhy).not.toContain('Drawing it');
+    expect(JSON.stringify(result)).not.toContain('China');
+    expect(JSON.stringify(result)).not.toContain('awaitingUser');
+    const widget = await readViaHandle(result.spec, channel.readDataLink);
+    expect(widget).toMatchObject({
+      chartType: 'barChart',
+      xAxe: ['region'],
+      yAxe: ['sales'],
+      data: [
+        { region: 'China', sales: 12900000 },
+        { region: 'Europe', sales: 4300000 },
+        { region: 'North America', sales: 1800000 },
+        { region: 'Rest of World', sales: 1700000 },
+      ],
+    });
+  });
+
+  it('still maps a country column when the intent is spatial', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'spatial', csv: 'country,incidents\nFR,12\nDE,11\n' },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('map-chart');
+    expect(result.spec.binds).toEqual([
+      { role: 'geo', field: 'country' },
+      { role: 'metric', field: 'incidents' },
+    ]);
+  });
+
   it('profiles a pasted csv instead of the server demo table', async () => {
     const remembered: string[] = [];
     const result = await handleShowWorkspace(

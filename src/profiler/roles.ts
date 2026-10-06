@@ -152,6 +152,15 @@ function isTemporal(key: string, column: TableColumn): boolean {
 
 const NON_NUMBER = new Set(['n/a', 'na', 'null', 'none', 'nan', '-']);
 
+/**
+ * A region-id header is geo so a map can join it. The same text values are
+ * also the groups a bar compares ("China", "Rest of World"). Coordinates are
+ * not groups.
+ */
+export function isPlaceLabel(entry: ClassifiedColumn): boolean {
+  return entry.role === 'geo' && !isNumeric(entry.column);
+}
+
 /** A column is numeric when at least 90% of its filled cells are numbers. Sentinels such as n/a do not count. */
 function isNumeric(column: TableColumn): boolean {
   const values = filled(column).filter((value) => !NON_NUMBER.has(value.toLowerCase()));
