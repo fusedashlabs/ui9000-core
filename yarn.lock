@@ -352,7 +352,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@fusedashlabs/ui9000-workspace@workspace:."
   dependencies:
-    "@fusedashlabs/widgets": "npm:0.7.0"
+    "@fusedashlabs/widgets": "npm:0.7.2"
     "@modelcontextprotocol/ext-apps": "npm:1.7.5"
     "@modelcontextprotocol/sdk": "npm:1.30.0"
     "@types/geojson": "npm:^7946.0.14"
@@ -368,9 +368,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@fusedashlabs/widgets@npm:0.7.0":
-  version: 0.7.0
-  resolution: "@fusedashlabs/widgets@npm:0.7.0"
+"@fusedashlabs/widgets@npm:0.7.2":
+  version: 0.7.2
+  resolution: "@fusedashlabs/widgets@npm:0.7.2"
   dependencies:
     d3: "npm:^7.9.0"
     d3-axis: "npm:^3.0.0"
@@ -388,7 +388,7 @@ __metadata:
   peerDependenciesMeta:
     mapbox-gl:
       optional: true
-  checksum: 10c0/880ae22f3ecd2aaac875f2fc53ca343d28e0c172aef0f1d4f0fd9079eb9538a5373187699f26213d545283d9182b94df7355f7809a5a5c654a03c6ddf765b5a0
+  checksum: 10c0/07f35a150becb4b336e3f4456e842cd8128fc3a30eb7e211df5890613d23c644cf8e06b9b8da35f13130527ddb6c550a1522e512ca9b0db082f15bc619ea5d5d
   languageName: node
   linkType: hard
 
