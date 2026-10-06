@@ -719,4 +719,140 @@ describe('workspaceWidgetPayload', () => {
       ],
     });
   });
+
+  it('draws a band from an entity, a segment, and a share of that row', () => {
+    expect(
+      workspaceWidgetPayload(
+        'band-utilization-chart',
+        'bandUtilizationChart',
+        [
+          { role: 'label', field: 'sector' },
+          { role: 'series', field: 'band' },
+          { role: 'y', field: 'share' },
+        ],
+        [
+          { sector: 'A1', band: 'Low', share: '22', title: 'Band Utilization by Sector' },
+          { sector: 'A1', band: 'Medium', share: '48', title: 'Band Utilization by Sector' },
+          { sector: 'A1', band: 'High', share: '30', title: 'Band Utilization by Sector' },
+          { sector: 'B1', band: 'Low', share: '18', title: 'Band Utilization by Sector' },
+          { sector: 'B1', band: 'Medium', share: '52', title: 'Band Utilization by Sector' },
+          { sector: 'B1', band: 'High', share: '30', title: 'Band Utilization by Sector' },
+        ],
+      ),
+    ).toEqual({
+      chartType: 'bandUtilizationChart',
+      name: 'Band Utilization by Sector',
+      yAxe: ['sector'],
+      xAxe: ['share'],
+      groupBy: ['band'],
+      uniqueValues: {
+        sector: ['A1', 'B1'],
+        band: ['Low', 'Medium', 'High'],
+      },
+      axisDetails: {
+        share: {
+          label: 'Percent',
+          type: 'number',
+          subtype: 'percentage',
+          measure_unit_type: 'percentage',
+          measure_unit_symbol: '%',
+        },
+      },
+      data: [
+        { sector: 'A1', band: 'Low', share: 22 },
+        { sector: 'A1', band: 'Medium', share: 48 },
+        { sector: 'A1', band: 'High', share: 30 },
+        { sector: 'B1', band: 'Low', share: 18 },
+        { sector: 'B1', band: 'Medium', share: 52 },
+        { sector: 'B1', band: 'High', share: 30 },
+      ],
+    });
+  });
+
+  it('draws the share that sums to a whole when an earlier number does not', () => {
+    expect(
+      workspaceWidgetPayload(
+        'band-utilization-chart',
+        'bandUtilizationChart',
+        [
+          { role: 'label', field: 'sector' },
+          { role: 'series', field: 'band' },
+          { role: 'y', field: 'weight' },
+        ],
+        [
+          { sector: 'A1', band: 'Low', weight: 1, share: 22 },
+          { sector: 'A1', band: 'Medium', weight: 2, share: 48 },
+          { sector: 'A1', band: 'High', weight: 3, share: 30 },
+          { sector: 'B1', band: 'Low', weight: 4, share: 18 },
+          { sector: 'B1', band: 'Medium', weight: 5, share: 52 },
+          { sector: 'B1', band: 'High', weight: 6, share: 30 },
+        ],
+      ),
+    ).toMatchObject({
+      yAxe: ['sector'],
+      xAxe: ['share'],
+      groupBy: ['band'],
+      data: [
+        { sector: 'A1', band: 'Low', share: 22 },
+        { sector: 'A1', band: 'Medium', share: 48 },
+        { sector: 'A1', band: 'High', share: 30 },
+        { sector: 'B1', band: 'Low', share: 18 },
+        { sector: 'B1', band: 'Medium', share: 52 },
+        { sector: 'B1', band: 'High', share: 30 },
+      ],
+    });
+  });
+
+  it('keeps the bound share when the named chart row does not sum to a whole', () => {
+    expect(
+      workspaceWidgetPayload(
+        'band-utilization-chart',
+        'bandUtilizationChart',
+        [
+          { role: 'label', field: 'sector' },
+          { role: 'series', field: 'band' },
+          { role: 'y', field: 'share' },
+        ],
+        [
+          { sector: 'A1', band: 'Low', share: 40 },
+          { sector: 'A1', band: 'High', share: 10 },
+          { sector: 'B1', band: 'Low', share: 20 },
+          { sector: 'B1', band: 'High', share: 20 },
+        ],
+      ),
+    ).toMatchObject({
+      yAxe: ['sector'],
+      xAxe: ['share'],
+      groupBy: ['band'],
+    });
+  });
+
+  it('draws a wide band when each metric column is a share of the row', () => {
+    expect(
+      workspaceWidgetPayload(
+        'band-utilization-chart',
+        'bandUtilizationChart',
+        [
+          { role: 'label', field: 'sector' },
+          { role: 'y', field: 'Low' },
+        ],
+        [
+          { sector: 'A1', Low: 22, Medium: 48, High: 30, unit: '%' },
+          { sector: 'B1', Low: 18, Medium: 52, High: 30, unit: '%' },
+        ],
+      ),
+    ).toMatchObject({
+      chartType: 'bandUtilizationChart',
+      xAxe: ['sector'],
+      yAxe: ['Low', 'Medium', 'High'],
+      axisDetails: {
+        Low: { measure_unit_symbol: '%' },
+        High: { measure_unit_symbol: '%' },
+      },
+      data: [
+        { sector: 'A1', Low: 22, Medium: 48, High: 30 },
+        { sector: 'B1', Low: 18, Medium: 52, High: 30 },
+      ],
+    });
+  });
 });

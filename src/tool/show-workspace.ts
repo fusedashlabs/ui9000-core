@@ -25,6 +25,7 @@ import {
   type StoredDataset,
 } from './ingest-table.js';
 import { chartTypeForComponent, workspaceWidgetPayload } from './widget-payload.js';
+import { isPartToWholeChart, partToWholeChart } from './payload/band-utilization.js';
 import { headlineChart, isHeadlineChart } from './payload/headline.js';
 import { shapeSpec } from './shape-spec.js';
 import {
@@ -34,7 +35,7 @@ import {
   type TraceChooser,
   type TraceProposal,
 } from '../trace/trace.js';
-import { CHART_ROLES, chartLabel, chartName, chartRole } from '../catalog/chart-roles.js';
+import { CHART_FAMILIES, CHART_ROLES, chartLabel, chartName, chartRole } from '../catalog/chart-roles.js';
 import { dataRolesForChart } from './payload/hosted-chart.js';
 import {
   canDraw,
@@ -362,6 +363,7 @@ export async function handleShowWorkspace(
   let hostChart = false;
   let choiceWhy = '';
   let headlineShift = false;
+  let partShift = false;
   const guided = guidedChartFamilies(runtime.profile, runtime.classified, parsed.intent);
   if (!namedDraw && !discussion?.drawId && !jevDraw && intentGuidesCharts(parsed.intent)) {
     const best = guided.find((family) => canDraw(family.main, runtime.profile, catalogIds));
@@ -385,6 +387,24 @@ export async function handleShowWorkspace(
       componentId = drawing;
       hostChart = true;
       headlineShift = true;
+      choiceWhy = when
+        ? `${when} So this is ${chartLabel(drawing)}.`
+        : `So this is ${chartLabel(drawing)}.`;
+    }
+  }
+  if (
+    !pinned &&
+    componentId &&
+    (componentId === 'bar-chart' || isPartToWholeChart(componentId))
+  ) {
+    const drawing = partToWholeChart(runtime.payload);
+    if (drawing === 'band-utilization-chart' && drawing !== componentId) {
+      const when = CHART_FAMILIES.find((family) => family.id === 'part-to-whole')?.alternatives.find(
+        (item) => item.id === drawing,
+      )?.when;
+      componentId = drawing;
+      hostChart = true;
+      partShift = true;
       choiceWhy = when
         ? `${when} So this is ${chartLabel(drawing)}.`
         : `So this is ${chartLabel(drawing)}.`;
@@ -539,7 +559,7 @@ export async function handleShowWorkspace(
       : jevMissed
         ? [missedWhy, discussion?.chartWhy].filter(Boolean).join(' ')
         : discussion?.chartWhy || engineWhy;
-  const chartWhy = switched || headlineShift ? choiceWhy : argued;
+  const chartWhy = switched || headlineShift || partShift ? choiceWhy : argued;
   const recorded = chosenByJev
     ? governTrace(
         {
@@ -553,7 +573,7 @@ export async function handleShowWorkspace(
         (winner?.allowedActions ?? allowedActions).filter((action) => SPEC_ACTION_SET.has(action)),
       )
     : decision.trace;
-  const by: TraceChooser = switched || headlineShift
+  const by: TraceChooser = switched || headlineShift || partShift
     ? 'engine'
     : jev.kind === 'draw'
       ? jev.by

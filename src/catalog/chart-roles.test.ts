@@ -60,6 +60,23 @@ describe('chart roles', () => {
     ]);
   });
 
+  it('keeps pie as the part-to-whole main, with the band as a later alternative', () => {
+    const drawings = drawingsFor('pie-chart');
+    expect(drawings?.family.id).toBe('part-to-whole');
+    expect(drawings?.family.main).toBe('pie-chart');
+    expect(drawings?.alternatives.map((role) => role.id)).toEqual([
+      'donut-chart',
+      'treemap-chart',
+      'band-utilization-chart',
+    ]);
+    expect(familiesForChart('band-utilization-chart').map((family) => family.id)).toEqual([
+      'part-to-whole',
+    ]);
+    expect(chartLabel('band-utilization-chart')).toBe(
+      'band utilization chart (show the same share breakdown once per entity)',
+    );
+  });
+
   it('treats bar as the comparison main, with lollipop, line, and area as the same data', () => {
     const drawings = drawingsFor('bar-chart');
     expect(drawings?.family.id).toBe('category-magnitude');

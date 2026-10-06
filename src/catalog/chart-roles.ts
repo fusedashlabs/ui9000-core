@@ -121,6 +121,13 @@ export const CHART_ROLES = {
     data: 'Category and a number. Optional subgroup for one card per group.',
     visual: 'Area-proportional tiles. Color follows magnitude.',
   },
+  'band-utilization-chart': {
+    id: 'band-utilization-chart',
+    chartTypeKeys: ['bandUtilizationChart'],
+    role: 'Show the same share breakdown once per entity.',
+    data: 'One category for the entity, one category for the segment, and the segment share of the row. Each row sums to its own whole.',
+    visual: 'One horizontal band per entity. Segment width is the share. The percent is written inside the segment.',
+  },
   'histogram-chart': {
     id: 'histogram-chart',
     chartTypeKeys: ['histogramChart'],
@@ -314,6 +321,10 @@ export const CHART_FAMILIES = [
       {
         id: 'treemap-chart',
         when: 'Area should carry the share, or a second category nests tiles inside each group.',
+      },
+      {
+        id: 'band-utilization-chart',
+        when: 'The same share breakdown is repeated once per entity, and each row sums to a whole.',
       },
     ],
   },

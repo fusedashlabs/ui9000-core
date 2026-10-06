@@ -86,6 +86,28 @@ describe('classChoiceRequest', () => {
     expect(offeredChartIds(request)).not.toContain('bar-chart');
   });
 
+  it('offers the band inside part-to-whole, after pie', () => {
+    const family = CHART_FAMILIES.find((item) => item.id === 'part-to-whole');
+    if (!family) throw new Error('missing family');
+    const request = markChoiceRequest({
+      utterance: 'Show each sector as shares of its own whole.',
+      columns: [
+        { name: 'sector', role: 'category' },
+        { name: 'band', role: 'category' },
+        { name: 'share', role: 'metric' },
+      ],
+      profile: { hasCategory: true, hasNumericMetric: true, categoryCardinality: 4, rowCount: 12 },
+      intent: 'comparison',
+      family,
+    });
+    const offered = offeredChartIds(request);
+    expect(offered[0]).toBe('pie-chart');
+    expect(offered).toContain('donut-chart');
+    expect(offered).toContain('treemap-chart');
+    expect(offered).toContain('band-utilization-chart');
+    expect(request.questions.chart.criteria['band-utilization-chart']).toContain('each row sums to a whole');
+  });
+
   it('asks Jev only inside the chosen class', () => {
     const family = CHART_FAMILIES.find((item) => item.id === 'category-magnitude');
     if (!family) throw new Error('missing family');

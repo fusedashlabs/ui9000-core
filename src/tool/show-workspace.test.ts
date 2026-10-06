@@ -925,6 +925,75 @@ describe('show_workspace fail-closed', () => {
     ]);
   });
 
+  it('draws a band when the same shares repeat once per entity', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        csv: 'sector,band,share\nA1,Low,22\nA1,Medium,48\nA1,High,30\nB1,Low,18\nB1,Medium,52\nB1,High,30\n',
+      },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('band-utilization-chart');
+    expect(result.chartType).toBe('bandUtilizationChart');
+    expect(result.spec.binds).toEqual([
+      { role: 'label', field: 'sector' },
+      { role: 'y', field: 'share' },
+      { role: 'series', field: 'band' },
+    ]);
+  });
+
+  it('draws the share column when an earlier number is not the whole', async () => {
+    const channel = memoryChannel();
+    const result = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        csv: 'sector,band,weight,share\nA1,Low,1,22\nA1,Medium,2,48\nA1,High,3,30\nB1,Low,4,18\nB1,Medium,5,52\nB1,High,6,30\n',
+      },
+      context({ signDataLink: channel.signDataLink, loadDataset: channel.loadDataset }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('band-utilization-chart');
+    const widget = await readViaHandle(result.spec, channel.readDataLink);
+    expect(widget).toMatchObject({
+      chartType: 'bandUtilizationChart',
+      yAxe: ['sector'],
+      xAxe: ['share'],
+      groupBy: ['band'],
+    });
+    expect(JSON.stringify(widget)).not.toContain('weight');
+  });
+
+  it('keeps a bar when the same categories do not sum to a whole', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        csv: 'sector,band,count\nA1,Low,22\nA1,Medium,48\nA1,High,10\nB1,Low,18\nB1,Medium,40\nB1,High,30\n',
+      },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('bar-chart');
+  });
+
+  it('draws the named band chart', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        requestedChart: 'band utilization',
+        csv: 'sector,band,share\nA1,Low,22\nA1,Medium,48\nA1,High,30\nB1,Low,18\nB1,Medium,52\nB1,High,30\n',
+      },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('band-utilization-chart');
+    expect(result.chartType).toBe('bandUtilizationChart');
+  });
+
   it('draws a pie when the user asks for shares of a small category table', async () => {
     const result = await handleShowWorkspace(
       {

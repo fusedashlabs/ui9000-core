@@ -1,6 +1,7 @@
 import { chartRole } from '../../catalog/chart-roles.js';
 import type { WorkspaceSpec } from '../../spec/workspace-spec.js';
 import { bindFieldMap } from './bind-fields.js';
+import { bandUtilizationPayload } from './band-utilization.js';
 import { barChartPayload } from './bar-chart.js';
 import { chartTypeForComponent } from './chart-type.js';
 import { histogramChartPayload } from './histogram-chart.js';
@@ -23,6 +24,10 @@ type PayloadBuilder = (
 
 /** Components with a chart object. Anything else keeps the raw table rows. */
 const PAYLOAD_BY_COMPONENT: Record<string, PayloadBuilder> = {
+  'band-utilization-chart': (chartType, fields, rows) => {
+    void chartType;
+    return bandUtilizationPayload(fields, rows);
+  },
   'bar-chart': barChartPayload,
   'histogram-chart': histogramChartPayload,
   'map-chart': mapChartPayload,
