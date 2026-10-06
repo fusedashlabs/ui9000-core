@@ -5,4 +5,8 @@
 
 export { bindFieldMap } from './payload/bind-fields.js';
 export { catalogChartTypeKey, chartTypeForComponent } from './payload/chart-type.js';
-export { workspaceWidgetPayload } from './payload/index.js';
+export {
+  chartPayloadTitle,
+  isSlugChartName,
+  workspaceWidgetPayload,
+} from './payload/index.js';

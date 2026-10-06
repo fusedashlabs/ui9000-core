@@ -106,18 +106,49 @@ const ROLE_COLUMN: Record<string, readonly ClassifiedColumn['role'][]> = {
   rows: ['category', 'metric', 'entity', 'geo'],
 };
 
-function labelFromBinds(binds: readonly { role: string; field: string }[]): string | undefined {
-  const field = (role: string) => binds.find((item) => item.role === role)?.field;
-  const metric = field('metric') ?? field('y') ?? field('distribution');
-  const category = field('category') ?? field('label') ?? field('x') ?? field('geo');
-  const nodes = field('nodes');
-  const links = field('links');
+/** Metric column used for chart titles, in bind-role priority order. */
+export function titleMetricField(fields: Record<string, string>): string | undefined {
+  return fields.metric ?? fields.y ?? fields.distribution ?? fields.my;
+}
+
+/** Category / domain column used for chart titles, in bind-role priority order. */
+export function titleCategoryField(fields: Record<string, string>): string | undefined {
+  return fields.category ?? fields.label ?? fields.x ?? fields.geo ?? fields.mx;
+}
+
+/** True when binds describe a flow or network (title uses `from` / `to`). */
+export function hasEndpointTitleBinds(fields: Record<string, string>): boolean {
+  return (!!fields.source && !!fields.target) || (!!fields.nodes && !!fields.links);
+}
+
+/** Chart header title from a role→field map — e.g. `sales by brand`. */
+export function labelFromFieldMap(fields: Record<string, string>): string | undefined {
+  const metric = titleMetricField(fields);
+  const category = titleCategoryField(fields);
+  const nodes = fields.nodes;
+  const links = fields.links;
+  const source = fields.source;
+  const target = fields.target;
   if (metric && nodes && links && metric !== nodes && metric !== links) {
     return `${metric} from ${nodes} to ${links}`;
+  }
+  if (metric && source && target && metric !== source && metric !== target) {
+    return `${metric} from ${source} to ${target}`;
   }
   if (metric && category && metric !== category) return `${metric} by ${category}`;
   if (metric) return metric;
   return undefined;
+}
+
+/** Chart header title from bound columns — e.g. `sales by brand`. */
+export function labelFromBinds(
+  binds: readonly { role: string; field: string }[],
+): string | undefined {
+  const fields: Record<string, string> = {};
+  for (const item of binds) {
+    if (item?.role && item.field) fields[item.role] = item.field;
+  }
+  return labelFromFieldMap(fields);
 }
 
 function fieldForRole(

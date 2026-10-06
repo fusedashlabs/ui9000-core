@@ -10,8 +10,8 @@ MCP server with one tool, `show_workspace`. Give it a table and a question. It r
 
 - When `TYPESAFE_API_KEY` is set, Jev chooses a class from the columns, then a chart inside that class. The result says why.
 - A named chart in that class is the one drawn.
-- A named chart in another class returns `awaitingUser`. Nothing is drawn. `suggestion` is the chart Jev would draw. The next call passes that chart as `requestedChart` with the same `datasetId`.
-- A named chart this server cannot draw returns `awaitingUser` and does not draw a substitute.
+- A named chart outside that class is still drawn when this server can draw it. The result may suggest a closer fit; it does not leave the screen empty.
+- A named chart this server cannot draw is replaced by the leading chart the columns support, so the user always gets a drawing.
 - If Jev is unset, unreachable, or does not choose, the server picks a chart from the table.
 
 The tool call must not include the table cells as `data`, `rows`, `points`, or `series`.

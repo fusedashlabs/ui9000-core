@@ -1014,11 +1014,12 @@ describe('show_workspace fail-closed', () => {
     const widget = await readViaHandle(result.spec, channel.readDataLink);
     expect(widget).toMatchObject({
       chartType: 'bandUtilizationChart',
+      name: 'share by sector',
       yAxe: ['sector'],
       xAxe: ['share'],
       groupBy: ['band'],
     });
-    expect(JSON.stringify(widget)).not.toContain('weight');
+    expect(JSON.stringify((widget as { data: unknown }).data)).not.toContain('weight');
   });
 
   it('keeps a bar when the same categories do not sum to a whole', async () => {

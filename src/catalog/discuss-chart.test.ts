@@ -68,6 +68,24 @@ describe('discussChart', () => {
     expect(discussion.suggestion).toBe('line-chart');
   });
 
+  it('draws band utilization when the catalog can render it', () => {
+    const discussion = discussChart({
+      profile: {
+        hasCategory: true,
+        hasNumericMetric: true,
+        categoryCardinality: 4,
+        rowCount: 8,
+      },
+      requestedChart: 'band utilization',
+      intent: 'comparison',
+      catalogIds: new Set([...catalogIds, 'band-utilization-chart']),
+    });
+    expect(discussion.awaitingUser).toBe(false);
+    expect(discussion.drawId).toBe('band-utilization-chart');
+    expect(discussion.message).not.toContain('not a chart I know');
+    expect(discussion.message).not.toContain('nothing was generated');
+  });
+
   it('suggests the comparison main and does not substitute a chart it cannot draw', () => {
     const discussion = discussChart({
       profile: groups,

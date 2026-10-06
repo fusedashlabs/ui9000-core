@@ -1,6 +1,47 @@
 import { describe, expect, it } from 'vitest';
 
-import { chartTypeForComponent, workspaceWidgetPayload } from './widget-payload.js';
+import {
+  chartPayloadTitle,
+  chartTypeForComponent,
+  isSlugChartName,
+  workspaceWidgetPayload,
+} from './widget-payload.js';
+
+describe('isSlugChartName', () => {
+  it('treats component ids and FuseDash chartTypes as slugs', () => {
+    expect(isSlugChartName('treemap-chart', 'treemap-chart')).toBe(true);
+    expect(isSlugChartName('bar-chart', 'pie-chart')).toBe(true);
+    expect(isSlugChartName('lollipop', 'lollipop')).toBe(true);
+    expect(isSlugChartName('scatterPlotChart', 'scatter-plot-chart')).toBe(true);
+    expect(isSlugChartName('', 'bar-chart')).toBe(true);
+  });
+
+  it('keeps human titles', () => {
+    expect(isSlugChartName('Electrical Loss', 'loss-indicator')).toBe(false);
+    expect(isSlugChartName('Band Utilization by Sector', 'band-utilization-chart')).toBe(false);
+    expect(isSlugChartName('count', 'kpi-widget')).toBe(false);
+    expect(isSlugChartName('Status', 'status-gauge-widget')).toBe(false);
+  });
+});
+
+describe('chartPayloadTitle', () => {
+  it('keeps from/to when flow y was remapped on the plotted axis', () => {
+    expect(
+      chartPayloadTitle(
+        {
+          xAxe: ['origin'],
+          yAxe: ['share'],
+          groupBy: ['dest'],
+        },
+        [
+          { role: 'source', field: 'origin' },
+          { role: 'target', field: 'dest' },
+          { role: 'y', field: 'weight' },
+        ],
+      ),
+    ).toBe('share from origin to dest');
+  });
+});
 
 describe('workspaceWidgetPayload', () => {
   it('maps engine ids to FuseDash chartType when catalog keys are empty', () => {
@@ -26,7 +67,7 @@ describe('workspaceWidgetPayload', () => {
       ),
     ).toEqual({
       chartType: 'barChart',
-      name: 'bar-chart',
+      name: 'incidents by team',
       orientation: 'vertical',
       xAxe: ['team'],
       yAxe: ['incidents'],
@@ -54,7 +95,7 @@ describe('workspaceWidgetPayload', () => {
       ),
     ).toEqual({
       chartType: 'barChart',
-      name: 'bar-chart',
+      name: 'compensated_sum by pharmacy',
       orientation: 'vertical',
       xAxe: ['pharmacy'],
       yAxe: ['compensated_sum'],
@@ -84,7 +125,7 @@ describe('workspaceWidgetPayload', () => {
       ),
     ).toEqual({
       chartType: 'barGrouped',
-      name: 'bar-chart',
+      name: 'revenue by quarter',
       orientation: 'vertical',
       xAxe: ['quarter'],
       yAxe: ['revenue'],
@@ -151,7 +192,7 @@ describe('workspaceWidgetPayload', () => {
       ),
     ).toEqual({
       chartType: 'mapChart',
-      name: 'map-chart',
+      name: 'incidents by country',
       layers: [
         {
           name: 'Map',
@@ -220,7 +261,7 @@ describe('workspaceWidgetPayload', () => {
       ),
     ).toEqual({
       chartType: 'mapChart',
-      name: 'map-chart',
+      name: 'readings by lat',
       layers: [
         {
           name: 'Markers',
@@ -628,7 +669,7 @@ describe('workspaceWidgetPayload', () => {
       ),
     ).toEqual({
       chartType: 'networkGraphChart',
-      name: 'network-graph',
+      name: 'sessions from source to target',
       nodes: [
         { id: 'web-01', label: 'web-01', type: 'node' },
         { id: 'db-03', label: 'db-03', type: 'node' },
@@ -710,13 +751,157 @@ describe('workspaceWidgetPayload', () => {
       ),
     ).toEqual({
       chartType: 'pieChart',
-      name: 'pie-chart',
+      name: 'score by team',
       xAxe: ['team'],
       yAxe: ['score'],
       data: [
         { team: 'Alpha', score: 12 },
         { team: 'Beta', score: 4 },
       ],
+    });
+  });
+
+  it('titles a hosted treemap from its metric and category binds', () => {
+    expect(
+      workspaceWidgetPayload(
+        'treemap-chart',
+        'treemapChart',
+        [
+          { role: 'label', field: 'brand' },
+          { role: 'y', field: 'value' },
+        ],
+        [
+          { brand: 'BYD', value: 2700 },
+          { brand: 'Tesla', value: 1900 },
+        ],
+      ),
+    ).toMatchObject({
+      chartType: 'treemapChart',
+      name: 'value by brand',
+      xAxe: ['brand'],
+      yAxe: ['value'],
+    });
+  });
+
+  it('keeps a human widget name when the builder already set one', () => {
+    expect(
+      workspaceWidgetPayload(
+        'loss-indicator',
+        'lossIndicator',
+        [{ role: 'metric', field: 'value' }],
+        [
+          {
+            label: 'Electrical Loss',
+            value: 24.3,
+            unit: '%',
+            min: 0,
+            max: 30,
+            okTo: 10,
+            warningTo: 20,
+          },
+        ],
+      ),
+    ).toMatchObject({ name: 'Electrical Loss' });
+  });
+
+  it('keeps the builder name when binds cannot form a title', () => {
+    expect(
+      workspaceWidgetPayload(
+        'status-gauge-widget',
+        'statusGaugeWidget',
+        [],
+        [{ unitHealth: 72.8, txPower: 28 }],
+      ),
+    ).toMatchObject({ name: 'unit Health' });
+  });
+
+  it('titles a scatter from mx/my binds', () => {
+    expect(
+      workspaceWidgetPayload(
+        'scatter-plot-chart',
+        'scatterPlotChart',
+        [
+          { role: 'mx', field: 'latency' },
+          { role: 'my', field: 'throughput' },
+        ],
+        [
+          { latency: 12, throughput: 40 },
+          { latency: 18, throughput: 35 },
+        ],
+      ),
+    ).toMatchObject({
+      chartType: 'scatterPlotChart',
+      name: 'throughput by latency',
+      xAxe: ['latency'],
+      yAxe: ['throughput'],
+    });
+  });
+
+  it('titles a band from the plotted share axis after a metric remap', () => {
+    expect(
+      workspaceWidgetPayload(
+        'band-utilization-chart',
+        'bandUtilizationChart',
+        [
+          { role: 'label', field: 'sector' },
+          { role: 'series', field: 'band' },
+          { role: 'y', field: 'weight' },
+        ],
+        [
+          { sector: 'A1', band: 'Low', weight: 1, share: 22 },
+          { sector: 'A1', band: 'Medium', weight: 2, share: 48 },
+          { sector: 'A1', band: 'High', weight: 3, share: 30 },
+          { sector: 'B1', band: 'Low', weight: 4, share: 18 },
+          { sector: 'B1', band: 'Medium', weight: 5, share: 52 },
+          { sector: 'B1', band: 'High', weight: 6, share: 30 },
+        ],
+      ),
+    ).toMatchObject({
+      name: 'share by sector',
+      xAxe: ['share'],
+      yAxe: ['sector'],
+    });
+  });
+
+  it('keeps the chart slug when binds and axes cannot form a title', () => {
+    expect(
+      workspaceWidgetPayload(
+        'network-graph',
+        'networkGraphChart',
+        [
+          { role: 'nodes', field: 'source' },
+          { role: 'links', field: 'target' },
+        ],
+        [
+          { source: 'web-01', target: 'db-03' },
+          { source: 'api-07', target: 'db-03' },
+        ],
+      ),
+    ).toMatchObject({ name: 'network-graph' });
+  });
+
+  it('titles a sankey with from/to, not y-by-x from axes', () => {
+    expect(
+      workspaceWidgetPayload(
+        'sankey-chart',
+        'sankeyChart',
+        [
+          { role: 'source', field: 'origin' },
+          { role: 'target', field: 'dest' },
+          { role: 'y', field: 'volume' },
+        ],
+        [
+          { origin: 'Coal', dest: 'Power', volume: 40 },
+          { origin: 'Gas', dest: 'Power', volume: 20 },
+          { origin: 'Power', dest: 'Homes', volume: 50 },
+        ],
+      ),
+    ).toMatchObject({
+      chartType: 'sankeyChart',
+      name: 'volume from origin to dest',
+      xAxe: ['origin'],
+      yAxe: ['volume'],
+      groupBy: ['dest'],
     });
   });
 
