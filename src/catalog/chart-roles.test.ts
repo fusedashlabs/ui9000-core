@@ -20,16 +20,36 @@ function widgetChartIds(): Map<string, string[]> {
   return out;
 }
 
+/** Widgets charts core does not select yet. The PR that adds one to CHART_ROLES removes it here. */
+const PENDING_IN_CORE = [
+  'component-asset-card',
+  'flow-sankey-chart',
+  'incidents-review-card',
+  'power-path-card',
+];
+
 describe('chart roles', () => {
   const widgets = widgetChartIds();
+  const named = [...widgets.keys()].filter((id) => !PENDING_IN_CORE.includes(id));
 
-  it('names every widgets chart, and no chart that widgets does not have', () => {
-    expect([...Object.keys(CHART_ROLES)].sort()).toEqual([...widgets.keys()].sort());
+  it('names every widgets chart or lists it as pending, and no chart that widgets does not have', () => {
+    expect(
+      Object.keys(CHART_ROLES).filter((id) => !widgets.has(id)),
+      'core names a chart widgets does not have',
+    ).toEqual([]);
+    expect(
+      PENDING_IN_CORE.filter((id) => id in CHART_ROLES),
+      'core now names these, so remove them from PENDING_IN_CORE',
+    ).toEqual([]);
+    expect(
+      [...widgets.keys()].filter((id) => !(id in CHART_ROLES)).sort(),
+      'widgets charts core does not name must be listed in PENDING_IN_CORE',
+    ).toEqual([...PENDING_IN_CORE].sort());
   });
 
   it('keeps each chartType key list aligned with widgets metadata', () => {
-    for (const [id, keys] of widgets) {
-      expect([...CHART_ROLES[id as keyof typeof CHART_ROLES].chartTypeKeys], id).toEqual(keys);
+    for (const id of named) {
+      expect([...CHART_ROLES[id as keyof typeof CHART_ROLES].chartTypeKeys], id).toEqual(widgets.get(id));
     }
   });
 
@@ -44,7 +64,7 @@ describe('chart roles', () => {
         seen.add(alt.id);
       }
     }
-    expect([...seen].sort()).toEqual([...widgets.keys()].sort());
+    expect([...seen].sort()).toEqual([...named].sort());
   });
 
   it('keeps the dial and the loss indicator as headline alternatives, in that order', () => {
