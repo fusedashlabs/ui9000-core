@@ -25,7 +25,6 @@ const PENDING_IN_CORE = [
   'component-asset-card',
   'flow-sankey-chart',
   'incidents-review-card',
-  'power-path-card',
 ];
 
 describe('chart roles', () => {
@@ -67,16 +66,18 @@ describe('chart roles', () => {
     expect([...seen].sort()).toEqual([...named].sort());
   });
 
-  it('keeps the dial and the loss indicator as headline alternatives, in that order', () => {
+  it('keeps the dial, the loss indicator, and the power path card as headline alternatives, in that order', () => {
     const drawings = drawingsFor('kpi-widget');
     expect(drawings?.family.id).toBe('headline');
     expect(drawings?.alternatives.map((role) => role.id)).toEqual([
       'status-gauge-widget',
       'loss-indicator',
+      'power-path-card',
     ]);
     expect(drawings?.family.alternatives.map((alt) => alt.id)).toEqual([
       'status-gauge-widget',
       'loss-indicator',
+      'power-path-card',
     ]);
   });
 
@@ -112,6 +113,17 @@ describe('chart roles', () => {
       'category-magnitude',
       'ordered-series',
     ]);
+  });
+
+  it('keeps the power path card in the headline family only, as an alternative to KPI', () => {
+    expect(drawingsFor('power-path-card')).toBeUndefined();
+    expect(familiesForChart('power-path-card').map((family) => family.id)).toEqual(['headline']);
+    const headline = CHART_FAMILIES.find((family) => family.id === 'headline');
+    const when = headline?.alternatives.find((alt) => alt.id === 'power-path-card')?.when;
+    expect(when).toContain('already has a health score');
+    expect(when).toContain('each with a status');
+    expect(when).toContain('Do not invent the score');
+    expect(CHART_ROLES['power-path-card'].chartTypeKeys).toEqual(['powerPathCard']);
   });
 
   it('names a chart by what it shows', () => {

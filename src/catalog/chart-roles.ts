@@ -240,6 +240,13 @@ export const CHART_ROLES = {
     data: 'Exactly one metric that already has a minimum, a maximum, and operating thresholds. Optional unit and trend. Not a health score beside other measures, and not several metrics.',
     visual: 'Coloured ticks, a marker on the current value, and an optional trend arrow. Ticks past the marker stay grey.',
   },
+  'power-path-card': {
+    id: 'power-path-card',
+    chartTypeKeys: ['powerPathCard'],
+    role: 'Monitor one equipment group: its health score, any active fault, and each metric with its status.',
+    data: 'A health score that already exists, plus metric rows each with a value and a status or threshold. Optional asset badge, recent points, and an active fault.',
+    visual: 'Card with an asset badge, the score beside a compact line, a fault banner only while a fault is active, and a metric list with status dots.',
+  },
   'step-line-chart': {
     id: 'step-line-chart',
     chartTypeKeys: ['stepLineChart', 'ksPlotChart', 'rocCurveChart'],
@@ -424,6 +431,10 @@ export const CHART_FAMILIES = [
       {
         id: 'loss-indicator',
         when: 'Exactly one metric already has a minimum, a maximum, and operating thresholds. Draw that reading on the scale. A health score beside other measures stays the dial. A plain number, or several metrics, stays the KPI card.',
+      },
+      {
+        id: 'power-path-card',
+        when: 'One equipment group already has a health score, plus the metrics behind it, each with a status. The compact line and the fault are optional. Do not invent the score.',
       },
     ],
   },

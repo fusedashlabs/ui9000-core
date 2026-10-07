@@ -378,7 +378,7 @@ export async function handleShowWorkspace(
   }
   const pinned = Boolean(namedDraw || discussion?.drawId);
   if (!pinned && componentId && isHeadlineChart(componentId)) {
-    const drawing = headlineChart(runtime.payload);
+    const drawing = headlineChart(runtime.payload, (id) => canDraw(id, runtime.profile, catalogIds));
     if (drawing !== componentId) {
       const family = chartFamiliesFor(runtime.profile, runtime.classified, parsed.intent).find(
         (item) => item.id === 'headline',
