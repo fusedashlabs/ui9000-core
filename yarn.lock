@@ -352,9 +352,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@fusedashlabs/ui9000-workspace@workspace:."
   dependencies:
-    "@fusedashlabs/widgets": "npm:0.7.3"
+    "@fusedashlabs/widgets": "npm:0.7.4"
     "@modelcontextprotocol/ext-apps": "npm:1.7.5"
-    "@modelcontextprotocol/sdk": "npm:1.30.0"
+    "@modelcontextprotocol/sdk": "npm:1.31.0"
     "@types/geojson": "npm:^7946.0.14"
     "@types/node": "npm:^22.10.0"
     js-tiktoken: "npm:^1.0.21"
@@ -368,9 +368,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@fusedashlabs/widgets@npm:0.7.3":
-  version: 0.7.3
-  resolution: "@fusedashlabs/widgets@npm:0.7.3"
+"@fusedashlabs/widgets@npm:0.7.4":
+  version: 0.7.4
+  resolution: "@fusedashlabs/widgets@npm:0.7.4"
   dependencies:
     d3: "npm:^7.9.0"
     d3-axis: "npm:^3.0.0"
@@ -388,7 +388,7 @@ __metadata:
   peerDependenciesMeta:
     mapbox-gl:
       optional: true
-  checksum: 10c0/5ca5fab1bbbf3c506d82902114e7bb4b46e1d9ff563264dcb48fa334bffeac3b48d4dc19ae41a5cdf762663b1d21d0e08a962e53c4a2baa0753f8ffd9c559b80
+  checksum: 10c0/580d201e43d5474c4779f5793c6fb3822d65ff1fc87a2144837f4903d7526d28825666796601ae3c9a9ba2dec1111a0deab32ee9cbd52f10e80be7ffd343d5e8
   languageName: node
   linkType: hard
 
@@ -452,9 +452,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@modelcontextprotocol/sdk@npm:1.30.0":
-  version: 1.30.0
-  resolution: "@modelcontextprotocol/sdk@npm:1.30.0"
+"@modelcontextprotocol/sdk@npm:1.31.0":
+  version: 1.31.0
+  resolution: "@modelcontextprotocol/sdk@npm:1.31.0"
   dependencies:
     "@hono/node-server": "npm:^1.19.9 || ^2.0.5"
     ajv: "npm:^8.17.1"
@@ -481,7 +481,7 @@ __metadata:
       optional: true
     zod:
       optional: false
-  checksum: 10c0/6d12d5c88048b42b0d64906222f804eecbfc0aae02fc42a200d2438f037276cc7863510a8ce649e82c96d5972f62a58bfbdedf79624b0558a607738f5e58b97e
+  checksum: 10c0/2c4f011a765fb3346ec578455591d062008a842a0f6f8a763baa97b6a01e0f1febb97d1cc44024ee6d0761d43df56e9c71f72a37d47c7ea6aeb1c4f8be0f06d9
   languageName: node
   linkType: hard
 
