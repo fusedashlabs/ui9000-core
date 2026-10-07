@@ -198,6 +198,13 @@ export const CHART_ROLES = {
     data: 'Source, target, and a value.',
     visual: 'Nodes and value-coloured ribbons.',
   },
+  'flow-sankey-chart': {
+    id: 'flow-sankey-chart',
+    chartTypeKeys: ['flowSankeyChart', 'multiStageSankeyChart'],
+    role: 'Trace how much flows through three or more stages, such as cause to impact.',
+    data: 'Links between stages, or one category column per stage, a value, and an optional severity.',
+    visual: 'Stage columns joined by severity-coloured ribbons. Each node shows its count and share.',
+  },
   'waterfall-chart': {
     id: 'waterfall-chart',
     chartTypeKeys: ['waterfallChart'],
@@ -390,7 +397,12 @@ export const CHART_FAMILIES = [
     question: 'How much moves from a source category to a target category?',
     data: 'Source, target, and a value.',
     main: 'sankey-chart',
-    alternatives: [],
+    alternatives: [
+      {
+        id: 'flow-sankey-chart',
+        when: 'The flow passes through three or more stages, such as cause to impact.',
+      },
+    ],
   },
   {
     id: 'contribution',
