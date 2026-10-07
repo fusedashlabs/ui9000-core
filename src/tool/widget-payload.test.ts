@@ -376,6 +376,88 @@ describe('workspaceWidgetPayload', () => {
     });
   });
 
+  const COMPONENT_ASSET_ROW = {
+    name: 'Sector A1 Antenna',
+    asset_id: 'RTX-3090',
+    image: 'https://assets.example/sector-antenna.png',
+    metric: 'Packet loss',
+    value: 1.02,
+    unit: '%',
+    delta: 0.8,
+    reference: 'vs 30m ago',
+    points: '2.4 1.9 1.6 1.4 1.1 1.02',
+  };
+
+  it('sends the component asset card the name, the id, the image, one metric, the delta, and the points', () => {
+    expect(
+      workspaceWidgetPayload('component-asset-card', 'componentAssetCard', [], [COMPONENT_ASSET_ROW]),
+    ).toEqual({
+      chartType: 'componentAssetCard',
+      name: 'Sector A1 Antenna',
+      assetId: 'RTX-3090',
+      image: { src: 'https://assets.example/sector-antenna.png', alt: 'Sector A1 Antenna' },
+      metric: { label: 'Packet loss', value: 1.02, unit: '%' },
+      delta: { value: 0.8, label: 'vs 30m ago' },
+      trend: [2.4, 1.9, 1.6, 1.4, 1.1, 1.02],
+    });
+  });
+
+  it('keeps the component asset name, id, and value without an image, a delta, or points', () => {
+    const { image, delta, reference, points, ...row } = COMPONENT_ASSET_ROW;
+    void image;
+    void delta;
+    void reference;
+    void points;
+    expect(workspaceWidgetPayload('component-asset-card', 'componentAssetCard', [], [row])).toEqual({
+      chartType: 'componentAssetCard',
+      name: 'Sector A1 Antenna',
+      assetId: 'RTX-3090',
+      metric: { label: 'Packet loss', value: 1.02, unit: '%' },
+    });
+  });
+
+  it('reads the one numeric column as the component asset metric, with a level and thresholds', () => {
+    expect(
+      workspaceWidgetPayload(
+        'component-asset-card',
+        'componentAssetCard',
+        [],
+        [{ device: 'RTX-3090', packet_loss: '1.02', status: 'Critical', warning: 0.5, critical: 1, better: 'down' }],
+      ),
+    ).toEqual({
+      chartType: 'componentAssetCard',
+      assetId: 'RTX-3090',
+      metric: {
+        label: 'packet loss',
+        value: 1.02,
+        level: 'critical',
+        thresholds: { warning: 0.5, critical: 1 },
+      },
+    });
+  });
+
+  it('leaves out a component asset status it cannot read and a trend of one point', () => {
+    const payload = workspaceWidgetPayload('component-asset-card', 'componentAssetCard', [], [
+      { ...COMPONENT_ASSET_ROW, status: 'Unknown', points: '1.02' },
+    ]) as Record<string, unknown>;
+    expect(payload.metric).toEqual({ label: 'Packet loss', value: 1.02, unit: '%' });
+    expect(payload).not.toHaveProperty('trend');
+  });
+
+  it('refuses one component asset card for several rows or several metrics', () => {
+    expect(
+      workspaceWidgetPayload('component-asset-card', 'componentAssetCard', [], [
+        COMPONENT_ASSET_ROW,
+        { ...COMPONENT_ASSET_ROW, asset_id: 'RTX-4090' },
+      ]),
+    ).toBeNull();
+    expect(
+      workspaceWidgetPayload('component-asset-card', 'componentAssetCard', [], [
+        { asset_id: 'RTX-3090', packet_loss: 1.02, latency: 14 },
+      ]),
+    ).toBeNull();
+  });
+
   it('averages a score and does not average a name that merely contains those letters', () => {
     const rows = [{ health_score: 2 }, { health_score: 4 }];
     expect(

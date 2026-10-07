@@ -22,7 +22,6 @@ function widgetChartIds(): Map<string, string[]> {
 
 /** Widgets charts core does not select yet. The PR that adds one to CHART_ROLES removes it here. */
 const PENDING_IN_CORE = [
-  'component-asset-card',
   'flow-sankey-chart',
   'incidents-review-card',
   'power-path-card',
@@ -67,16 +66,18 @@ describe('chart roles', () => {
     expect([...seen].sort()).toEqual([...named].sort());
   });
 
-  it('keeps the dial and the loss indicator as headline alternatives, in that order', () => {
+  it('keeps the dial, the loss indicator, and the asset card as headline alternatives, in that order', () => {
     const drawings = drawingsFor('kpi-widget');
     expect(drawings?.family.id).toBe('headline');
     expect(drawings?.alternatives.map((role) => role.id)).toEqual([
       'status-gauge-widget',
       'loss-indicator',
+      'component-asset-card',
     ]);
     expect(drawings?.family.alternatives.map((alt) => alt.id)).toEqual([
       'status-gauge-widget',
       'loss-indicator',
+      'component-asset-card',
     ]);
   });
 
@@ -112,6 +113,25 @@ describe('chart roles', () => {
       'category-magnitude',
       'ordered-series',
     ]);
+  });
+
+  it('puts the component asset card in the headline family as an alternative, not a main', () => {
+    expect(drawingsFor('component-asset-card')).toBeUndefined();
+    expect(familiesForChart('component-asset-card').map((family) => family.id)).toEqual(['headline']);
+    expect(CHART_FAMILIES.filter((family) => family.id === 'headline')).toHaveLength(1);
+    const headline = CHART_FAMILIES.find((family) => family.id === 'headline');
+    expect(headline?.main).toBe('kpi-widget');
+    const when = headline?.alternatives.find((alt) => alt.id === 'component-asset-card')?.when;
+    expect(when).toContain('One asset');
+    expect(when).toContain('one primary metric');
+    expect(when).toContain('quick status');
+    expect(when).toContain('The image, the delta, and the trend are optional');
+    expect(when).toContain('stays the loss indicator');
+    expect(when).toContain('stays the KPI card');
+    expect(CHART_ROLES['component-asset-card'].chartTypeKeys).toEqual(['componentAssetCard']);
+    expect(chartLabel('component-asset-card')).toBe(
+      'component asset card (give a quick status of one asset: its name, its id, and one primary metric)',
+    );
   });
 
   it('names a chart by what it shows', () => {
