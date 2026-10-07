@@ -18,6 +18,8 @@ describe('discussChart', () => {
     expect(resolveChartName('pie')).toBe('pie-chart');
     expect(resolveChartName('bar chart')).toBe('bar-chart');
     expect(resolveChartName('pieChart')).toBe('pie-chart');
+    expect(resolveChartName('band utilization')).toBe('band-utilization-chart');
+    expect(resolveChartName('bandUtilizationChart')).toBe('band-utilization-chart');
     expect(resolveChartName('not-a-chart')).toBeUndefined();
   });
 

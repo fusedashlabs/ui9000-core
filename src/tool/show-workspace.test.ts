@@ -190,6 +190,61 @@ describe('show_workspace', () => {
     expect(hasRowObjects(result)).toBe(false);
   });
 
+  it('draws a named bar when the groups sit in a region column', async () => {
+    const channel = memoryChannel();
+    const result = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        csv: 'region,sales\nChina,12900000\nEurope,4300000\nNorth America,1800000\nRest of World,1700000',
+        utterance: 'Compare 2025 EV sales by region as a bar chart.',
+        requestedChart: 'bar chart',
+      },
+      context({
+        signDataLink: channel.signDataLink,
+        loadDataset: channel.loadDataset,
+      }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('bar-chart');
+    expect(result.spec.binds).toEqual([
+      { role: 'category', field: 'region' },
+      { role: 'metric', field: 'sales' },
+    ]);
+    expect(result.suggestion).toBeUndefined();
+    expect(result.suggestionWhy).toBeUndefined();
+    expect(result.chartWhy).toContain('is the chart for this group');
+    expect(result.chartWhy).not.toContain('Drawing it');
+    expect(JSON.stringify(result)).not.toContain('China');
+    expect(JSON.stringify(result)).not.toContain('awaitingUser');
+    const widget = await readViaHandle(result.spec, channel.readDataLink);
+    expect(widget).toMatchObject({
+      chartType: 'barChart',
+      xAxe: ['region'],
+      yAxe: ['sales'],
+      data: [
+        { region: 'China', sales: 12900000 },
+        { region: 'Europe', sales: 4300000 },
+        { region: 'North America', sales: 1800000 },
+        { region: 'Rest of World', sales: 1700000 },
+      ],
+    });
+  });
+
+  it('still maps a country column when the intent is spatial', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'spatial', csv: 'country,incidents\nFR,12\nDE,11\n' },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('map-chart');
+    expect(result.spec.binds).toEqual([
+      { role: 'geo', field: 'country' },
+      { role: 'metric', field: 'incidents' },
+    ]);
+  });
+
   it('profiles a pasted csv instead of the server demo table', async () => {
     const remembered: string[] = [];
     const result = await handleShowWorkspace(
@@ -246,6 +301,79 @@ describe('show_workspace', () => {
   it('keeps a KPI when the only number is not a health score', async () => {
     const result = await handleShowWorkspace(
       { intent: 'summary', csv: 'txPower,temp\n28,68\n' },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('kpi-widget');
+  });
+
+  it('still draws a loss indicator when Jev stopped on the KPI card', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'summary',
+        utterance: 'Summarise electrical loss.',
+        csv: 'label,value,unit,min,max,okTo,warningTo,trend\nElectrical Loss,24.3,%,0,30,10,20,down\n',
+      },
+      context({
+        askJev: async () => ({
+          answers: {
+            chart: { type: 'choice', choice: 'kpi-widget', confidence: 0.9 },
+          },
+        }),
+      }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('loss-indicator');
+    expect(result.chartType).toBe('lossIndicator');
+    expect(result.trace.chosen).toMatchObject({ by: 'engine' });
+  });
+
+  it('draws a loss indicator when one metric already has a scale and thresholds', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'summary',
+        csv: 'label,value,unit,min,max,okTo,warningTo,trend\nElectrical Loss,24.3,%,0,30,10,20,down\n',
+      },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('loss-indicator');
+    expect(result.chartType).toBe('lossIndicator');
+  });
+
+  it('draws a loss indicator when a health score has only its own scale', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'summary',
+        csv: 'unitHealth,min,max,okTo\n72.8,0,100,80\n',
+      },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('loss-indicator');
+    expect(result.chartType).toBe('lossIndicator');
+  });
+
+  it('keeps a dial when a health score sits beside other measures', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'summary',
+        csv: 'unitHealth,txPower,min,max,okTo\n72.8,28,0,100,80\n',
+      },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('status-gauge-widget');
+  });
+
+  it('keeps a KPI for a plain number without a threshold scale', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'summary', csv: 'loss\n24.3\n' },
       context(),
     );
     expect(isDrawn(result)).toBe(true);
@@ -475,6 +603,8 @@ describe('show_workspace', () => {
     expect(isDrawn(held)).toBe(true);
     if (!isDrawn(held)) return;
     expect(held.spec.component).toBe('approval-bar');
+    expect(held.summary.startsWith('approval bar for form')).toBe(true);
+    expect(held.summary).not.toContain('this chart');
     expect(held.trace.outcome).toBe('held');
     expect(held.proposal).toMatchObject({
       action: 'approve',
@@ -930,6 +1060,75 @@ describe('show_workspace fail-closed', () => {
       { role: 'category', field: 'Team' },
       { role: 'metric', field: 'score' },
     ]);
+  });
+
+  it('draws a band when the same shares repeat once per entity', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        csv: 'sector,band,share\nA1,Low,22\nA1,Medium,48\nA1,High,30\nB1,Low,18\nB1,Medium,52\nB1,High,30\n',
+      },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('band-utilization-chart');
+    expect(result.chartType).toBe('bandUtilizationChart');
+    expect(result.spec.binds).toEqual([
+      { role: 'label', field: 'sector' },
+      { role: 'y', field: 'share' },
+      { role: 'series', field: 'band' },
+    ]);
+  });
+
+  it('draws the share column when an earlier number is not the whole', async () => {
+    const channel = memoryChannel();
+    const result = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        csv: 'sector,band,weight,share\nA1,Low,1,22\nA1,Medium,2,48\nA1,High,3,30\nB1,Low,4,18\nB1,Medium,5,52\nB1,High,6,30\n',
+      },
+      context({ signDataLink: channel.signDataLink, loadDataset: channel.loadDataset }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('band-utilization-chart');
+    const widget = await readViaHandle(result.spec, channel.readDataLink);
+    expect(widget).toMatchObject({
+      chartType: 'bandUtilizationChart',
+      yAxe: ['sector'],
+      xAxe: ['share'],
+      groupBy: ['band'],
+    });
+    expect(JSON.stringify(widget)).not.toContain('weight');
+  });
+
+  it('keeps a bar when the same categories do not sum to a whole', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        csv: 'sector,band,count\nA1,Low,22\nA1,Medium,48\nA1,High,10\nB1,Low,18\nB1,Medium,40\nB1,High,30\n',
+      },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('bar-chart');
+  });
+
+  it('draws the named band chart', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'comparison',
+        requestedChart: 'band utilization',
+        csv: 'sector,band,share\nA1,Low,22\nA1,Medium,48\nA1,High,30\nB1,Low,18\nB1,Medium,52\nB1,High,30\n',
+      },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('band-utilization-chart');
+    expect(result.chartType).toBe('bandUtilizationChart');
   });
 
   it('draws a pie when the user asks for shares of a small category table', async () => {

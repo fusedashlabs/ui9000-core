@@ -1,6 +1,6 @@
 import type { CatalogEntry } from '../spec/engine-catalog.js';
 import type { WorkspaceSpec } from '../spec/workspace-spec.js';
-import type { ClassifiedColumn } from '../profiler/roles.js';
+import { isPlaceLabel, type ClassifiedColumn } from '../profiler/roles.js';
 
 export type ShapeSpecResult =
   | { ok: true; spec: WorkspaceSpec }
@@ -132,8 +132,16 @@ function fieldForRole(
     );
     if (hit) return hit.column.name;
   }
-  return undefined;
+  if (!CATEGORY_ROLES.has(roleId)) return undefined;
+  if (classified.some((entry) => entry.role === 'category')) return undefined;
+  const place = classified.find(
+    (entry) => isPlaceLabel(entry) && !used.has(entry.column.name),
+  );
+  return place?.column.name;
 }
+
+/** Roles a discrete group fills. A place name fills them only when no category column exists. */
+const CATEGORY_ROLES = new Set(['category', 'label', 'x', 'series', 'group', 'groupBy']);
 
 function unusedName(
   names: readonly string[],

@@ -11,7 +11,7 @@
  */
 
 import { DATA_PROFILE_KEYS, type DataProfile } from '../spec/data-profile.js';
-import { classifyColumns, distinctCount, type ClassifiedColumn } from './roles.js';
+import { classifyColumns, distinctCount, isPlaceLabel, type ClassifiedColumn } from './roles.js';
 import { tableRowCount, type Table } from './table.js';
 
 const PROFILE_KEY_SET = new Set<string>(DATA_PROFILE_KEYS);
@@ -29,7 +29,11 @@ export function profileColumns(table: Table, env: ProfileEnv = {}): DataProfile 
   const rowCount = tableRowCount(table);
   const controls = countControls(columns, isControlTable);
 
-  const category = columns.find((entry) => entry.role === 'category');
+  // A lone place-name column (region, country) is still geo for a map, and it
+  // is also the category a comparison chart groups by. Lat/lng stay coordinates.
+  const category =
+    columns.find((entry) => entry.role === 'category') ??
+    columns.find((entry) => isPlaceLabel(entry));
   const hasLinks = has(columns, 'link');
   const hasTemporal = has(columns, 'temporal');
 

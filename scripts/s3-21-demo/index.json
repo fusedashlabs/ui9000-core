@@ -10,7 +10,7 @@
       "intent": "spatial",
       "winner": "map-chart",
       "chartType": "mapChart",
-      "summary": "map-chart for spatial. highest score 15 (map-chart). binds geo=country, metric=incidents. rows via read_workspace_data",
+      "summary": "map chart (place a metric on geography) for spatial. highest score 15 (map-chart). binds geo=country, metric=incidents. rows via read_workspace_data",
       "specComponent": "map-chart",
       "actions": [
         "hover",
@@ -23,7 +23,7 @@
       "intent": "comparison",
       "winner": "bar-chart",
       "chartType": "barChart",
-      "summary": "bar-chart for comparison. highest score 15 (bar-chart). binds category=team, metric=incidents. rows via read_workspace_data",
+      "summary": "bar chart (compare discrete groups on one metric) for comparison. highest score 15 (bar-chart). binds category=team, metric=incidents. rows via read_workspace_data",
       "specComponent": "bar-chart",
       "actions": [
         "hover",
@@ -36,7 +36,7 @@
       "intent": "summary",
       "winner": "kpi-widget",
       "chartType": "KPI",
-      "summary": "kpi-widget for summary. tied at 12; picked kpi-widget before table by id. binds metric=incidents. rows via read_workspace_data",
+      "summary": "kpi widget (state a headline card: one number, its change, current versus previous, or the high and low of a category) for summary. tied at 12; picked kpi-widget before table by id. binds metric=incidents. rows via read_workspace_data",
       "specComponent": "kpi-widget",
       "actions": [
         "resize"
@@ -48,7 +48,7 @@
       "intent": "form",
       "winner": "approval-bar",
       "chartType": "customWidget",
-      "summary": "approval-bar for form. highest score 12 (approval-bar). binds proposal=id. rows via read_workspace_data",
+      "summary": "approval bar for form. highest score 12 (approval-bar). binds proposal=id. rows via read_workspace_data",
       "specComponent": "approval-bar",
       "actions": [
         "approve",

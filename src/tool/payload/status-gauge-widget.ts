@@ -108,11 +108,16 @@ function longItems(rows: Record<string, unknown>[]): GaugeRow[] {
   return items;
 }
 
+/** Scale and threshold columns describe a measure. They are not measures themselves. */
+const SCALE_KEYS =
+  /^(min|max|ticks|bands|thresholds|trend|decimals|ok_?to|warning_?to|severe_?to|critical_?to)$/i;
+
 function wideItems(rows: Record<string, unknown>[]): GaugeRow[] {
   const sample = rows[0];
   if (!sample) return [];
   const items: GaugeRow[] = [];
   for (const key of Object.keys(sample)) {
+    if (SCALE_KEYS.test(key)) continue;
     const value = num(sample[key]);
     if (value === undefined) continue;
     items.push({

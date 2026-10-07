@@ -121,6 +121,13 @@ export const CHART_ROLES = {
     data: 'Category and a number. Optional subgroup for one card per group.',
     visual: 'Area-proportional tiles. Color follows magnitude.',
   },
+  'band-utilization-chart': {
+    id: 'band-utilization-chart',
+    chartTypeKeys: ['bandUtilizationChart'],
+    role: 'Show the same share breakdown once per entity.',
+    data: 'One category for the entity, one category for the segment, and the segment share of the row. Each row sums to its own whole.',
+    visual: 'One horizontal band per entity. Segment width is the share. The percent is written inside the segment.',
+  },
   'histogram-chart': {
     id: 'histogram-chart',
     chartTypeKeys: ['histogramChart'],
@@ -226,6 +233,13 @@ export const CHART_ROLES = {
     data: 'A health or condition score that already exists, plus at least one other measure. Optional unit, status, min, and max.',
     visual: 'Semicircular health gauge and KPI cards with ticked range bars.',
   },
+  'loss-indicator': {
+    id: 'loss-indicator',
+    chartTypeKeys: ['lossIndicator'],
+    role: 'Read one metric as its position on a threshold scale.',
+    data: 'Exactly one metric that already has a minimum, a maximum, and operating thresholds. Optional unit and trend. Not a health score beside other measures, and not several metrics.',
+    visual: 'Coloured ticks, a marker on the current value, and an optional trend arrow. Ticks past the marker stay grey.',
+  },
   'power-path-card': {
     id: 'power-path-card',
     chartTypeKeys: ['powerPathCard'],
@@ -314,6 +328,10 @@ export const CHART_FAMILIES = [
       {
         id: 'treemap-chart',
         when: 'Area should carry the share, or a second category nests tiles inside each group.',
+      },
+      {
+        id: 'band-utilization-chart',
+        when: 'The same share breakdown is repeated once per entity, and each row sums to a whole.',
       },
     ],
   },
@@ -410,6 +428,10 @@ export const CHART_FAMILIES = [
     main: 'kpi-widget',
     alternatives: [
       { id: 'status-gauge-widget', when: 'At least two measures, and one of them is already a health or condition score. The dial is that score. Do not invent it.' },
+      {
+        id: 'loss-indicator',
+        when: 'Exactly one metric already has a minimum, a maximum, and operating thresholds. Draw that reading on the scale. A health score beside other measures stays the dial. A plain number, or several metrics, stays the KPI card.',
+      },
       {
         id: 'power-path-card',
         when: 'One equipment group already has a health score, plus the metrics behind it, each with a status. The compact line and the fault are optional. Do not invent the score.',

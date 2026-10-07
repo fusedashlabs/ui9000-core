@@ -22,7 +22,7 @@ jobs:
           repository: fusedashlabs/ui9000-widgets
           path: vendor/ui9000-widgets
           token: ${{ secrets.WIDGETS_CHECKOUT_TOKEN }}
-          ref: v0.7.0
+          ref: v0.7.3
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:

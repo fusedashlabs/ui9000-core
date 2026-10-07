@@ -1,6 +1,6 @@
 {
   "name": "@fusedashlabs/ui9000-workspace",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "type": "module",
   "description": "UI9000 workspace MCP. One tool, show_workspace, draws a chart from your table. Set TYPESAFE_API_KEY to let Jev choose the chart.",
   "license": "Apache-2.0",
@@ -37,7 +37,7 @@
     "pack:check": "node scripts/assert-pack.mjs"
   },
   "dependencies": {
-    "@fusedashlabs/widgets": "0.7.0",
+    "@fusedashlabs/widgets": "0.7.3",
     "@modelcontextprotocol/ext-apps": "1.7.5",
     "@modelcontextprotocol/sdk": "1.30.0",
     "zod": "3.25.76"

@@ -1,11 +1,13 @@
 import { chartRole } from '../../catalog/chart-roles.js';
 import type { WorkspaceSpec } from '../../spec/workspace-spec.js';
 import { bindFieldMap } from './bind-fields.js';
+import { bandUtilizationPayload } from './band-utilization.js';
 import { barChartPayload } from './bar-chart.js';
 import { chartTypeForComponent } from './chart-type.js';
 import { histogramChartPayload } from './histogram-chart.js';
 import { kpiWidgetPayload } from './kpi-widget.js';
 import { hostedChartPayload } from './hosted-chart.js';
+import { lossIndicatorPayload } from './loss-indicator.js';
 import { statusGaugeWidgetPayload } from './status-gauge-widget.js';
 import { powerPathCardPayload } from './power-path-card.js';
 import { mapChartPayload } from './map-chart.js';
@@ -23,6 +25,10 @@ type PayloadBuilder = (
 
 /** Components with a chart object. Anything else keeps the raw table rows. */
 const PAYLOAD_BY_COMPONENT: Record<string, PayloadBuilder> = {
+  'band-utilization-chart': (chartType, fields, rows) => {
+    void chartType;
+    return bandUtilizationPayload(fields, rows);
+  },
   'bar-chart': barChartPayload,
   'histogram-chart': histogramChartPayload,
   'map-chart': mapChartPayload,
@@ -34,6 +40,10 @@ const PAYLOAD_BY_COMPONENT: Record<string, PayloadBuilder> = {
   'status-gauge-widget': (chartType, fields, rows) => {
     void chartType;
     return statusGaugeWidgetPayload(fields, rows);
+  },
+  'loss-indicator': (chartType, fields, rows) => {
+    void chartType;
+    return lossIndicatorPayload(fields, rows);
   },
   'power-path-card': (chartType, fields, rows) => {
     void chartType;

@@ -47,6 +47,38 @@ describe('chart roles', () => {
     expect([...seen].sort()).toEqual([...widgets.keys()].sort());
   });
 
+  it('keeps the dial, the loss indicator, and the power path card as headline alternatives, in that order', () => {
+    const drawings = drawingsFor('kpi-widget');
+    expect(drawings?.family.id).toBe('headline');
+    expect(drawings?.alternatives.map((role) => role.id)).toEqual([
+      'status-gauge-widget',
+      'loss-indicator',
+      'power-path-card',
+    ]);
+    expect(drawings?.family.alternatives.map((alt) => alt.id)).toEqual([
+      'status-gauge-widget',
+      'loss-indicator',
+      'power-path-card',
+    ]);
+  });
+
+  it('keeps pie as the part-to-whole main, with the band as a later alternative', () => {
+    const drawings = drawingsFor('pie-chart');
+    expect(drawings?.family.id).toBe('part-to-whole');
+    expect(drawings?.family.main).toBe('pie-chart');
+    expect(drawings?.alternatives.map((role) => role.id)).toEqual([
+      'donut-chart',
+      'treemap-chart',
+      'band-utilization-chart',
+    ]);
+    expect(familiesForChart('band-utilization-chart').map((family) => family.id)).toEqual([
+      'part-to-whole',
+    ]);
+    expect(chartLabel('band-utilization-chart')).toBe(
+      'band utilization chart (show the same share breakdown once per entity)',
+    );
+  });
+
   it('treats bar as the comparison main, with lollipop, line, and area as the same data', () => {
     const drawings = drawingsFor('bar-chart');
     expect(drawings?.family.id).toBe('category-magnitude');
@@ -64,13 +96,7 @@ describe('chart roles', () => {
     ]);
   });
 
-  it('keeps KPI as the headline main, with the dial and the power path card as alternatives', () => {
-    const drawings = drawingsFor('kpi-widget');
-    expect(drawings?.family.id).toBe('headline');
-    expect(drawings?.alternatives.map((role) => role.id)).toEqual([
-      'status-gauge-widget',
-      'power-path-card',
-    ]);
+  it('keeps the power path card in the headline family only, as an alternative to KPI', () => {
     expect(drawingsFor('power-path-card')).toBeUndefined();
     expect(familiesForChart('power-path-card').map((family) => family.id)).toEqual(['headline']);
     const headline = CHART_FAMILIES.find((family) => family.id === 'headline');

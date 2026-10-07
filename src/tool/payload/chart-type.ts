@@ -1,9 +1,11 @@
 const CHART_TYPE_BY_COMPONENT: Record<string, string> = {
+  'band-utilization-chart': 'bandUtilizationChart',
   'bar-chart': 'barChart',
   'histogram-chart': 'histogramChart',
   'map-chart': 'mapChart',
   'kpi-widget': 'KPI',
   'status-gauge-widget': 'statusGaugeWidget',
+  'loss-indicator': 'lossIndicator',
   'power-path-card': 'powerPathCard',
   'network-graph': 'networkGraphChart',
   table: 'customWidget',
