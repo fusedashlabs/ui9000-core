@@ -24,7 +24,6 @@ function widgetChartIds(): Map<string, string[]> {
 const PENDING_IN_CORE = [
   'component-asset-card',
   'flow-sankey-chart',
-  'incidents-review-card',
   'power-path-card',
 ];
 
@@ -67,16 +66,18 @@ describe('chart roles', () => {
     expect([...seen].sort()).toEqual([...named].sort());
   });
 
-  it('keeps the dial and the loss indicator as headline alternatives, in that order', () => {
+  it('keeps the dial, the loss indicator, and the incidents review card as headline alternatives, in that order', () => {
     const drawings = drawingsFor('kpi-widget');
     expect(drawings?.family.id).toBe('headline');
     expect(drawings?.alternatives.map((role) => role.id)).toEqual([
       'status-gauge-widget',
       'loss-indicator',
+      'incidents-review-card',
     ]);
     expect(drawings?.family.alternatives.map((alt) => alt.id)).toEqual([
       'status-gauge-widget',
       'loss-indicator',
+      'incidents-review-card',
     ]);
   });
 
@@ -112,6 +113,24 @@ describe('chart roles', () => {
       'category-magnitude',
       'ordered-series',
     ]);
+  });
+
+  it('puts the incidents review card in the headline family as an alternative, not a main', () => {
+    expect(drawingsFor('incidents-review-card')).toBeUndefined();
+    expect(familiesForChart('incidents-review-card').map((family) => family.id)).toEqual(['headline']);
+    expect(CHART_FAMILIES.filter((family) => family.id === 'headline')).toHaveLength(1);
+    const headline = CHART_FAMILIES.find((family) => family.id === 'headline');
+    expect(headline?.main).toBe('kpi-widget');
+    expect(drawingsFor('kpi-widget')?.alternatives.map((role) => role.id)).toContain('incidents-review-card');
+    const when = headline?.alternatives.find((alt) => alt.id === 'incidents-review-card')?.when;
+    expect(when).toContain('aggregated incident counts by state');
+    expect(when).toContain('network, region, site, or area');
+    expect(when).toContain('The filter and the lifecycle track are optional');
+    expect(when).toContain('A plain set of headline numbers stays a KPI');
+    expect(CHART_ROLES['incidents-review-card'].chartTypeKeys).toEqual(['incidentsReviewCard']);
+    expect(chartLabel('incidents-review-card')).toBe(
+      'incidents review card (summarise incidents for one scope: aggregated counts by state and a total)',
+    );
   });
 
   it('names a chart by what it shows', () => {

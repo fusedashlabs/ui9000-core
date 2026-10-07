@@ -6,6 +6,7 @@ const CHART_TYPE_BY_COMPONENT: Record<string, string> = {
   'kpi-widget': 'KPI',
   'status-gauge-widget': 'statusGaugeWidget',
   'loss-indicator': 'lossIndicator',
+  'incidents-review-card': 'incidentsReviewCard',
   'network-graph': 'networkGraphChart',
   table: 'customWidget',
   text: 'customWidget',
