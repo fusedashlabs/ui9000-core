@@ -9,6 +9,7 @@ import { kpiWidgetPayload } from './kpi-widget.js';
 import { hostedChartPayload } from './hosted-chart.js';
 import { lossIndicatorPayload } from './loss-indicator.js';
 import { statusGaugeWidgetPayload } from './status-gauge-widget.js';
+import { componentAssetCardPayload } from './component-asset-card.js';
 import { mapChartPayload } from './map-chart.js';
 import { networkGraphPayload } from './network-graph.js';
 import { asRowObjects } from './rows.js';
@@ -43,6 +44,10 @@ const PAYLOAD_BY_COMPONENT: Record<string, PayloadBuilder> = {
   'loss-indicator': (chartType, fields, rows) => {
     void chartType;
     return lossIndicatorPayload(fields, rows);
+  },
+  'component-asset-card': (chartType, fields, rows) => {
+    void chartType;
+    return componentAssetCardPayload(fields, rows);
   },
 };
 

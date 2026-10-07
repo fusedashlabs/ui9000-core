@@ -391,6 +391,78 @@ describe('show_workspace', () => {
     expect(result.spec.component).toBe('status-gauge-widget');
   });
 
+  const COMPONENT_ASSET_CSV = [
+    'name,asset_id,image,metric,value,unit,delta,reference,points',
+    'Sector A1 Antenna,RTX-3090,https://assets.example/sector-antenna.png,Packet loss,1.02,%,0.8,vs 30m ago,2.4 1.9 1.4 1.02',
+  ].join('\n');
+
+  it('draws the component asset card for one asset with its id and one metric', async () => {
+    const result = await handleShowWorkspace({ intent: 'summary', csv: COMPONENT_ASSET_CSV }, context());
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('component-asset-card');
+    expect(result.chartType).toBe('componentAssetCard');
+  });
+
+  it('draws the component asset card without an image, a delta, or a trend', async () => {
+    const csv = ['name,asset_id,metric,value,unit', 'Sector A1 Antenna,RTX-3090,Packet loss,1.02,%'].join('\n');
+    const result = await handleShowWorkspace({ intent: 'summary', csv }, context());
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('component-asset-card');
+  });
+
+  it('keeps a plain number as a KPI', async () => {
+    const csv = ['id,packet_loss', '1,1.02'].join('\n');
+    const result = await handleShowWorkspace({ intent: 'summary', csv }, context());
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('kpi-widget');
+  });
+
+  it('keeps a KPI when one asset has several metrics and no health score', async () => {
+    const csv = ['asset_id,metric,value,unit', 'RTX-3090,Packet loss,1.02,%', 'RTX-3090,Latency,14,ms'].join('\n');
+    const result = await handleShowWorkspace({ intent: 'summary', csv }, context());
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('kpi-widget');
+  });
+
+  it('keeps the dial when one asset has a health score beside other measures', async () => {
+    const csv = [
+      'asset_id,metric,value,unit',
+      'RTX-3090,Electricity Health,69.9,%',
+      'RTX-3090,Input Voltage,48.1,V',
+    ].join('\n');
+    const result = await handleShowWorkspace({ intent: 'summary', csv }, context());
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('status-gauge-widget');
+  });
+
+  it('keeps the loss indicator when the asset metric sits on a scale with thresholds', async () => {
+    const csv = [
+      'asset_id,metric,value,unit,min,max,warning_to,critical_to',
+      'RTX-3090,Packet loss,1.02,%,0,5,2,5',
+    ].join('\n');
+    const result = await handleShowWorkspace({ intent: 'summary', csv }, context());
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('loss-indicator');
+  });
+
+  it('draws a named component asset card without inventing the id', async () => {
+    const csv = ['metric,value,unit', 'Packet loss,1.02,%'].join('\n');
+    const result = await handleShowWorkspace(
+      { intent: 'summary', requestedChart: 'componentAssetCard', csv },
+      context(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('component-asset-card');
+    expect(JSON.stringify(result)).not.toContain('"assetId"');
+  });
+
   it('refuses csv and datasetId together', async () => {
     const result = await handleShowWorkspace(
       { intent: 'comparison', csv: 'a,b\n1,2\n', datasetId: 'x' },

@@ -240,6 +240,13 @@ export const CHART_ROLES = {
     data: 'Exactly one metric that already has a minimum, a maximum, and operating thresholds. Optional unit and trend. Not a health score beside other measures, and not several metrics.',
     visual: 'Coloured ticks, a marker on the current value, and an optional trend arrow. Ticks past the marker stay grey.',
   },
+  'component-asset-card': {
+    id: 'component-asset-card',
+    chartTypeKeys: ['componentAssetCard'],
+    role: 'Give a quick status of one asset: its name, its id, and one primary metric.',
+    data: 'One asset with a name and an id, plus one metric value. Optional image, unit, delta against a reference point, recent points, and a status or threshold.',
+    visual: 'Card with the asset image, the name beside an id badge, the metric value with a delta arrow, and a compact trend of points coloured by level.',
+  },
   'step-line-chart': {
     id: 'step-line-chart',
     chartTypeKeys: ['stepLineChart', 'ksPlotChart', 'rocCurveChart'],
@@ -424,6 +431,10 @@ export const CHART_FAMILIES = [
       {
         id: 'loss-indicator',
         when: 'Exactly one metric already has a minimum, a maximum, and operating thresholds. Draw that reading on the scale. A health score beside other measures stays the dial. A plain number, or several metrics, stays the KPI card.',
+      },
+      {
+        id: 'component-asset-card',
+        when: 'One asset, named by its id, with one primary metric, read as a quick status. The image, the delta, and the trend are optional. A metric on a scale with a minimum and a maximum stays the loss indicator. A plain number, or several metrics, stays the KPI card.',
       },
     ],
   },
