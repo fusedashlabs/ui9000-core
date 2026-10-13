@@ -23,7 +23,6 @@ function widgetChartIds(): Map<string, string[]> {
 /** Widgets charts core does not select yet. The PR that adds one to CHART_ROLES removes it here. */
 const PENDING_IN_CORE = [
   'component-asset-card',
-  'flow-sankey-chart',
   'incidents-review-card',
   'power-path-card',
 ];
@@ -114,9 +113,28 @@ describe('chart roles', () => {
     ]);
   });
 
+  it('keeps sankey as the flow main, with the multi-stage flow sankey as its alternative', () => {
+    const drawings = drawingsFor('sankey-chart');
+    expect(drawings?.family.id).toBe('flow');
+    expect(drawings?.alternatives.map((role) => role.id)).toEqual(['flow-sankey-chart']);
+    expect(drawingsFor('flow-sankey-chart')).toBeUndefined();
+    expect(familiesForChart('flow-sankey-chart').map((family) => family.id)).toEqual(['flow']);
+    const flow = CHART_FAMILIES.find((family) => family.id === 'flow');
+    expect(flow?.alternatives.find((alt) => alt.id === 'flow-sankey-chart')?.when).toContain(
+      'three or more stages',
+    );
+    expect(CHART_ROLES['flow-sankey-chart'].chartTypeKeys).toEqual([
+      'flowSankeyChart',
+      'multiStageSankeyChart',
+    ]);
+  });
+
   it('names a chart by what it shows', () => {
     expect(chartLabel('bar-chart')).toBe('bar chart (compare discrete groups on one metric)');
     expect(chartLabel('map-chart')).toBe('map chart (place a metric on geography)');
+    expect(chartLabel('flow-sankey-chart')).toBe(
+      'flow sankey chart (trace how much flows through three or more stages, such as cause to impact)',
+    );
     expect(chartLabel('not-a-chart')).toBe('this chart');
   });
 });

@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import type { DataProfile } from '../spec/data-profile.js';
-import { discussChart, requestedChartFromUtterance, resolveChartName, utteranceNamesChart } from './discuss-chart.js';
+import {
+  chartNamedByWords,
+  discussChart,
+  requestedChartFromUtterance,
+  resolveChartName,
+  utteranceNamesChart,
+} from './discuss-chart.js';
 
 const catalogIds = new Set(['bar-chart', 'map-chart', 'histogram-chart', 'kpi-widget', 'line-chart']);
 
@@ -21,6 +27,32 @@ describe('discussChart', () => {
     expect(resolveChartName('band utilization')).toBe('band-utilization-chart');
     expect(resolveChartName('bandUtilizationChart')).toBe('band-utilization-chart');
     expect(resolveChartName('not-a-chart')).toBeUndefined();
+  });
+
+  it('tells the multi-stage flow sankey apart from the two-column sankey', () => {
+    expect(resolveChartName('flow sankey')).toBe('flow-sankey-chart');
+    expect(resolveChartName('flowSankeyChart')).toBe('flow-sankey-chart');
+    expect(resolveChartName('multiStageSankeyChart')).toBe('flow-sankey-chart');
+    expect(resolveChartName('sankey')).toBe('sankey-chart');
+    expect(chartNamedByWords('Trace the outages as a flow sankey.')).toBe('flow-sankey-chart');
+    expect(chartNamedByWords('Show the moves as a sankey.')).toBe('sankey-chart');
+    expect(requestedChartFromUtterance('Trace the outages as a flow sankey.', 'flow sankey')).toBe(
+      'flow sankey',
+    );
+  });
+
+  it('keeps a named flow sankey in the flow group', () => {
+    const discussion = discussChart({
+      profile: { hasLinks: true, hasNodes: true, hasNumericMetric: true, rowCount: 6 },
+      requestedChart: 'flow sankey',
+      intent: 'graph',
+      catalogIds: new Set([...catalogIds, 'sankey-chart', 'flow-sankey-chart']),
+    });
+    expect(discussion.drawId).toBe('flow-sankey-chart');
+    expect(discussion.dataFamilies).toContain('flow');
+    expect(discussion.poorFit).toBeUndefined();
+    expect(discussion.chartWhy).toContain('is in this group, so it stays');
+    expect(discussion.chartWhy).not.toContain('flow-sankey-chart');
   });
 
   it('names a chart only when the words contain that chart', () => {

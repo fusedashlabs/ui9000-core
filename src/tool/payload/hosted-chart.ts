@@ -32,7 +32,7 @@ const LABEL_X = new Set([
 
 const POINTS = new Set(['scatter-plot-chart', 'bubble-chart']);
 const GRID = new Set(['matrix-chart', 'punchcard-chart']);
-const FLOW = new Set(['sankey-chart']);
+const FLOW = new Set(['sankey-chart', 'flow-sankey-chart']);
 const MODEL = new Set([
   'partial-dependence-chart',
   'bias-variance-tradeoff-chart',
