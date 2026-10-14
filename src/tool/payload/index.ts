@@ -12,6 +12,7 @@ import { lossIndicatorPayload } from './loss-indicator.js';
 import { statusGaugeWidgetPayload } from './status-gauge-widget.js';
 import { powerPathCardPayload } from './power-path-card.js';
 import { componentAssetCardPayload } from './component-asset-card.js';
+import { incidentsReviewCardPayload } from './incidents-review-card.js';
 import { mapChartPayload } from './map-chart.js';
 import { networkGraphPayload } from './network-graph.js';
 import { asRowObjects } from './rows.js';
@@ -55,6 +56,10 @@ const PAYLOAD_BY_COMPONENT: Record<string, PayloadBuilder> = {
   'component-asset-card': (chartType, fields, rows) => {
     void chartType;
     return componentAssetCardPayload(fields, rows);
+  },
+  'incidents-review-card': (chartType, fields, rows) => {
+    void chartType;
+    return incidentsReviewCardPayload(fields, rows);
   },
 };
 

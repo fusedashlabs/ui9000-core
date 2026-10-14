@@ -74,6 +74,17 @@ describe('headlineChart', () => {
     expect(headlineChart(POWER_PATH.map((row) => ({ asset_id: 'RTX-3090', ...row })))).toBe('power-path-card');
   });
 
+  it('calls the incidents review card for incident counts by state', () => {
+    expect(headlineChart([{ openIncidents: 12, acknowledgedIncidents: 5, resolvedIncidents: 30 }])).toBe(
+      'incidents-review-card',
+    );
+  });
+
+  it('keeps a KPI when the incidents review card cannot be drawn', () => {
+    const incidents = [{ openIncidents: 12, acknowledgedIncidents: 5, resolvedIncidents: 30 }];
+    expect(headlineChart(incidents, (id) => id !== 'incidents-review-card')).toBe('kpi-widget');
+  });
+
   it('keeps a KPI for a plain number or for several metrics', () => {
     expect(headlineChart([{ loss: 24.3 }])).toBe('kpi-widget');
     expect(headlineChart([{ loss: 24.3, noise: 1, min: 0, max: 30, okTo: 10 }])).toBe('kpi-widget');

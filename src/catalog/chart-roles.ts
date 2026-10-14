@@ -261,6 +261,13 @@ export const CHART_ROLES = {
     data: 'One asset with a name and an id, plus one metric value. Optional image, unit, delta against a reference point, recent points, and a status or threshold.',
     visual: 'Card with the asset image, the name beside an id badge, the metric value with a delta arrow, and a compact trend of points coloured by level.',
   },
+  'incidents-review-card': {
+    id: 'incidents-review-card',
+    chartTypeKeys: ['incidentsReviewCard'],
+    role: 'Summarise incidents for one scope: aggregated counts by state and a total.',
+    data: 'Incident counts by state for a network, region, site, or area. Optional total, filter, and lifecycle.',
+    visual: 'Card with a title, a filter, the counts as headline numbers, and one lifecycle track under them.',
+  },
   'step-line-chart': {
     id: 'step-line-chart',
     chartTypeKeys: ['stepLineChart', 'ksPlotChart', 'rocCurveChart'],
@@ -458,6 +465,10 @@ export const CHART_FAMILIES = [
       {
         id: 'component-asset-card',
         when: 'One asset, named by its id, with one primary metric, read as a quick status. The image, the delta, and the trend are optional. A health score with the metrics behind it stays the power path card, and a metric on a scale with a minimum and a maximum stays the loss indicator. A plain number, or several metrics, stays the KPI card.',
+      },
+      {
+        id: 'incidents-review-card',
+        when: 'The numbers are aggregated incident counts by state, for a network, region, site, or area. The filter and the lifecycle track are optional. The counts are headlines and need not sum to the total. A plain set of headline numbers stays a KPI.',
       },
     ],
   },

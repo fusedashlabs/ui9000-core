@@ -54,7 +54,8 @@ export function dataRolesForChart(id: string): CatalogDataRole[] {
     id === 'status-gauge-widget' ||
     id === 'loss-indicator' ||
     id === 'power-path-card' ||
-    id === 'component-asset-card'
+    id === 'component-asset-card' ||
+    id === 'incidents-review-card'
   ) {
     return [];
   }
