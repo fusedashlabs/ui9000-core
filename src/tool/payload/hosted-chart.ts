@@ -50,7 +50,12 @@ const RAW = new Set([
 ]);
 
 export function dataRolesForChart(id: string): CatalogDataRole[] {
-  if (id === 'status-gauge-widget' || id === 'loss-indicator' || id === 'power-path-card') {
+  if (
+    id === 'status-gauge-widget' ||
+    id === 'loss-indicator' ||
+    id === 'power-path-card' ||
+    id === 'component-asset-card'
+  ) {
     return [];
   }
   if (id === 'band-utilization-chart') {
