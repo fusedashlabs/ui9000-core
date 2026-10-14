@@ -254,6 +254,13 @@ export const CHART_ROLES = {
     data: 'A health score that already exists, plus metric rows each with a value and a status or threshold. Optional asset badge, recent points, and an active fault.',
     visual: 'Card with an asset badge, the score beside a compact line, a fault banner only while a fault is active, and a metric list with status dots.',
   },
+  'component-asset-card': {
+    id: 'component-asset-card',
+    chartTypeKeys: ['componentAssetCard'],
+    role: 'Give a quick status of one asset: its name, its id, and one primary metric.',
+    data: 'One asset with a name and an id, plus one metric value. Optional image, unit, delta against a reference point, recent points, and a status or threshold.',
+    visual: 'Card with the asset image, the name beside an id badge, the metric value with a delta arrow, and a compact trend of points coloured by level.',
+  },
   'step-line-chart': {
     id: 'step-line-chart',
     chartTypeKeys: ['stepLineChart', 'ksPlotChart', 'rocCurveChart'],
@@ -447,6 +454,10 @@ export const CHART_FAMILIES = [
       {
         id: 'power-path-card',
         when: 'One equipment group already has a health score, plus the metrics behind it, each with a status, a level, or a threshold. The compact line and the fault are optional. Do not invent the score.',
+      },
+      {
+        id: 'component-asset-card',
+        when: 'One asset, named by its id, with one primary metric, read as a quick status. The image, the delta, and the trend are optional. A health score with the metrics behind it stays the power path card, and a metric on a scale with a minimum and a maximum stays the loss indicator. A plain number, or several metrics, stays the KPI card.',
       },
     ],
   },
