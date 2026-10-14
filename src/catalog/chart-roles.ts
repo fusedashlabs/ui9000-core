@@ -434,7 +434,7 @@ export const CHART_FAMILIES = [
       },
       {
         id: 'power-path-card',
-        when: 'One equipment group already has a health score, plus the metrics behind it, each with a status. The compact line and the fault are optional. Do not invent the score.',
+        when: 'One equipment group already has a health score, plus the metrics behind it, each with a status, a level, or a threshold. The compact line and the fault are optional. Do not invent the score.',
       },
     ],
   },

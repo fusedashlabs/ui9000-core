@@ -121,7 +121,7 @@ describe('chart roles', () => {
     const headline = CHART_FAMILIES.find((family) => family.id === 'headline');
     const when = headline?.alternatives.find((alt) => alt.id === 'power-path-card')?.when;
     expect(when).toContain('already has a health score');
-    expect(when).toContain('each with a status');
+    expect(when).toContain('each with a status, a level, or a threshold');
     expect(when).toContain('Do not invent the score');
     expect(CHART_ROLES['power-path-card'].chartTypeKeys).toEqual(['powerPathCard']);
   });

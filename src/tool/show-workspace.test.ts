@@ -456,7 +456,7 @@ describe('show_workspace', () => {
     const result = await handleShowWorkspace({ intent: 'summary', csv }, context());
     expect(isDrawn(result)).toBe(true);
     if (!isDrawn(result)) return;
-    expect(result.spec.component).not.toBe('power-path-card');
+    expect(result.spec.component).toBe('kpi-widget');
   });
 
   it('draws a named power path card without inventing the health score', async () => {

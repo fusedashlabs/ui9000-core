@@ -2,7 +2,8 @@
  * Headline family. The main drawing is the KPI card.
  *
  * Call the power path card only when one equipment group already has a health
- * score and every other metric carries a status. Call the dial only when a
+ * score and every other metric carries a status, a level, or a threshold.
+ * Call the dial only when a
  * health score already sits beside other measures.
  * Call the loss indicator only when one metric already has a minimum, a
  * maximum, and operating thresholds. A plain number, or several metrics,
@@ -30,14 +31,14 @@ export function isHeadlineChart(id: string): id is HeadlineChart {
  * Which headline drawing the rows support. The power path card is checked
  * first, because the dial also fits a health score whose metrics carry a status.
  * Gauge is checked before the loss scale. `drawable` drops a chart the host
- * catalog cannot draw.
+ * catalog cannot draw. The KPI card is the main drawing and always stays.
  */
 export function headlineChart(
   payload: unknown,
   drawable: (id: HeadlineChart) => boolean = () => true,
 ): HeadlineChart {
   if (drawable('power-path-card') && powerPathFits(payload)) return 'power-path-card';
-  if (statusGaugeFits(payload)) return 'status-gauge-widget';
-  if (lossIndicatorFits(payload)) return 'loss-indicator';
+  if (drawable('status-gauge-widget') && statusGaugeFits(payload)) return 'status-gauge-widget';
+  if (drawable('loss-indicator') && lossIndicatorFits(payload)) return 'loss-indicator';
   return 'kpi-widget';
 }

@@ -35,6 +35,17 @@ describe('headlineChart', () => {
     expect(headlineChart(POWER_PATH, (id) => id !== 'power-path-card')).toBe('status-gauge-widget');
   });
 
+  it('keeps a KPI when neither the power path card nor the dial can be drawn', () => {
+    expect(headlineChart(POWER_PATH, (id) => id === 'kpi-widget')).toBe('kpi-widget');
+  });
+
+  it('keeps a KPI when the loss indicator cannot be drawn', () => {
+    const scaled = [
+      { label: 'Electrical Loss', value: 24.3, unit: '%', min: 0, max: 30, okTo: 10, warningTo: 20 },
+    ];
+    expect(headlineChart(scaled, (id) => id !== 'loss-indicator')).toBe('kpi-widget');
+  });
+
   it('calls the dial when a metric beside the health score has no status', () => {
     expect(headlineChart([...POWER_PATH, { metric: 'Current Draw', value: 18.7, unit: 'A' }])).toBe(
       'status-gauge-widget',
