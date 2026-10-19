@@ -10,6 +10,7 @@
 import type { ClassifiedColumn } from '../profiler/roles.js';
 import type { DataProfile } from '../spec/data-profile.js';
 import { INTENTS, type Intent } from '../spec/intent.js';
+import { namesOrchestration } from '../profiler/orchestration-columns.js';
 import { CHART_FAMILIES, CHART_ROLES, type ChartFamily, type ChartId, chartLabel, chartRole, familiesForChart } from './chart-roles.js';
 
 export type ChartDiscussion = {
@@ -71,7 +72,7 @@ export function discussChart(input: {
   intent: Intent;
   catalogIds: ReadonlySet<string>;
 }): ChartDiscussion {
-  const counts = columnCounts(input.profile, input.columns);
+  const counts = columnCounts(input.profile, input.columns, input.catalogIds);
   const families = eligibleFamilies(input.profile, counts);
   const resolved = resolveChartName(input.requestedChart);
   const judged = resolved ? judgeRequest(resolved, families) : undefined;
@@ -218,13 +219,17 @@ export function chartWhyFor(componentId: string): string | undefined {
   return chartRole(componentId) ? whyChart(componentId) : undefined;
 }
 
-/** Families whose data shape the profile can support. Same gates as discussChart. */
+/**
+ * Families whose data shape the profile can support. Same gates as discussChart.
+ * `catalogIds` lets reasoning steps open the graph family when the host can draw the orchestration graph.
+ */
 export function chartFamiliesFor(
   profile: DataProfile,
-  columns?: readonly { role: string }[],
+  columns?: readonly { role: string; key?: string }[],
   intent?: Intent,
+  catalogIds?: ReadonlySet<string>,
 ): ChartFamily[] {
-  const families = eligibleFamilies(profile, columnCounts(profile, columns));
+  const families = eligibleFamilies(profile, columnCounts(profile, columns, catalogIds));
   const preferred = preferenceIds(profile, intent);
   if (!preferred) return families;
   const rank = (id: string) => {
@@ -243,13 +248,14 @@ export function chartFamiliesFor(
  */
 export function guidedChartFamilies(
   profile: DataProfile,
-  columns: readonly { role: string }[] | undefined,
+  columns: readonly { role: string; key?: string }[] | undefined,
   intent: Intent,
+  catalogIds?: ReadonlySet<string>,
 ): ChartFamily[] {
   const preferred = preferenceIds(profile, intent);
   if (!preferred) return [];
   const ids = new Set(preferred);
-  return chartFamiliesFor(profile, columns, intent).filter((family) => ids.has(family.id));
+  return chartFamiliesFor(profile, columns, intent, catalogIds).filter((family) => ids.has(family.id));
 }
 
 function preferenceIds(profile: DataProfile, intent: Intent | undefined): readonly string[] | undefined {
@@ -338,7 +344,7 @@ function eligibleFamilies(
   const card = profile.categoryCardinality ?? 0;
   const ids: string[] = [];
   if (profile.hasLinks && profile.hasNumericMetric) ids.push('flow');
-  if (profile.hasNodes && profile.hasLinks) ids.push('graph');
+  if ((profile.hasNodes && profile.hasLinks) || counts.orchestration) ids.push('graph');
   if (profile.hasGeo) ids.push('spatial');
   if (profile.hasTemporal && profile.hasNumericMetric) ids.push('ordered-series');
   if (counts.categories >= 2 && counts.metrics >= 1) ids.push('two-way-magnitude');
@@ -367,18 +373,31 @@ function eligibleFamilies(
   return CHART_FAMILIES.filter((family) => ids.includes(family.id));
 }
 
-type ColumnCounts = { metrics: number; categories: number };
+type ColumnCounts = { metrics: number; categories: number; orchestration: boolean };
 
-function columnCounts(profile: DataProfile, columns?: readonly { role: string }[]): ColumnCounts {
+/**
+ * `orchestration` needs the reasoning orchestration graph in the host
+ * catalog: without it the graph family has nothing to draw reasoning steps
+ * with, and they go to the families they reached before.
+ */
+function columnCounts(
+  profile: DataProfile,
+  columns?: readonly { role: string; key?: string }[],
+  catalogIds?: ReadonlySet<string>,
+): ColumnCounts {
   if (!columns?.length) {
     return {
       metrics: profile.hasNumericMetric ? 1 : 0,
       categories: profile.hasCategory ? 1 : 0,
+      orchestration: false,
     };
   }
   return {
     metrics: columns.filter((column) => column.role === 'metric').length,
     categories: columns.filter((column) => column.role === 'category').length,
+    orchestration:
+      catalogIds?.has('reasoning-orchestration-graph') === true &&
+      namesOrchestration(columns.map((column) => column.key ?? '')),
   };
 }
 

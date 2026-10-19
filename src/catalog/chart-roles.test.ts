@@ -180,6 +180,27 @@ describe('chart roles', () => {
     );
   });
 
+  it('puts the reasoning orchestration graph in the graph family as an alternative, not a main or a new family', () => {
+    expect(drawingsFor('reasoning-orchestration-graph')).toBeUndefined();
+    expect(familiesForChart('reasoning-orchestration-graph').map((family) => family.id)).toEqual(['graph']);
+    expect(CHART_FAMILIES.filter((family) => family.id === 'graph')).toHaveLength(1);
+    const graph = CHART_FAMILIES.find((family) => family.id === 'graph');
+    expect(graph?.main).toBe('network-graph');
+    expect(drawingsFor('network-graph')?.alternatives.map((role) => role.id)).toEqual(['reasoning-orchestration-graph']);
+    const when = graph?.alternatives.find((alt) => alt.id === 'reasoning-orchestration-graph')?.when;
+    expect(when).toContain('Reasoning stages, candidate paths, models, or refinement steps form an inspectable orchestration graph');
+    expect(when).toContain('with an active path to highlight');
+    expect(when).toContain('not a free-form adjacency list');
+    expect(when).toContain('A general node–link exploration stays the network graph');
+    expect(CHART_ROLES['reasoning-orchestration-graph'].chartTypeKeys).toEqual(['reasoningOrchestrationGraph']);
+    expect(chartLabel('reasoning-orchestration-graph')).toBe(
+      'reasoning orchestration graph (inspect a reasoning or inference process: its stages, candidate paths, models, and refinement steps, with the active path highlighted)',
+    );
+    // The widgets package draws it under the same chartType.
+    const meta = collectPortMetadata().find((item) => item.id === 'reasoning-orchestration-graph');
+    expect(meta && chartTypeKeysOf(meta)).toEqual(['reasoningOrchestrationGraph']);
+  });
+
   it('names a chart by what it shows', () => {
     expect(chartLabel('bar-chart')).toBe('bar chart (compare discrete groups on one metric)');
     expect(chartLabel('map-chart')).toBe('map chart (place a metric on geography)');

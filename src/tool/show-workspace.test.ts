@@ -12,6 +12,7 @@ import {
   type SignedLink,
 } from './data-channel.js';
 import { datasetFromPayload } from './ingest-table.js';
+import { loadWorkspaceCatalog } from '../catalog/load-workspace.js';
 import { requestedChartFromUtterance } from '../catalog/discuss-chart.js';
 import {
   SHOW_WORKSPACE_DESCRIPTION,
@@ -1852,5 +1853,93 @@ describe('show_workspace fail-closed', () => {
     expect(result.chartWhy).toContain('bar chart (compare discrete groups on one metric)');
     expect(result.chartWhy).not.toMatch(/[a-z]-chart/);
     expect(result.chartWhy).not.toContain('sankey');
+  });
+});
+
+describe('show_workspace graph family: reasoning orchestration', () => {
+  /** The real engine catalog, so network-graph is the graph family's main drawing. */
+  const graphContext = (overrides: Partial<ShowWorkspaceContext> = {}) =>
+    context({ catalog: loadWorkspaceCatalog(), ...overrides });
+
+  const STEPS_CSV = [
+    'step_id,parent_id,stage,model,status,score,active',
+    'q,,Prompt,,verified,1,yes',
+    's1,q,Sample,Astra,candidate,0.4,no',
+    's2,q,Sample,Astra,candidate,0.7,yes',
+    's3,q,Sample,Astra,pruned,0.2,no',
+    'v1,s2,Verify,Opus,verified,0.8,yes',
+    'v2,s1,Verify,Opus,pruned,0.3,no',
+    'r1,v1,Repair,Opus,refined,0.9,yes',
+  ].join('\n');
+
+  it('draws the reasoning orchestration graph for reasoning steps with an active path', async () => {
+    const channel = memoryChannel();
+    const result = await handleShowWorkspace(
+      { intent: 'graph', csv: STEPS_CSV },
+      graphContext({ signDataLink: channel.signDataLink, loadDataset: channel.loadDataset }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('reasoning-orchestration-graph');
+    expect(result.chartType).toBe('reasoningOrchestrationGraph');
+    expect(result.trace.chosen?.id).toBe('reasoning-orchestration-graph');
+    expect(result.chartWhy).toContain('with an active path to highlight');
+    expect(result.chartWhy).toContain('reasoning orchestration graph (inspect a reasoning or inference process');
+    const widget = (await readViaHandle(result.spec, channel.readDataLink)) as {
+      chartType: string;
+      stages: { label: string }[];
+      nodes: unknown[];
+      links: unknown[];
+      activePath: unknown;
+    };
+    expect(widget.chartType).toBe('reasoningOrchestrationGraph');
+    expect(widget.stages.map((stage) => stage.label)).toEqual(['Prompt', 'Sample', 'Verify', 'Repair']);
+    expect(widget.nodes).toHaveLength(7);
+    expect(widget.links).toHaveLength(6);
+    expect(widget.activePath).toEqual(['q', 's2', 'v1', 'r1']);
+  });
+
+  it('draws it from a link table that carries a depth and a selected flag', async () => {
+    const csv = [
+      'source,target,depth,model,selected',
+      'q,a,1,Astra,no',
+      'q,b,1,Astra,yes',
+      'b,c,2,Opus,yes',
+      'a,d,2,Opus,no',
+      'c,e,3,Opus,yes',
+      'd,f,3,Opus,no',
+    ].join('\n');
+    const result = await handleShowWorkspace({ intent: 'graph', csv }, graphContext());
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('reasoning-orchestration-graph');
+  });
+
+  it('keeps a free-form adjacency list on the network graph', async () => {
+    for (const csv of [
+      'source,target\nA,B\nB,C\nC,A\nA,D\nD,E\nE,F\n',
+      // A stage without an active path is still a node–link list.
+      'source,target,stage\nA,B,S1\nB,C,S1\nC,D,S2\nA,D,S2\nD,E,S3\nE,F,S3\n',
+    ]) {
+      const result = await handleShowWorkspace({ intent: 'graph', csv }, graphContext());
+      expect(isDrawn(result), csv).toBe(true);
+      if (!isDrawn(result)) return;
+      expect(result.spec.component, csv).toBe('network-graph');
+    }
+  });
+
+  it('moves a named orchestration graph on an adjacency list back to the network graph', async () => {
+    const result = await handleShowWorkspace(
+      {
+        intent: 'graph',
+        requestedChart: 'reasoning-orchestration-graph',
+        csv: 'source,target\nA,B\nB,C\nC,A\nA,D\n',
+      },
+      graphContext(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('network-graph');
+    expect(result.chartWhy).toContain('did not fit these columns');
   });
 });

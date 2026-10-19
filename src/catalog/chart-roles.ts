@@ -226,6 +226,13 @@ export const CHART_ROLES = {
     data: 'Nodes and links.',
     visual: 'Force layout. Node size from a value, color from a category.',
   },
+  'reasoning-orchestration-graph': {
+    id: 'reasoning-orchestration-graph',
+    chartTypeKeys: ['reasoningOrchestrationGraph'],
+    role: 'Inspect a reasoning or inference process: its stages, candidate paths, models, and refinement steps, with the active path highlighted.',
+    data: 'Reasoning steps linked to the step they came from, each with a stage or a depth, and an active path to highlight. Optional model, state, score, candidate paths, and supporting metrics.',
+    visual: 'A fan from the root outward by depth, stage by stage. Hairlines in each model’s colour, candidate paths subordinate, the active path bright. Stage metrics on top; step entropy, pipeline status, and compute scaling in panels underneath.',
+  },
   'kpi-widget': {
     id: 'kpi-widget',
     chartTypeKeys: ['KPI', 'KPIs'],
@@ -444,7 +451,12 @@ export const CHART_FAMILIES = [
     question: 'What is connected to what?',
     data: 'Nodes and links.',
     main: 'network-graph',
-    alternatives: [],
+    alternatives: [
+      {
+        id: 'reasoning-orchestration-graph',
+        when: 'Reasoning stages, candidate paths, models, or refinement steps form an inspectable orchestration graph, with an active path to highlight. The reading is reasoning or inference structure, not a free-form adjacency list. A general node–link exploration stays the network graph.',
+      },
+    ],
   },
   {
     id: 'headline',
