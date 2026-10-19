@@ -226,6 +226,13 @@ export const CHART_ROLES = {
     data: 'Nodes and links.',
     visual: 'Force layout. Node size from a value, color from a category.',
   },
+  'goals-perimeter': {
+    id: 'goals-perimeter',
+    chartTypeKeys: ['goalsPerimeter'],
+    role: 'Monitor many agents around a shared goal: their health states, their links, and how many need attention.',
+    data: 'Agents with an id, a health state, and the goal they work toward. Optional links to agents, resources, or external dependencies, and an exception count.',
+    visual: 'A cloud of agents inside a perimeter whose arc is the goal health. Healthy, degraded, blocked, and failed agents differ by colour and marker. Lines show links, red where one is down. The exception count sits in the header, and a goal opens on click into its agents by state.',
+  },
   'kpi-widget': {
     id: 'kpi-widget',
     chartTypeKeys: ['KPI', 'KPIs'],
@@ -451,7 +458,12 @@ export const CHART_FAMILIES = [
     question: 'What is connected to what?',
     data: 'Nodes and links.',
     main: 'network-graph',
-    alternatives: [],
+    alternatives: [
+      {
+        id: 'goals-perimeter',
+        when: 'Many agents (or resources) are arranged around one shared goal, with health states and an optional exception count. The reading is perimeter and population health, not a free-form adjacency list. A general node–link exploration stays the network graph.',
+      },
+    ],
   },
   {
     id: 'headline',

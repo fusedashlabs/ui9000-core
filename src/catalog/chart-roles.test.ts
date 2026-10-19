@@ -26,7 +26,6 @@ const PENDING_IN_CORE: string[] = [
   'goal-burst',
   'goals-dependency-graph',
   'goals-insights',
-  'goals-perimeter',
   'reasoning-orchestration-graph',
 ];
 
@@ -205,6 +204,24 @@ describe('chart roles', () => {
     expect(CHART_ROLES['asset-health-overview'].chartTypeKeys).toEqual(['assetHealthOverview']);
     expect(chartLabel('asset-health-overview')).toBe(
       'asset health overview (show environment health at a glance: agent population plus asset categories with health)',
+    );
+  });
+
+  it('puts the goals perimeter in the graph family as an alternative, not a main or a new family', () => {
+    expect(drawingsFor('goals-perimeter')).toBeUndefined();
+    expect(familiesForChart('goals-perimeter').map((family) => family.id)).toEqual(['graph']);
+    expect(CHART_FAMILIES.filter((family) => family.id === 'graph')).toHaveLength(1);
+    const graph = CHART_FAMILIES.find((family) => family.id === 'graph');
+    expect(graph?.main).toBe('network-graph');
+    expect(drawingsFor('network-graph')?.alternatives.map((role) => role.id)).toEqual(['goals-perimeter']);
+    const when = graph?.alternatives.find((alt) => alt.id === 'goals-perimeter')?.when;
+    expect(when).toContain('Many agents (or resources) are arranged around one shared goal');
+    expect(when).toContain('health states and an optional exception count');
+    expect(when).toContain('not a free-form adjacency list');
+    expect(when).toContain('A general node–link exploration stays the network graph');
+    expect(CHART_ROLES['goals-perimeter'].chartTypeKeys).toEqual(['goalsPerimeter']);
+    expect(chartLabel('goals-perimeter')).toBe(
+      'goals perimeter (monitor many agents around a shared goal: their health states, their links, and how many need attention)',
     );
   });
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { DataProfile } from '../spec/data-profile.js';
 import {
+  chartFamiliesFor,
   chartNamedByWords,
   discussChart,
   requestedChartFromUtterance,
@@ -53,6 +54,30 @@ describe('discussChart', () => {
     expect(discussion.poorFit).toBeUndefined();
     expect(discussion.chartWhy).toContain('is in this group, so it stays');
     expect(discussion.chartWhy).not.toContain('flow-sankey-chart');
+  });
+
+  it('opens the graph family to agents, their state and their goal, with or without links', () => {
+    const profile: DataProfile = { hasCategory: true, rowCount: 10 };
+    const agentColumns = [
+      { role: 'category', key: 'agentid' },
+      { role: 'geo', key: 'state' },
+      { role: 'category', key: 'goal' },
+    ];
+    const drawable = new Set(['network-graph', 'goals-perimeter']);
+    expect(chartFamiliesFor(profile, agentColumns, 'graph', drawable).map((family) => family.id)).toContain('graph');
+    // Without the goal it is not agents around a goal, and without links not a graph.
+    expect(
+      chartFamiliesFor(profile, agentColumns.slice(0, 2), 'graph', drawable).map((family) => family.id),
+    ).not.toContain('graph');
+    // A host that cannot draw the perimeter keeps these columns out of the graph family.
+    expect(chartFamiliesFor(profile, agentColumns, 'graph').map((family) => family.id)).not.toContain('graph');
+    expect(
+      chartFamiliesFor(profile, agentColumns, 'graph', new Set(['network-graph'])).map((family) => family.id),
+    ).not.toContain('graph');
+    // A node–link table still opens it through the profile, as before.
+    expect(
+      chartFamiliesFor({ hasNodes: true, hasLinks: true, rowCount: 4 }, undefined, 'graph').map((family) => family.id),
+    ).toContain('graph');
   });
 
   it('names a chart only when the words contain that chart', () => {

@@ -12,6 +12,7 @@ import {
   type SignedLink,
 } from './data-channel.js';
 import { datasetFromPayload } from './ingest-table.js';
+import { loadWorkspaceCatalog } from '../catalog/load-workspace.js';
 import { requestedChartFromUtterance } from '../catalog/discuss-chart.js';
 import {
   SHOW_WORKSPACE_DESCRIPTION,
@@ -1312,6 +1313,109 @@ describe('show_workspace fail-closed', () => {
     if (!isDrawn(result)) return;
     expect(result.spec.component).toBe('sankey-chart');
     expect(result.suggestion).toBe('bar-chart');
+  });
+
+  /** The real engine catalog, so network-graph is the graph family's main drawing. */
+  const graphContext = (overrides: Partial<ShowWorkspaceContext> = {}) =>
+    context({ catalog: loadWorkspaceCatalog(), ...overrides });
+
+  const AGENTS_CSV = [
+    'agent_id,goal,state,reason,blocker',
+    'agent-01,Incident Response,healthy,,',
+    'agent-02,Incident Response,healthy,,',
+    'agent-03,Incident Response,failed,Pager integration returns 503,',
+    'agent-04,Incident Response,healthy,,',
+    'agent-05,Incident Response,blocked,Escalation needs on-call sign-off,human',
+    'agent-06,Incident Response,degraded,Slow ticket enrichment,',
+    'agent-07,Incident Response,healthy,,',
+    'agent-08,Incident Response,healthy,,',
+    'agent-09,Incident Response,failed,Pager integration returns 503,',
+    'agent-10,Incident Response,healthy,,',
+  ].join('\n');
+
+  it('draws the goals perimeter for agents around a shared goal', async () => {
+    const channel = memoryChannel();
+    const result = await handleShowWorkspace(
+      { intent: 'graph', csv: AGENTS_CSV },
+      graphContext({ signDataLink: channel.signDataLink, loadDataset: channel.loadDataset }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('goals-perimeter');
+    expect(result.chartType).toBe('goalsPerimeter');
+    expect(result.trace.chosen?.id).toBe('goals-perimeter');
+    expect(result.chartWhy).toContain('perimeter and population health');
+    expect(result.chartWhy).toContain('goals perimeter (monitor many agents around a shared goal');
+    const widget = await readViaHandle(result.spec, channel.readDataLink);
+    expect(widget).toMatchObject({
+      chartType: 'goalsPerimeter',
+      goals: [{ name: 'Incident Response' }],
+      exceptionCount: 4,
+    });
+    const agents = (widget as { agents: { id: string; state: string }[] }).agents;
+    expect(agents).toHaveLength(10);
+    expect(agents.find((agent) => agent.id === 'agent-05')).toEqual({
+      id: 'agent-05',
+      state: 'blocked',
+      goal: 'Incident Response',
+      reason: 'Escalation needs on-call sign-off',
+      blocker: 'human',
+    });
+  });
+
+  it('draws the goals perimeter when the agents also link to dependencies', async () => {
+    const csv = [
+      'source,target,goal,status',
+      'a1,PagerDuty,Incident Response,healthy',
+      'a2,a1,Incident Response,failed',
+      'a3,a1,Incident Response,healthy',
+      'a4,CMDB,Incident Response,blocked',
+      'a5,a4,Incident Response,healthy',
+      'a6,a2,Incident Response,degraded',
+    ].join('\n');
+    const channel = memoryChannel();
+    const result = await handleShowWorkspace(
+      { intent: 'graph', csv },
+      graphContext({ signDataLink: channel.signDataLink, loadDataset: channel.loadDataset }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('goals-perimeter');
+    const widget = (await readViaHandle(result.spec, channel.readDataLink)) as {
+      links: { source: string; target: string }[];
+      exceptionCount: number;
+    };
+    expect(widget.links).toHaveLength(6);
+    expect(widget.links[0]).toEqual({ source: 'a1', target: 'PagerDuty' });
+    expect(widget.exceptionCount).toBe(3);
+  });
+
+  it('keeps a free-form adjacency list on the network graph', async () => {
+    for (const csv of [
+      'source,target\nA,B\nB,C\nC,A\nA,D\nD,E\nE,F\n',
+      // A goal column without health states is still a node–link list.
+      'source,target,goal\nA,B,G\nB,C,G\nC,A,G\nA,D,G\nD,E,G\nE,F,G\n',
+    ]) {
+      const result = await handleShowWorkspace({ intent: 'graph', csv }, graphContext());
+      expect(isDrawn(result), csv).toBe(true);
+      if (!isDrawn(result)) return;
+      expect(result.spec.component, csv).toBe('network-graph');
+      expect(result.chartType, csv).toBe('networkGraphChart');
+    }
+  });
+
+  it('moves a goals perimeter request back to the network graph when the rows are only nodes and links', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'graph', csv: 'source,target\nA,B\nB,C\nC,A\nA,D\n' },
+      graphContext({
+        askJev: async () => ({
+          answers: { chart: { type: 'choice' as const, choice: 'goals-perimeter', confidence: 0.9 } },
+        }),
+      }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('network-graph');
   });
 
   const FOUR_STAGE_FLOW = [
