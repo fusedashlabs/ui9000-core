@@ -10,6 +10,7 @@ const CHART_TYPE_BY_COMPONENT: Record<string, string> = {
   'component-asset-card': 'componentAssetCard',
   'incidents-review-card': 'incidentsReviewCard',
   'network-graph': 'networkGraphChart',
+  'goals-perimeter': 'goalsPerimeter',
   table: 'customWidget',
   text: 'customWidget',
   image: 'customWidget',
