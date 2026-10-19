@@ -15,6 +15,7 @@ import { componentAssetCardPayload } from './component-asset-card.js';
 import { incidentsReviewCardPayload } from './incidents-review-card.js';
 import { mapChartPayload } from './map-chart.js';
 import { networkGraphPayload } from './network-graph.js';
+import { reasoningOrchestrationPayload } from './reasoning-orchestration-graph.js';
 import { asRowObjects } from './rows.js';
 
 export type ColumnHint = { name: string; role: string };
@@ -60,6 +61,10 @@ const PAYLOAD_BY_COMPONENT: Record<string, PayloadBuilder> = {
   'incidents-review-card': (chartType, fields, rows) => {
     void chartType;
     return incidentsReviewCardPayload(fields, rows);
+  },
+  'reasoning-orchestration-graph': (chartType, fields, rows) => {
+    void chartType;
+    return reasoningOrchestrationPayload(fields, rows);
   },
 };
 

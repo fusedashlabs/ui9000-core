@@ -45,7 +45,7 @@ export async function resolveJev(input: {
   catalogIds: ReadonlySet<string>;
 }): Promise<JevOutcome> {
   if (!input.ask) return { kind: 'skip' };
-  const families = chartFamiliesFor(input.profile, input.classified, intentFrom(input.intent));
+  const families = chartFamiliesFor(input.profile, input.classified, intentFrom(input.intent), input.catalogIds);
   if (families.length === 0) return { kind: 'miss' };
 
   const columns: JevColumn[] = (input.classified ?? []).map((column) => ({
