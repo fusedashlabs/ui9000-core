@@ -27,6 +27,7 @@ import {
 import { chartTypeForComponent, workspaceWidgetPayload } from './widget-payload.js';
 import { isPartToWholeChart, partToWholeChart } from './payload/band-utilization.js';
 import { headlineChart, isHeadlineChart } from './payload/headline.js';
+import { graphChart, isGraphChart } from './payload/graph.js';
 import { flowSankeyFits } from './payload/flow-sankey-chart.js';
 import { shapeSpec } from './shape-spec.js';
 import {
@@ -378,8 +379,9 @@ export async function handleShowWorkspace(
   let hostChart = false;
   let choiceWhy = '';
   let headlineShift = false;
+  let graphShift = false;
   let partShift = false;
-  const guided = guidedChartFamilies(runtime.profile, runtime.classified, parsed.intent);
+  const guided = guidedChartFamilies(runtime.profile, runtime.classified, parsed.intent, catalogIds);
   if (!namedDraw && !discussion?.drawId && !jevDraw && intentGuidesCharts(parsed.intent)) {
     const best = guided.find((family) => canDraw(family.main, runtime.profile, catalogIds));
     const inBest =
@@ -395,7 +397,7 @@ export async function handleShowWorkspace(
   if (!pinned && componentId && isHeadlineChart(componentId)) {
     const drawing = headlineChart(runtime.payload, (id) => canDraw(id, runtime.profile, catalogIds));
     if (drawing !== componentId) {
-      const family = chartFamiliesFor(runtime.profile, runtime.classified, parsed.intent).find(
+      const family = chartFamiliesFor(runtime.profile, runtime.classified, parsed.intent, catalogIds).find(
         (item) => item.id === 'headline',
       );
       const when = family?.alternatives.find((item) => item.id === drawing)?.when;
@@ -405,6 +407,23 @@ export async function handleShowWorkspace(
       choiceWhy = when
         ? `${when} So this is ${chartLabel(drawing)}.`
         : `So this is ${chartLabel(drawing)}.`;
+    }
+  }
+  // Agents around shared goals draw the goals perimeter; a free-form node–link list stays the network graph.
+  if (!pinned && componentId && isGraphChart(componentId)) {
+    const drawing = graphChart(runtime.payload, (id) => canDraw(id, runtime.profile, catalogIds));
+    if (drawing !== componentId) {
+      const graph = CHART_FAMILIES.find((family) => family.id === 'graph');
+      const when = graph?.alternatives.find((item) => item.id === drawing)?.when;
+      componentId = drawing;
+      hostChart = true;
+      graphShift = true;
+      choiceWhy =
+        drawing === 'network-graph'
+          ? `The rows are a node–link list, not agents around a goal. So this is ${chartLabel(drawing)}.`
+          : when
+            ? `${when} So this is ${chartLabel(drawing)}.`
+            : `So this is ${chartLabel(drawing)}.`;
     }
   }
   if (
@@ -426,7 +445,7 @@ export async function handleShowWorkspace(
     }
   }
   if (!componentId) {
-    const family = chartFamiliesFor(runtime.profile, runtime.classified, parsed.intent).find((item) =>
+    const family = chartFamiliesFor(runtime.profile, runtime.classified, parsed.intent, catalogIds).find((item) =>
       canDraw(item.main, runtime.profile, catalogIds),
     );
     if (family) {
@@ -576,7 +595,7 @@ export async function handleShowWorkspace(
       : jevMissed
         ? [missedWhy, discussion?.chartWhy].filter(Boolean).join(' ')
         : discussion?.chartWhy || engineWhy;
-  const chartWhy = switched || headlineShift || partShift ? choiceWhy : argued;
+  const chartWhy = switched || headlineShift || graphShift || partShift ? choiceWhy : argued;
   const recorded = chosenByJev
     ? governTrace(
         {
@@ -590,7 +609,7 @@ export async function handleShowWorkspace(
         (winner?.allowedActions ?? allowedActions).filter((action) => SPEC_ACTION_SET.has(action)),
       )
     : decision.trace;
-  const by: TraceChooser = switched || headlineShift || partShift
+  const by: TraceChooser = switched || headlineShift || graphShift || partShift
     ? 'engine'
     : jev.kind === 'draw'
       ? jev.by
