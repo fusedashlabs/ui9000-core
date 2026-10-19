@@ -1,5 +1,5 @@
 /**
- * Goals perimeter object for `<ui9000-goals-perimeter>` (AM-1).
+ * Goals perimeter object for `<ui9000-goals-perimeter>` (AM-2).
  *
  * Many agents (or resources) arranged around a shared goal: one row per agent
  * with its id, its health state and the goal it works toward. Optional
