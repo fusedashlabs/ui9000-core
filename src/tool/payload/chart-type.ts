@@ -9,6 +9,7 @@ const CHART_TYPE_BY_COMPONENT: Record<string, string> = {
   'power-path-card': 'powerPathCard',
   'component-asset-card': 'componentAssetCard',
   'incidents-review-card': 'incidentsReviewCard',
+  'asset-health-overview': 'assetHealthOverview',
   'network-graph': 'networkGraphChart',
   table: 'customWidget',
   text: 'customWidget',

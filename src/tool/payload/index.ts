@@ -13,6 +13,7 @@ import { statusGaugeWidgetPayload } from './status-gauge-widget.js';
 import { powerPathCardPayload } from './power-path-card.js';
 import { componentAssetCardPayload } from './component-asset-card.js';
 import { incidentsReviewCardPayload } from './incidents-review-card.js';
+import { assetHealthOverviewPayload } from './asset-health-overview.js';
 import { mapChartPayload } from './map-chart.js';
 import { networkGraphPayload } from './network-graph.js';
 import { asRowObjects } from './rows.js';
@@ -60,6 +61,10 @@ const PAYLOAD_BY_COMPONENT: Record<string, PayloadBuilder> = {
   'incidents-review-card': (chartType, fields, rows) => {
     void chartType;
     return incidentsReviewCardPayload(fields, rows);
+  },
+  'asset-health-overview': (chartType, fields, rows) => {
+    void chartType;
+    return assetHealthOverviewPayload(fields, rows);
   },
 };
 

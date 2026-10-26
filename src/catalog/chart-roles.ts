@@ -268,6 +268,13 @@ export const CHART_ROLES = {
     data: 'Incident counts by state for a network, region, site, or area. Optional total, filter, and lifecycle.',
     visual: 'Card with a title, a filter, the counts as headline numbers, and one lifecycle track under them.',
   },
+  'asset-health-overview': {
+    id: 'asset-health-overview',
+    chartTypeKeys: ['assetHealthOverview'],
+    role: 'Show environment health at a glance: agent population plus asset categories with health.',
+    data: 'An agent count, plus asset categories each with healthy / degraded / failing counts. Optional recent errors and problem beams. Do not invent category totals.',
+    visual: 'Goal rings / bowl: agent core, category tiles, optional 24h error wall, and problem beams.',
+  },
   'step-line-chart': {
     id: 'step-line-chart',
     chartTypeKeys: ['stepLineChart', 'ksPlotChart', 'rocCurveChart'],
@@ -469,6 +476,10 @@ export const CHART_FAMILIES = [
       {
         id: 'incidents-review-card',
         when: 'The numbers are aggregated incident counts by state, for a network, region, site, or area. The filter and the lifecycle track are optional. The counts are headlines and need not sum to the total. A plain set of headline numbers stays a KPI.',
+      },
+      {
+        id: 'asset-health-overview',
+        when: 'The operational environment already has an agent population plus asset categories with health counts (and optional recent errors / problem beams); the reading is environment health at a glance. A single health dial stays the status gauge. A plain number stays the KPI. Free-form node–link exploration stays the network graph.',
       },
     ],
   },

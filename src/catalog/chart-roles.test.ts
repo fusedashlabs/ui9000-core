@@ -62,7 +62,7 @@ describe('chart roles', () => {
     expect([...seen].sort()).toEqual([...named].sort());
   });
 
-  it('keeps the dial, the loss indicator, the power path card, the asset card, and the incidents review card as headline alternatives, in that order', () => {
+  it('keeps the dial, the loss indicator, the power path card, the asset card, the incidents review card, and the asset health overview as headline alternatives, in that order', () => {
     const drawings = drawingsFor('kpi-widget');
     expect(drawings?.family.id).toBe('headline');
     expect(drawings?.alternatives.map((role) => role.id)).toEqual([
@@ -71,6 +71,7 @@ describe('chart roles', () => {
       'power-path-card',
       'component-asset-card',
       'incidents-review-card',
+      'asset-health-overview',
     ]);
     expect(drawings?.family.alternatives.map((alt) => alt.id)).toEqual([
       'status-gauge-widget',
@@ -78,6 +79,7 @@ describe('chart roles', () => {
       'power-path-card',
       'component-asset-card',
       'incidents-review-card',
+      'asset-health-overview',
     ]);
   });
 
@@ -177,6 +179,25 @@ describe('chart roles', () => {
     expect(CHART_ROLES['incidents-review-card'].chartTypeKeys).toEqual(['incidentsReviewCard']);
     expect(chartLabel('incidents-review-card')).toBe(
       'incidents review card (summarise incidents for one scope: aggregated counts by state and a total)',
+    );
+  });
+
+  it('puts the asset health overview in the headline family as an alternative, not a main', () => {
+    expect(drawingsFor('asset-health-overview')).toBeUndefined();
+    expect(familiesForChart('asset-health-overview').map((family) => family.id)).toEqual(['headline']);
+    expect(CHART_FAMILIES.filter((family) => family.id === 'headline')).toHaveLength(1);
+    const headline = CHART_FAMILIES.find((family) => family.id === 'headline');
+    expect(headline?.main).toBe('kpi-widget');
+    const when = headline?.alternatives.find((alt) => alt.id === 'asset-health-overview')?.when;
+    expect(when).toContain('agent population');
+    expect(when).toContain('asset categories with health');
+    expect(when).toContain('environment health at a glance');
+    expect(when).toContain('stays the status gauge');
+    expect(when).toContain('stays the KPI');
+    expect(when).toContain('stays the network graph');
+    expect(CHART_ROLES['asset-health-overview'].chartTypeKeys).toEqual(['assetHealthOverview']);
+    expect(chartLabel('asset-health-overview')).toBe(
+      'asset health overview (show environment health at a glance: agent population plus asset categories with health)',
     );
   });
 

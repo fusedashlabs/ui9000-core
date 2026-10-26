@@ -85,6 +85,40 @@ describe('headlineChart', () => {
     expect(headlineChart(incidents, (id) => id !== 'incidents-review-card')).toBe('kpi-widget');
   });
 
+  const ASSET_HEALTH = {
+    agents: { total: 1204, awaiting: 19, blocked: 84, failed: 2 },
+    categories: [
+      { name: 'Applications', total: 12, healthy: 12, degraded: 0, failing: 0 },
+      { name: 'Databases', total: 9, healthy: 8, degraded: 0, failing: 1 },
+    ],
+  };
+
+  it('calls the asset health overview for an agent population plus category health', () => {
+    expect(headlineChart(ASSET_HEALTH)).toBe('asset-health-overview');
+  });
+
+  it('calls the asset health overview for one named WidgetItem row', () => {
+    expect(
+      headlineChart([
+        {
+          name: 'Onboarding Velocity',
+          goal: { id: 'G-007', name: 'Onboarding Velocity', total: 1204 },
+          categories: ASSET_HEALTH.categories,
+        },
+      ]),
+    ).toBe('asset-health-overview');
+  });
+
+  it('keeps a KPI when the asset health overview cannot be drawn', () => {
+    expect(headlineChart(ASSET_HEALTH, (id) => id !== 'asset-health-overview')).toBe('kpi-widget');
+  });
+
+  it('keeps the dial for a health score beside other measures, not the asset health overview', () => {
+    expect(headlineChart([{ unitHealth: 72.8, txPower: 28, min: 0, max: 100, okTo: 80 }])).toBe(
+      'status-gauge-widget',
+    );
+  });
+
   it('keeps a KPI for a plain number or for several metrics', () => {
     expect(headlineChart([{ loss: 24.3 }])).toBe('kpi-widget');
     expect(headlineChart([{ loss: 24.3, noise: 1, min: 0, max: 30, okTo: 10 }])).toBe('kpi-widget');
