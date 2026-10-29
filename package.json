@@ -39,8 +39,8 @@
   "dependencies": {
     "@fusedashlabs/widgets": "0.8.0",
     "@modelcontextprotocol/ext-apps": "1.7.5",
-    "@modelcontextprotocol/sdk": "1.31.0",
-    "zod": "3.25.76"
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@types/geojson": "^7946.0.14",
