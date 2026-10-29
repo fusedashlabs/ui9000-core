@@ -1,10 +1,12 @@
 /**
  * Asset health overview object for `<ui9000-asset-health-overview>`.
  *
- * Needs an agent population plus asset categories with health counts (and
- * optional recent errors / problem beams). A single health dial stays the
- * status gauge. A plain number stays the KPI. Free-form node–link stays the
- * network graph.
+ * Needs an agent population (one goal) plus asset categories with health
+ * counts or problems. What the goal rings arena reads besides is passed on as
+ * sent: the goal's working, idle, over-budget, progress and status, and per
+ * category its held agents, calls, traffic, rules and 24-hour `day`. Nothing
+ * is invented. A single health dial stays the status gauge. A plain number
+ * stays the KPI. Free-form node–link stays the network graph.
  */
 
 const AGENT_TOTAL_KEYS =
@@ -13,6 +15,7 @@ const AWAITING_KEYS = /^(awaiting|needs_?input|waiting)$/i;
 const BLOCKED_KEYS = /^blocked$/i;
 const FAILED_KEYS = /^(failed|failing_?agents?)$/i;
 const BURN_KEYS = /^burn$/i;
+const OVER_BUDGET_KEYS = /^over_?budget$/i;
 const CATEGORY_KEYS = /^(category|asset_?category|name|label|group)$/i;
 const TOTAL_KEYS = /^(total|assets?|count|n)$/i;
 const HEALTHY_KEYS = /^(healthy|ok|good|green)$/i;
@@ -25,7 +28,12 @@ type Problem = {
   type?: string;
   why?: string;
   loc?: string;
+  where?: string;
   sev?: string;
+  state?: string;
+  agents?: number;
+  since?: number;
+  rule?: string;
 };
 
 type Category = {
@@ -37,6 +45,17 @@ type Category = {
   failing?: number;
   items?: string[];
   problems?: Problem[];
+  unit?: string;
+  unitOne?: string;
+  crew?: number;
+  held?: number;
+  hold?: string;
+  overBudget?: number;
+  calls?: number;
+  traffic?: Record<string, number | string>;
+  heldUp?: number | string;
+  rules?: string[];
+  day?: unknown[];
 };
 
 type Agents = {
@@ -47,13 +66,18 @@ type Agents = {
   blocked?: number;
   failed?: number;
   burn?: number;
+  code?: string;
+  working?: number;
+  idle?: number;
+  overBudget?: number;
+  progress?: number | string;
+  status?: string;
 };
 
 type Overview = {
   name?: string;
   agents: Agents;
   categories: Category[];
-  wall?: unknown[];
 };
 
 export function assetHealthOverviewPayload(
@@ -63,14 +87,12 @@ export function assetHealthOverviewPayload(
   const overview = readOverview(rows);
   if (!overview) return null;
 
-  const out: Record<string, unknown> = {
+  return {
     chartType: 'assetHealthOverview',
     ...(overview.name ? { name: overview.name } : {}),
     agents: overview.agents,
     categories: overview.categories,
   };
-  if (overview.wall) out.wall = overview.wall;
-  return out;
 }
 
 /**
@@ -126,12 +148,7 @@ function readOverviewFromObject(raw: Record<string, unknown>): Overview | null {
   const title = text(raw.name) || text(raw.title) || text(raw.description);
   if (title) agents.name = title;
 
-  const wall = Array.isArray(raw.wall)
-    ? raw.wall
-    : Array.isArray(raw.errors)
-      ? raw.errors
-      : undefined;
-  return { agents, categories, ...(title ? { name: title } : {}), ...(wall ? { wall } : {}) };
+  return { agents, categories, ...(title ? { name: title } : {}) };
 }
 
 function readOverviewFromRows(rows: Record<string, unknown>[]): Overview | null {
@@ -169,6 +186,24 @@ function readAgentsFromRows(rows: Record<string, unknown>[]): Agents | null {
   };
 }
 
+/** The goal's own reading as the arena draws it, kept only where sent. */
+function readGoalExtras(raw: Record<string, unknown>): Partial<Agents> {
+  const code = text(raw.code);
+  const working = num(raw.working);
+  const idle = num(raw.idle);
+  const overBudget = num(raw.overBudget) ?? num(cell(raw, OVER_BUDGET_KEYS));
+  const progress = measure(raw.progress);
+  const status = text(raw.status);
+  return {
+    ...(code ? { code } : {}),
+    ...(working !== undefined ? { working } : {}),
+    ...(idle !== undefined ? { idle } : {}),
+    ...(overBudget !== undefined ? { overBudget } : {}),
+    ...(progress !== undefined ? { progress } : {}),
+    ...(status ? { status } : {}),
+  };
+}
+
 function readAgents(raw: unknown): Agents | null {
   if (!isRecord(raw)) return null;
   const total = num(raw.total) ?? num(cell(raw, AGENT_TOTAL_KEYS));
@@ -191,6 +226,7 @@ function readAgents(raw: unknown): Agents | null {
     ...(num(raw.burn) !== undefined || num(cell(raw, BURN_KEYS)) !== undefined
       ? { burn: num(raw.burn) ?? num(cell(raw, BURN_KEYS)) }
       : {}),
+    ...readGoalExtras(raw),
   };
 }
 
@@ -222,6 +258,44 @@ function readCategory(value: unknown): Category | null {
     ...(failing !== undefined ? { failing } : {}),
     ...(items ? { items } : {}),
     ...(problems ? { problems } : {}),
+    ...readArenaFields(value),
+  };
+}
+
+/** What the arena reads of a category besides its health: kept only where sent, never invented. */
+function readArenaFields(value: Record<string, unknown>): Partial<Category> {
+  const unit = text(value.unit);
+  const unitOne = text(value.unitOne);
+  const crew = num(value.crew);
+  const held = num(value.held);
+  const hold = text(value.hold);
+  const overBudget = num(value.overBudget);
+  const calls = num(value.calls) ?? num(value.cpm);
+  const traffic = isRecord(value.traffic)
+    ? Object.fromEntries(
+        Object.entries(value.traffic).flatMap(([state, share]) => {
+          const kept = measure(share);
+          return kept === undefined ? [] : [[state, kept]];
+        }),
+      )
+    : undefined;
+  const heldUp = measure(value.heldUp);
+  const rules = Array.isArray(value.rules)
+    ? value.rules.map(text).filter((s): s is string => !!s)
+    : undefined;
+  const day = Array.isArray(value.day) ? value.day : undefined;
+  return {
+    ...(unit ? { unit } : {}),
+    ...(unitOne ? { unitOne } : {}),
+    ...(crew !== undefined ? { crew } : {}),
+    ...(held !== undefined ? { held } : {}),
+    ...(hold ? { hold } : {}),
+    ...(overBudget !== undefined ? { overBudget } : {}),
+    ...(calls !== undefined ? { calls } : {}),
+    ...(traffic ? { traffic } : {}),
+    ...(heldUp !== undefined ? { heldUp } : {}),
+    ...(rules?.length ? { rules } : {}),
+    ...(day ? { day } : {}),
   };
 }
 
@@ -229,12 +303,19 @@ function readProblem(value: unknown): Problem | null {
   if (!isRecord(value)) return null;
   const name = text(value.name);
   if (!name) return null;
+  const agents = num(value.agents);
+  const since = num(value.since);
   return {
     name,
     ...(text(value.type) ? { type: text(value.type) } : {}),
     ...(text(value.why) ? { why: text(value.why) } : {}),
     ...(text(value.loc) ? { loc: text(value.loc) } : {}),
+    ...(text(value.where) ? { where: text(value.where) } : {}),
     ...(text(value.sev) ? { sev: text(value.sev) } : {}),
+    ...(text(value.state) ? { state: text(value.state) } : {}),
+    ...(agents !== undefined ? { agents } : {}),
+    ...(since !== undefined ? { since } : {}),
+    ...(text(value.rule) ? { rule: text(value.rule) } : {}),
   };
 }
 
@@ -244,7 +325,12 @@ function hasHealthSignal(category: Category): boolean {
     category.degraded !== undefined ||
     category.failing !== undefined ||
     (category.problems !== undefined && category.total !== undefined) ||
-    (category.items !== undefined && category.total !== undefined)
+    (category.items !== undefined && category.total !== undefined) ||
+    // how the goal fares with the category, as the goal rings arena reads it
+    category.traffic !== undefined ||
+    category.day !== undefined ||
+    category.hold !== undefined ||
+    category.held !== undefined
   );
 }
 
@@ -269,6 +355,11 @@ function num(value: unknown): number | undefined {
     return Number(value);
   }
   return undefined;
+}
+
+/** A share or percent as sent (`0.41`, `41`, `"41%"`): the widget reads all three. */
+function measure(value: unknown): number | string | undefined {
+  return num(value) ?? text(value);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

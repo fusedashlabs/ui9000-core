@@ -272,8 +272,8 @@ export const CHART_ROLES = {
     id: 'asset-health-overview',
     chartTypeKeys: ['assetHealthOverview'],
     role: 'Show environment health at a glance: agent population plus asset categories with health.',
-    data: 'An agent count, plus asset categories each with healthy / degraded / failing counts. Optional recent errors and problem beams. Do not invent category totals.',
-    visual: 'Goal rings / bowl: agent core, category tiles, optional 24h error wall, and problem beams.',
+    data: 'One goal\'s agent counts (total, held by state; optional working, idle, over budget, progress, status), plus asset categories each with healthy / degraded / failing counts or problems. Optional per category: held agents, calls, traffic and a 24-hour day. Do not invent category totals or the day.',
+    visual: 'Goal rings arena: the goal\'s agents as dots in a section per asset category, the held ones against its gate; a cell per asset with problems lit as beams; the category\'s last 24 hours as a wall when sent; progress as a ring in the middle.',
   },
   'step-line-chart': {
     id: 'step-line-chart',
@@ -479,7 +479,7 @@ export const CHART_FAMILIES = [
       },
       {
         id: 'asset-health-overview',
-        when: 'The operational environment already has an agent population plus asset categories with health counts (and optional recent errors / problem beams); the reading is environment health at a glance. A single health dial stays the status gauge. A plain number stays the KPI. Free-form node–link exploration stays the network graph.',
+        when: 'The operational environment already has an agent population plus asset categories with health counts (and optional problems, traffic and a 24-hour day per category); the reading is environment health at a glance. A single health dial stays the status gauge. A plain number stays the KPI. Free-form node–link exploration stays the network graph.',
       },
     ],
   },
