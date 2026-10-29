@@ -21,7 +21,7 @@ function widgetChartIds(): Map<string, string[]> {
 }
 
 /** Widgets charts core does not select yet. The PR that adds one to CHART_ROLES removes it here. */
-const PENDING_IN_CORE: string[] = [];
+const PENDING_IN_CORE: string[] = ['reasoning-orchestration-graph'];
 
 describe('chart roles', () => {
   const widgets = widgetChartIds();
