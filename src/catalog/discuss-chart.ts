@@ -71,7 +71,7 @@ export function discussChart(input: {
   intent: Intent;
   catalogIds: ReadonlySet<string>;
 }): ChartDiscussion {
-  const counts = columnCounts(input.profile, input.columns);
+  const counts = columnCounts(input.profile, input.columns, input.catalogIds);
   const families = eligibleFamilies(input.profile, counts);
   const resolved = resolveChartName(input.requestedChart);
   const judged = resolved ? judgeRequest(resolved, families) : undefined;
@@ -218,13 +218,17 @@ export function chartWhyFor(componentId: string): string | undefined {
   return chartRole(componentId) ? whyChart(componentId) : undefined;
 }
 
-/** Families whose data shape the profile can support. Same gates as discussChart. */
+/**
+ * Families whose data shape the profile can support. Same gates as discussChart.
+ * `catalogIds` lets agents around a goal open the graph family when the host can draw the goals perimeter.
+ */
 export function chartFamiliesFor(
   profile: DataProfile,
-  columns?: readonly { role: string }[],
+  columns?: readonly { role: string; key?: string }[],
   intent?: Intent,
+  catalogIds?: ReadonlySet<string>,
 ): ChartFamily[] {
-  const families = eligibleFamilies(profile, columnCounts(profile, columns));
+  const families = eligibleFamilies(profile, columnCounts(profile, columns, catalogIds));
   const preferred = preferenceIds(profile, intent);
   if (!preferred) return families;
   const rank = (id: string) => {
@@ -243,13 +247,14 @@ export function chartFamiliesFor(
  */
 export function guidedChartFamilies(
   profile: DataProfile,
-  columns: readonly { role: string }[] | undefined,
+  columns: readonly { role: string; key?: string }[] | undefined,
   intent: Intent,
+  catalogIds?: ReadonlySet<string>,
 ): ChartFamily[] {
   const preferred = preferenceIds(profile, intent);
   if (!preferred) return [];
   const ids = new Set(preferred);
-  return chartFamiliesFor(profile, columns, intent).filter((family) => ids.has(family.id));
+  return chartFamiliesFor(profile, columns, intent, catalogIds).filter((family) => ids.has(family.id));
 }
 
 function preferenceIds(profile: DataProfile, intent: Intent | undefined): readonly string[] | undefined {
@@ -338,7 +343,7 @@ function eligibleFamilies(
   const card = profile.categoryCardinality ?? 0;
   const ids: string[] = [];
   if (profile.hasLinks && profile.hasNumericMetric) ids.push('flow');
-  if (profile.hasNodes && profile.hasLinks) ids.push('graph');
+  if ((profile.hasNodes && profile.hasLinks) || counts.perimeter) ids.push('graph');
   if (profile.hasGeo) ids.push('spatial');
   if (profile.hasTemporal && profile.hasNumericMetric) ids.push('ordered-series');
   if (counts.categories >= 2 && counts.metrics >= 1) ids.push('two-way-magnitude');
@@ -367,18 +372,61 @@ function eligibleFamilies(
   return CHART_FAMILIES.filter((family) => ids.includes(family.id));
 }
 
-type ColumnCounts = { metrics: number; categories: number };
+type ColumnCounts = { metrics: number; categories: number; perimeter: boolean };
 
-function columnCounts(profile: DataProfile, columns?: readonly { role: string }[]): ColumnCounts {
+/** Column names (normalized) for agents around a shared goal. The values are checked when the payload is built. */
+const PERIMETER_AGENT = new Set([
+  'agent',
+  'agentid',
+  'agentname',
+  'node',
+  'nodeid',
+  'worker',
+  'workerid',
+  'bot',
+  'botid',
+  'resource',
+  'resourceid',
+]);
+const PERIMETER_STATE = new Set([
+  'state',
+  'status',
+  'health',
+  'healthstate',
+  'agentstate',
+  'agentstatus',
+  'nodestate',
+  'nodestatus',
+]);
+const PERIMETER_GOAL = new Set(['goal', 'goalid', 'goalname', 'objective', 'mission', 'sharedgoal']);
+
+/** An agent, its state and its goal are named: the graph family's goals perimeter, with or without links. */
+function namesPerimeter(columns: readonly { key?: string }[]): boolean {
+  const has = (set: ReadonlySet<string>) => columns.some((column) => !!column.key && set.has(column.key));
+  return has(PERIMETER_AGENT) && has(PERIMETER_STATE) && has(PERIMETER_GOAL);
+}
+
+/**
+ * `perimeter` needs the goals perimeter in the host catalog: without it the
+ * graph family has nothing to draw these columns with, and they go to the
+ * families they reached before.
+ */
+function columnCounts(
+  profile: DataProfile,
+  columns?: readonly { role: string; key?: string }[],
+  catalogIds?: ReadonlySet<string>,
+): ColumnCounts {
   if (!columns?.length) {
     return {
       metrics: profile.hasNumericMetric ? 1 : 0,
       categories: profile.hasCategory ? 1 : 0,
+      perimeter: false,
     };
   }
   return {
     metrics: columns.filter((column) => column.role === 'metric').length,
     categories: columns.filter((column) => column.role === 'category').length,
+    perimeter: catalogIds?.has('goals-perimeter') === true && namesPerimeter(columns),
   };
 }
 

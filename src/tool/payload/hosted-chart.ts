@@ -56,7 +56,8 @@ export function dataRolesForChart(id: string): CatalogDataRole[] {
     id === 'power-path-card' ||
     id === 'component-asset-card' ||
     id === 'incidents-review-card' ||
-    id === 'asset-health-overview'
+    id === 'asset-health-overview' ||
+    id === 'goals-perimeter'
   ) {
     return [];
   }
