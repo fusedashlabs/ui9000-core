@@ -130,6 +130,24 @@ describe('discussChart', () => {
     ).not.toContain('graph');
   });
 
+  it('opens the graph family to claims filed under goals when the host can draw goals and insights', () => {
+    const profile: DataProfile = { hasCategory: true, hasNumericMetric: true, rowCount: 12 };
+    const columns = [
+      { role: 'label', key: 'claim' },
+      { role: 'category', key: 'goal' },
+      { role: 'metric', key: 'age' },
+      { role: 'metric', key: 'sources' },
+    ];
+    const drawable = new Set(['network-graph', 'goals-insights']);
+    expect(chartFamiliesFor(profile, columns, 'graph', drawable).map((family) => family.id)).toContain('graph');
+    // Without the age it is not a column of evidence.
+    expect(
+      chartFamiliesFor(profile, [columns[0]!, columns[1]!, columns[3]!], 'graph', drawable).map((family) => family.id),
+    ).not.toContain('graph');
+    // A host that cannot draw goals and insights keeps these columns out of the graph family.
+    expect(chartFamiliesFor(profile, columns, 'graph').map((family) => family.id)).not.toContain('graph');
+  });
+
   it('names a chart only when the words contain that chart', () => {
     const research =
       'Do a research on Fairfax county real estate situation for last 3 months and create a list widgets to explain the demand, supply and prices, location best';
