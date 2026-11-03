@@ -573,6 +573,48 @@ describe('show_workspace', () => {
     expect(result.spec.component).toBe('incidents-review-card');
   });
 
+  const BURST_CSV = [
+    'resource_group,kind,agents,blocked,healthy,held,calls,p50_ms,p95_ms',
+    'SYSTEM,system,842,94,1246,94,5400,240,700',
+    'APP,app,,,8931,0,3300,,',
+    'MODEL,model,,,40,0,900,900,2100',
+  ].join('\n');
+
+  it('draws the goal burst for one goal\'s resource groups with their calls and answer times', async () => {
+    const channel = memoryChannel();
+    const result = await handleShowWorkspace(
+      { intent: 'summary', csv: BURST_CSV },
+      context({ signDataLink: channel.signDataLink, loadDataset: channel.loadDataset }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('goal-burst');
+    expect(result.chartType).toBe('goalBurst');
+    expect(result.chartWhy).toContain('how long its calls take and where they are held up');
+    const widget = (await readViaHandle(result.spec, channel.readDataLink)) as {
+      chartType: string;
+      goal: unknown;
+      categories: { name: string; latency?: unknown }[];
+    };
+    expect(widget.chartType).toBe('goalBurst');
+    expect(widget.goal).toEqual({ total: 842, blocked: 94 });
+    expect(widget.categories.map((category) => [category.name, category.latency])).toEqual([
+      ['SYSTEM', { p50: '240ms', p95: '700ms' }],
+      ['APP', undefined],
+      ['MODEL', { p50: '900ms', p95: '2100ms' }],
+    ]);
+  });
+
+  it('keeps the asset health overview for the same rows without answer times', async () => {
+    const csv = BURST_CSV.split('\n')
+      .map((line) => line.split(',').slice(0, 7).join(','))
+      .join('\n');
+    const result = await handleShowWorkspace({ intent: 'summary', csv }, context());
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('asset-health-overview');
+  });
+
   it('keeps plain headline numbers as a KPI', async () => {
     for (const csv of [
       ['active,in_progress,total', '89,46,102'].join('\n'),

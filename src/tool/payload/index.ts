@@ -14,6 +14,7 @@ import { powerPathCardPayload } from './power-path-card.js';
 import { componentAssetCardPayload } from './component-asset-card.js';
 import { incidentsReviewCardPayload } from './incidents-review-card.js';
 import { assetHealthOverviewPayload } from './asset-health-overview.js';
+import { goalBurstPayload } from './goal-burst.js';
 import { mapChartPayload } from './map-chart.js';
 import { networkGraphPayload } from './network-graph.js';
 import { goalsPerimeterPayload } from './goals-perimeter.js';
@@ -66,6 +67,10 @@ const PAYLOAD_BY_COMPONENT: Record<string, PayloadBuilder> = {
   'asset-health-overview': (chartType, fields, rows) => {
     void chartType;
     return assetHealthOverviewPayload(fields, rows);
+  },
+  'goal-burst': (chartType, fields, rows) => {
+    void chartType;
+    return goalBurstPayload(fields, rows);
   },
   'goals-perimeter': (chartType, fields, rows) => {
     void chartType;

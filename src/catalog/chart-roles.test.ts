@@ -23,7 +23,6 @@ function widgetChartIds(): Map<string, string[]> {
 /** Widgets charts core does not select yet. The PR that adds one to CHART_ROLES removes it here. */
 const PENDING_IN_CORE: string[] = [
   'bipartite-graph',
-  'goal-burst',
   'goals-dependency-graph',
   'goals-insights',
   'reasoning-orchestration-graph',
@@ -68,7 +67,7 @@ describe('chart roles', () => {
     expect([...seen].sort()).toEqual([...named].sort());
   });
 
-  it('keeps the dial, the loss indicator, the power path card, the asset card, the incidents review card, and the asset health overview as headline alternatives, in that order', () => {
+  it('keeps the dial, the loss indicator, the power path card, the asset card, the incidents review card, the asset health overview, and the goal burst as headline alternatives, in that order', () => {
     const drawings = drawingsFor('kpi-widget');
     expect(drawings?.family.id).toBe('headline');
     expect(drawings?.alternatives.map((role) => role.id)).toEqual([
@@ -78,6 +77,7 @@ describe('chart roles', () => {
       'component-asset-card',
       'incidents-review-card',
       'asset-health-overview',
+      'goal-burst',
     ]);
     expect(drawings?.family.alternatives.map((alt) => alt.id)).toEqual([
       'status-gauge-widget',
@@ -86,6 +86,7 @@ describe('chart roles', () => {
       'component-asset-card',
       'incidents-review-card',
       'asset-health-overview',
+      'goal-burst',
     ]);
   });
 
@@ -222,6 +223,20 @@ describe('chart roles', () => {
     expect(CHART_ROLES['goals-perimeter'].chartTypeKeys).toEqual(['goalsPerimeter']);
     expect(chartLabel('goals-perimeter')).toBe(
       'goals perimeter (monitor many agents around a shared goal: their health states, their links, and how many need attention)',
+    );
+  });
+
+  it('puts the goal burst in the headline family as an alternative, after the asset health overview', () => {
+    expect(drawingsFor('goal-burst')).toBeUndefined();
+    expect(familiesForChart('goal-burst').map((family) => family.id)).toEqual(['headline']);
+    const when = CHART_FAMILIES.find((family) => family.id === 'headline')?.alternatives.find(
+      (alt) => alt.id === 'goal-burst',
+    )?.when;
+    expect(when).toContain('how long its calls take to be answered (p50 / p95)');
+    expect(when).toContain('Without answer times the same rows stay the asset health overview');
+    expect(CHART_ROLES['goal-burst'].chartTypeKeys).toEqual(['goalBurst', 'burst']);
+    expect(chartLabel('goal-burst')).toBe(
+      "goal burst (show one goal's traffic: how long its calls to each resource group take to be answered, and where they are held up)",
     );
   });
 
