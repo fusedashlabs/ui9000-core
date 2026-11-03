@@ -109,6 +109,27 @@ describe('discussChart', () => {
     expect(chartFamiliesFor(profile, columns, 'graph').map((family) => family.id)).not.toContain('graph');
   });
 
+  it('opens the graph family to goals against their resource groups when the host can draw the bipartite graph', () => {
+    const profile: DataProfile = { hasCategory: true, hasNumericMetric: true, rowCount: 8 };
+    const columns = [
+      { role: 'category', key: 'goal' },
+      { role: 'category', key: 'resource_group' },
+      { role: 'metric', key: 'agents' },
+      { role: 'metric', key: 'calls' },
+    ];
+    const drawable = new Set(['network-graph', 'bipartite-graph']);
+    expect(chartFamiliesFor(profile, columns, 'graph', drawable).map((family) => family.id)).toContain('graph');
+    // Without the calls or the agents held it is not goals against their groups.
+    expect(
+      chartFamiliesFor(profile, columns.slice(0, 3), 'graph', drawable).map((family) => family.id),
+    ).not.toContain('graph');
+    // A host that cannot draw the bipartite graph keeps these columns out of the graph family.
+    expect(chartFamiliesFor(profile, columns, 'graph').map((family) => family.id)).not.toContain('graph');
+    expect(
+      chartFamiliesFor(profile, columns, 'graph', new Set(['network-graph', 'goals-perimeter'])).map((family) => family.id),
+    ).not.toContain('graph');
+  });
+
   it('names a chart only when the words contain that chart', () => {
     const research =
       'Do a research on Fairfax county real estate situation for last 3 months and create a list widgets to explain the demand, supply and prices, location best';

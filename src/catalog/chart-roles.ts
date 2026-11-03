@@ -233,6 +233,13 @@ export const CHART_ROLES = {
     data: 'Agents with an id, a health state, and the goal they work toward. Optional links to agents, resources, or external dependencies, and an exception count. Or one row per goal and resource group: the goal\'s agents by state, healthy ones included, with optional code, status, progress and burn, and the group\'s kind, state, calls, held agents and detail.',
     visual: 'A cloud of agents per goal inside a ring that fills with progress. Working and idle agents are dots; awaiting, blocked, failed, and degraded (slowed or over budget) agents each wear their own mark. Resource groups sit on the goal\'s orbit as diamonds with the agents held there. Lines join goals that draw on the same group, red where one is down. The header counts goals, agents, and held agents, and hovering a goal, group, or line shows its tooltip.',
   },
+  'bipartite-graph': {
+    id: 'bipartite-graph',
+    chartTypeKeys: ['bipartiteGraph', 'bipartite'],
+    role: 'Show how much each goal draws on each resource group: the calls between them, and where agents are held.',
+    data: 'One row per goal and resource group, with the goal\'s agent total and the calls a minute it makes there. Optional goal code, agents by state, progress, burn and status; optional group kind, state, held agents and detail.',
+    visual: 'Goals as agent clouds in a column, resource groups as diamonds against them, and a ribbon for each pair: the wider, the more calls; in the held agents\' colour, yellow where traffic is only slowed.',
+  },
   'goals-dependency-graph': {
     id: 'goals-dependency-graph',
     chartTypeKeys: ['goalsDependencyGraph'],
@@ -476,6 +483,10 @@ export const CHART_FAMILIES = [
       {
         id: 'goals-perimeter',
         when: 'Many agents (or resources) are arranged around one shared goal, with health states and an optional exception count, or goals carry their agents by state against the resource groups they draw on. The reading is perimeter and population health, not a free-form adjacency list. A general node–link exploration stays the network graph.',
+      },
+      {
+        id: 'bipartite-graph',
+        when: 'Goals stand against the resource groups they draw on, one row per goal and group with the goal\'s agents and the calls a minute between them. The reading is how much each goal draws on each group and where its agents are held. Agents one by one stay the goals perimeter, and a general node–link exploration stays the network graph.',
       },
       {
         id: 'goals-dependency-graph',
