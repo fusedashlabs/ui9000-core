@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { namesPerimeter } from '../../profiler/perimeter-columns.js';
 import { goalsPerimeterFits, goalsPerimeterPayload } from './goals-perimeter.js';
 import { graphChart, isGraphChart } from './graph.js';
 
@@ -124,6 +125,25 @@ describe('goals perimeter payload', () => {
 
   it('returns null when the rows do not fit', () => {
     expect(goalsPerimeterPayload({}, agents(3))).toBeNull();
+  });
+});
+
+describe('goals perimeter columns', () => {
+  it('shares its column vocabulary with the family gate', () => {
+    expect(namesPerimeter(Object.keys(agents(1)[0]!))).toBe(true);
+    expect(namesPerimeter(['Agent Name', 'Health', 'Objective'])).toBe(true);
+    expect(namesPerimeter(['source', 'target', 'status', 'goal'])).toBe(true);
+    expect(goalsPerimeterFits(agents(8).map(({ agent_id, ...row }) => ({ source: agent_id, target: 'PagerDuty', ...row })))).toBe(true);
+    // Without the goal, or a source without its target, it is not agents around a goal.
+    expect(namesPerimeter(['agent_id', 'state'])).toBe(false);
+    expect(namesPerimeter(['source', 'state', 'goal'])).toBe(false);
+  });
+
+  it('does not read a bare id as an agent, on either side', () => {
+    const records = agents(8).map(({ agent_id, ...row }) => ({ id: agent_id, ...row }));
+    expect(namesPerimeter(Object.keys(records[0]!))).toBe(false);
+    expect(goalsPerimeterFits(records)).toBe(false);
+    expect(goalsPerimeterPayload({}, records)).toBeNull();
   });
 });
 

@@ -7,6 +7,7 @@
  * generated in its place.
  */
 
+import { namesPerimeter } from '../profiler/perimeter-columns.js';
 import type { ClassifiedColumn } from '../profiler/roles.js';
 import type { DataProfile } from '../spec/data-profile.js';
 import { INTENTS, type Intent } from '../spec/intent.js';
@@ -374,38 +375,6 @@ function eligibleFamilies(
 
 type ColumnCounts = { metrics: number; categories: number; perimeter: boolean };
 
-/** Column names (normalized) for agents around a shared goal. The values are checked when the payload is built. */
-const PERIMETER_AGENT = new Set([
-  'agent',
-  'agentid',
-  'agentname',
-  'node',
-  'nodeid',
-  'worker',
-  'workerid',
-  'bot',
-  'botid',
-  'resource',
-  'resourceid',
-]);
-const PERIMETER_STATE = new Set([
-  'state',
-  'status',
-  'health',
-  'healthstate',
-  'agentstate',
-  'agentstatus',
-  'nodestate',
-  'nodestatus',
-]);
-const PERIMETER_GOAL = new Set(['goal', 'goalid', 'goalname', 'objective', 'mission', 'sharedgoal']);
-
-/** An agent, its state and its goal are named: the graph family's goals perimeter, with or without links. */
-function namesPerimeter(columns: readonly { key?: string }[]): boolean {
-  const has = (set: ReadonlySet<string>) => columns.some((column) => !!column.key && set.has(column.key));
-  return has(PERIMETER_AGENT) && has(PERIMETER_STATE) && has(PERIMETER_GOAL);
-}
-
 /**
  * `perimeter` needs the goals perimeter in the host catalog: without it the
  * graph family has nothing to draw these columns with, and they go to the
@@ -426,7 +395,7 @@ function columnCounts(
   return {
     metrics: columns.filter((column) => column.role === 'metric').length,
     categories: columns.filter((column) => column.role === 'category').length,
-    perimeter: catalogIds?.has('goals-perimeter') === true && namesPerimeter(columns),
+    perimeter: catalogIds?.has('goals-perimeter') === true && namesPerimeter(columns.flatMap((column) => (column.key ? [column.key] : []))),
   };
 }
 

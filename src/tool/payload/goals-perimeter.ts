@@ -12,47 +12,19 @@
  * goal or state and stays network-graph.
  */
 
-const AGENT_KEYS = new Set([
-  'agent',
-  'agentid',
-  'agentname',
-  'node',
-  'nodeid',
-  'worker',
-  'workerid',
-  'bot',
-  'botid',
-  'resource',
-  'resourceid',
-  'id',
-]);
-const STATE_KEYS = new Set([
-  'state',
-  'status',
-  'health',
-  'healthstate',
-  'agentstate',
-  'agentstatus',
-  'nodestate',
-  'nodestatus',
-]);
-const GOAL_KEYS = new Set(['goal', 'goalid', 'goalname', 'objective', 'mission', 'sharedgoal']);
-const LINK_KEYS = new Set([
-  'dependson',
-  'dependency',
-  'linkedto',
-  'linksto',
-  'connectsto',
-  'target',
-  'to',
-  'upstream',
-  'calls',
-]);
-const LINK_STATUS_KEYS = new Set(['linkstatus', 'dependencystatus', 'connectionstatus', 'edgestatus']);
-const REASON_KEYS = new Set(['reason', 'cause', 'error', 'detail', 'details', 'note']);
-const BLOCKER_KEYS = new Set(['blocker', 'blockertype', 'blockedby']);
-const EXCEPTION_KEYS = new Set(['exceptions', 'exceptioncount', 'impure', 'needsattention']);
-const TITLE_KEYS = new Set(['title']);
+import {
+  AGENT_KEYS,
+  BLOCKER_KEYS,
+  EXCEPTION_KEYS,
+  GOAL_KEYS,
+  LINK_KEYS,
+  LINK_STATUS_KEYS,
+  namesAgentPair,
+  REASON_KEYS,
+  STATE_KEYS,
+  TITLE_KEYS,
+} from '../../profiler/perimeter-columns.js';
+import { normalizeName } from '../../profiler/table.js';
 
 /** Health words → the widget's agent states. */
 const STATES: Record<string, AgentState> = {
@@ -234,13 +206,12 @@ function readColumns(rows: Record<string, unknown>[]): Columns | null {
   // Every row's keys: an optional column may be absent from the first rows of a JSON payload.
   const keys = [...new Set(rows.flatMap((row) => Object.keys(row)))];
   const find = (set: ReadonlySet<string>, skip: readonly (string | undefined)[] = []) =>
-    keys.find((key) => set.has(normalize(key)) && !skip.includes(key));
+    keys.find((key) => set.has(normalizeName(key)) && !skip.includes(key));
 
   const goal = find(GOAL_KEYS);
   const state = find(STATE_KEYS);
   if (!goal || !state) return null;
-  const hasPair = keys.some((key) => normalize(key) === 'source') && keys.some((key) => normalize(key) === 'target');
-  const agent = find(AGENT_KEYS) ?? (hasPair ? keys.find((key) => normalize(key) === 'source') : undefined);
+  const agent = find(AGENT_KEYS) ?? (namesAgentPair(keys) ? keys.find((key) => normalizeName(key) === 'source') : undefined);
   if (!agent) return null;
   const taken = [goal, state, agent];
   const link = find(LINK_KEYS, taken);
@@ -267,9 +238,6 @@ function sameText(rows: Record<string, unknown>[], key: string): string | undefi
   return rows.every((row) => text(row[key]) === first) ? first : undefined;
 }
 
-function normalize(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]/g, '');
-}
 
 function text(value: unknown): string {
   return typeof value === 'string' || typeof value === 'number' ? String(value).trim() : '';
