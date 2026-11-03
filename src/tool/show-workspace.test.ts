@@ -1517,6 +1517,45 @@ describe('show_workspace fail-closed', () => {
     expect(widget.exceptionCount).toBe(3);
   });
 
+  const HELD_CSV = [
+    'goal,goal_code,agents,blocked,awaiting,progress,resource_group,state,held,calls,cause,rule,owner,since',
+    'Perimeter Watch,G-014,1108,0,19,0.88,Camera,slowed,0,14200,,,,',
+    'Perimeter Watch,G-014,1108,0,19,0.88,Model,waiting,19,8800,gateway p95 over threshold,,ML platform,14m',
+    'Onboarding Velocity,G-007,842,94,0,41%,System,blocked,94,5400,writes need a credential grant,R-047,Identity team,2h',
+    'Onboarding Velocity,G-007,842,94,0,41%,Camera,ok,0,2100,,,,',
+    'Fraud Review,G-021,310,0,0,0.67,Model,ok,0,1900,,,,',
+    'Fraud Review,G-021,310,0,0,0.67,System,ok,0,700,,,,',
+  ].join('\n');
+
+  it('draws the goals dependency graph for goals held on the resource groups they draw on', async () => {
+    const channel = memoryChannel();
+    const result = await handleShowWorkspace(
+      { intent: 'graph', csv: HELD_CSV },
+      graphContext({ signDataLink: channel.signDataLink, loadDataset: channel.loadDataset }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('goals-dependency-graph');
+    expect(result.chartType).toBe('goalsDependencyGraph');
+    expect(result.chartWhy).toContain("what holds each goal's agents and where");
+    const widget = (await readViaHandle(result.spec, channel.readDataLink)) as {
+      chartType: string;
+      goals: { name: string; resourceGroups: unknown[] }[];
+    };
+    expect(widget.chartType).toBe('goalsDependencyGraph');
+    expect(widget.goals.map((goal) => goal.name)).toEqual(['Perimeter Watch', 'Onboarding Velocity', 'Fraud Review']);
+    expect(widget.goals[1]).toEqual({
+      name: 'Onboarding Velocity',
+      code: 'G-007',
+      agents: { total: 842, blocked: 94, awaiting: 0 },
+      progress: '41%',
+      resourceGroups: [
+        { name: 'System', state: 'blocked', held: 94, calls: 5400, cause: 'writes need a credential grant', rule: 'R-047', owner: 'Identity team', since: '2h' },
+        { name: 'Camera', state: 'healthy', held: 0, calls: 2100 },
+      ],
+    });
+  });
+
   it('keeps a free-form adjacency list on the network graph', async () => {
     for (const csv of [
       'source,target\nA,B\nB,C\nC,A\nA,D\nD,E\nE,F\n',

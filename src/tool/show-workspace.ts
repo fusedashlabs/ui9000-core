@@ -415,7 +415,8 @@ export async function handleShowWorkspace(
         : `So this is ${chartLabel(drawing)}.`;
     }
   }
-  // Agents around shared goals draw the goals perimeter; a free-form node–link list stays the network graph.
+  // Agents around shared goals draw the goals perimeter, goals held on their resource groups the goals
+  // dependency graph; a free-form node–link list stays the network graph.
   if (!pinned && componentId && isGraphChart(componentId)) {
     const drawing = graphChart(runtime.payload, (id) => canDraw(id, runtime.profile, catalogIds));
     if (drawing !== componentId) {
@@ -426,7 +427,7 @@ export async function handleShowWorkspace(
       graphShift = true;
       choiceWhy =
         drawing === 'network-graph'
-          ? `The rows are a node–link list, not agents around a goal. So this is ${chartLabel(drawing)}.`
+          ? `The rows are a node–link list, not agents or goals and the groups they draw on. So this is ${chartLabel(drawing)}.`
           : when
             ? `${when} So this is ${chartLabel(drawing)}.`
             : `So this is ${chartLabel(drawing)}.`;

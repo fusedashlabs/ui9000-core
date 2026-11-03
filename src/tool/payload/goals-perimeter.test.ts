@@ -214,7 +214,9 @@ describe('goals perimeter from goals and their resource groups', () => {
 
   it('draws as the goals perimeter in the graph family', () => {
     expect(graphChart(BOARD)).toBe('goals-perimeter');
-    expect(graphChart(BOARD, (id) => id !== 'goals-perimeter')).toBe('network-graph');
+    // Without the perimeter, goals whose agents are held on their groups are the goals dependency graph.
+    expect(graphChart(BOARD, (id) => id !== 'goals-perimeter')).toBe('goals-dependency-graph');
+    expect(graphChart(BOARD, (id) => id === 'network-graph')).toBe('network-graph');
   });
 });
 

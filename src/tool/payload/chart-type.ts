@@ -13,6 +13,7 @@ const CHART_TYPE_BY_COMPONENT: Record<string, string> = {
   'goal-burst': 'goalBurst',
   'network-graph': 'networkGraphChart',
   'goals-perimeter': 'goalsPerimeter',
+  'goals-dependency-graph': 'goalsDependencyGraph',
   table: 'customWidget',
   text: 'customWidget',
   image: 'customWidget',
