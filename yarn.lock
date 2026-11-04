@@ -352,7 +352,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@fusedashlabs/ui9000-workspace@workspace:."
   dependencies:
-    "@fusedashlabs/widgets": "npm:0.7.4"
+    "@fusedashlabs/widgets": "npm:0.9.0"
     "@modelcontextprotocol/ext-apps": "npm:1.7.5"
     "@modelcontextprotocol/sdk": "npm:1.31.0"
     "@types/geojson": "npm:^7946.0.14"
@@ -368,9 +368,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@fusedashlabs/widgets@npm:0.7.4":
-  version: 0.7.4
-  resolution: "@fusedashlabs/widgets@npm:0.7.4"
+"@fusedashlabs/widgets@npm:0.9.0":
+  version: 0.9.0
+  resolution: "@fusedashlabs/widgets@npm:0.9.0"
   dependencies:
     d3: "npm:^7.9.0"
     d3-axis: "npm:^3.0.0"
@@ -384,11 +384,15 @@ __metadata:
     d3-zoom: "npm:^3.0.0"
     lit: "npm:^3.2.1"
   peerDependencies:
+    "@fuselab-creative/design-system": ^0.13.3
     mapbox-gl: ^3.9.0
+    react: ^18.2.0
+    react-dom: ^18.2.0
+    styled-components: ^6.0.0
   peerDependenciesMeta:
     mapbox-gl:
       optional: true
-  checksum: 10c0/580d201e43d5474c4779f5793c6fb3822d65ff1fc87a2144837f4903d7526d28825666796601ae3c9a9ba2dec1111a0deab32ee9cbd52f10e80be7ffd343d5e8
+  checksum: 10c0/47ab7e6f4027ea462471b0746357d62dce9c668d81c0eb828f2d5b894b85bc3aa1e0a62b1d571f72dde44b92dc80f02907a78eae45891679d214a5e52f2afe52
   languageName: node
   linkType: hard
 
