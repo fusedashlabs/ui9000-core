@@ -16,6 +16,7 @@ const CHART_TYPE_BY_COMPONENT: Record<string, string> = {
   'goals-dependency-graph': 'goalsDependencyGraph',
   'bipartite-graph': 'bipartiteGraph',
   'goals-insights': 'goalsInsights',
+  'reasoning-orchestration-graph': 'reasoningOrchestrationGraph',
   table: 'customWidget',
   text: 'customWidget',
   image: 'customWidget',

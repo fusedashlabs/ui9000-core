@@ -91,6 +91,36 @@ describe('discussChart', () => {
     ).toContain('graph');
   });
 
+  it('opens the graph family to reasoning steps with a stage and an active path, when the host can draw them', () => {
+    const profile: DataProfile = { hasCategory: true, hasNumericMetric: true, rowCount: 8 };
+    const steps = [
+      { role: 'category', key: 'stepid' },
+      { role: 'category', key: 'parentid' },
+      { role: 'category', key: 'stage' },
+      { role: 'category', key: 'model' },
+      { role: 'metric', key: 'score' },
+      { role: 'category', key: 'active' },
+    ];
+    const drawable = new Set(['network-graph', 'reasoning-orchestration-graph']);
+    const families = (columns: typeof steps, ids?: ReadonlySet<string>) =>
+      chartFamiliesFor(profile, columns, 'graph', ids).map((family) => family.id);
+    expect(families(steps, drawable)).toContain('graph');
+    expect(families(steps, drawable)[0]).toBe('graph');
+    // A depth works as well as a stage.
+    expect(families(steps.map((c) => (c.key === 'stage' ? { ...c, key: 'depth' } : c)), drawable)).toContain('graph');
+    // No active path, no stage or depth, or no link to a parent: not an orchestration.
+    expect(families(steps.filter((c) => c.key !== 'active'), drawable)).not.toContain('graph');
+    expect(families(steps.filter((c) => c.key !== 'stage'), drawable)).not.toContain('graph');
+    expect(families(steps.filter((c) => c.key !== 'parentid'), drawable)).not.toContain('graph');
+    // A host that cannot draw the orchestration keeps these columns out of the graph family.
+    expect(families(steps)).not.toContain('graph');
+    expect(families(steps, new Set(['network-graph']))).not.toContain('graph');
+    // A node–link table still opens it through the profile, as before.
+    expect(
+      chartFamiliesFor({ hasNodes: true, hasLinks: true, rowCount: 4 }, undefined, 'graph').map((family) => family.id),
+    ).toContain('graph');
+  });
+
   it('opens the graph family to goals held on their resource groups when the host can draw the goals dependency graph', () => {
     const profile: DataProfile = { hasCategory: true, hasNumericMetric: true, rowCount: 8 };
     const columns = [

@@ -61,7 +61,8 @@ export function dataRolesForChart(id: string): CatalogDataRole[] {
     id === 'goals-perimeter' ||
     id === 'goals-dependency-graph' ||
     id === 'bipartite-graph' ||
-    id === 'goals-insights'
+    id === 'goals-insights' ||
+    id === 'reasoning-orchestration-graph'
   ) {
     return [];
   }
