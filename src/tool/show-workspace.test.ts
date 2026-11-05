@@ -1363,6 +1363,68 @@ describe('show_workspace fail-closed', () => {
     });
   });
 
+  /** The Agent operations board: one row per goal and resource group, every goal with its agents by state. */
+  const BOARD_CSV = [
+    'goal_code,goal,goal_status,agents,healthy,idle,awaiting,blocked,failed,degraded,progress,burn,resource_group,kind,state,calls,held,detail',
+    'G-014,Perimeter Watch,on track,1108,1070,19,19,,,,88%,1.1,Camera,camera,degraded,14200,0,"7% of streams throttled, 2% blocked by R-047"',
+    'G-014,Perimeter Watch,on track,1108,1070,19,19,,,,88%,1.1,System,system,healthy,2100,0,',
+    'G-014,Perimeter Watch,on track,1108,1070,19,19,,,,88%,1.1,Model,model,awaiting,8800,19,Model gateway p95 at 2.1s against a 1.2s threshold',
+    'G-007,Onboarding Velocity,blocked,842,645,22,33,94,27,21,41%,4.2,App,app,degraded,3300,0,12% of writes throttled',
+    'G-007,Onboarding Velocity,blocked,842,645,22,33,94,27,21,41%,4.2,System,system,blocked,5400,94,Credential grant required',
+    'G-007,Onboarding Velocity,blocked,842,645,22,33,94,27,21,41%,4.2,Tool,tool,failed,1800,27,Browser tool sandbox crash-loops on cold start',
+    'G-007,Onboarding Velocity,blocked,842,645,22,33,94,27,21,41%,4.2,Model,model,awaiting,6200,33,Model gateway p95 at 2.1s against a 1.2s threshold',
+    'G-007,Onboarding Velocity,blocked,842,645,22,33,94,27,21,41%,4.2,Human,human,degraded,14,0,The credential grant waits on Security on-call',
+    'G-022,Maintain Verified Asset Visibility,at risk,612,586,11,4,,11,,66%,1.3,Camera,camera,degraded,9100,0,3% of streams blocked',
+    'G-022,Maintain Verified Asset Visibility,at risk,612,586,11,4,,11,,66%,1.3,Tool,tool,failed,1300,11,Browser tool sandbox crash-loops on cold start',
+    'G-022,Maintain Verified Asset Visibility,at risk,612,586,11,4,,11,,66%,1.3,Store,store,healthy,740,0,',
+    'G-022,Maintain Verified Asset Visibility,at risk,612,586,11,4,,11,,66%,1.3,Model,model,awaiting,4600,4,Model gateway p95 at 2.1s against a 1.2s threshold',
+    'G-045,Pipeline Quality,on track,318,315,3,,,,,92%,0.8,Tool,tool,healthy,2600,0,',
+    'G-045,Pipeline Quality,on track,318,315,3,,,,,92%,0.8,Store,store,healthy,980,0,',
+    'G-045,Pipeline Quality,on track,318,315,3,,,,,92%,0.8,Model,model,healthy,2400,0,',
+    'G-052,Incident Response,at risk,144,137,2,5,,,,78%,1.6,System,system,healthy,1900,0,',
+    'G-052,Incident Response,at risk,144,137,2,5,,,,78%,1.6,Model,model,healthy,1100,0,',
+    'G-052,Incident Response,at risk,144,137,2,5,,,,78%,1.6,Human,human,awaiting,22,5,Access approval pending for 41 minutes',
+    'G-061,Model Drift Watch,on track,96,94,2,,,,,90%,0.9,Model,model,healthy,3100,0,',
+  ].join('\n');
+
+  it('draws the goals perimeter for goals with their agents by state against their resource groups', async () => {
+    const channel = memoryChannel();
+    const result = await handleShowWorkspace(
+      { intent: 'graph', csv: BOARD_CSV },
+      graphContext({ signDataLink: channel.signDataLink, loadDataset: channel.loadDataset }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('goals-perimeter');
+    expect(result.chartType).toBe('goalsPerimeter');
+    const widget = (await readViaHandle(result.spec, channel.readDataLink)) as {
+      goals: { name: string; resourceGroups: unknown[] }[];
+    };
+    expect(widget.goals.map((goal) => goal.name)).toEqual([
+      'Perimeter Watch',
+      'Onboarding Velocity',
+      'Maintain Verified Asset Visibility',
+      'Pipeline Quality',
+      'Incident Response',
+      'Model Drift Watch',
+    ]);
+    expect(widget.goals[1]).toEqual({
+      name: 'Onboarding Velocity',
+      code: 'G-007',
+      agents: { total: 842, healthy: 645, idle: 22, awaiting: 33, blocked: 94, failed: 27, degraded: 21 },
+      health: '41%',
+      multiplier: 4.2,
+      status: 'blocked',
+      resourceGroups: [
+        { name: 'App', kind: 'app', state: 'degraded', held: 0, calls: 3300, detail: '12% of writes throttled' },
+        { name: 'System', kind: 'system', state: 'blocked', held: 94, calls: 5400, detail: 'Credential grant required' },
+        { name: 'Tool', kind: 'tool', state: 'failed', held: 27, calls: 1800, detail: 'Browser tool sandbox crash-loops on cold start' },
+        { name: 'Model', kind: 'model', state: 'awaiting', held: 33, calls: 6200, detail: 'Model gateway p95 at 2.1s against a 1.2s threshold' },
+        { name: 'Human', kind: 'human', state: 'degraded', held: 0, calls: 14, detail: 'The credential grant waits on Security on-call' },
+      ],
+    });
+  });
+
   it('draws the goals perimeter when the agents also link to dependencies', async () => {
     const csv = [
       'source,target,goal,status',

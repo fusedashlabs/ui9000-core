@@ -74,6 +74,17 @@ describe('discussChart', () => {
     expect(
       chartFamiliesFor(profile, agentColumns, 'graph', new Set(['network-graph'])).map((family) => family.id),
     ).not.toContain('graph');
+    // Goals against their groups, with the goals' agents by state, open it too.
+    const boardColumns = [
+      { role: 'category', key: 'goal' },
+      { role: 'category', key: 'resourcegroup' },
+      { role: 'metric', key: 'held' },
+      { role: 'metric', key: 'healthy' },
+    ];
+    expect(chartFamiliesFor(profile, boardColumns, 'graph', drawable).map((family) => family.id)).toContain('graph');
+    expect(
+      chartFamiliesFor(profile, boardColumns.slice(0, 3), 'graph', drawable).map((family) => family.id),
+    ).not.toContain('graph');
     // A node–link table still opens it through the profile, as before.
     expect(
       chartFamiliesFor({ hasNodes: true, hasLinks: true, rowCount: 4 }, undefined, 'graph').map((family) => family.id),

@@ -7,6 +7,7 @@
  * generated in its place.
  */
 
+import { namesGoalHealth } from '../profiler/goal-group-columns.js';
 import { namesPerimeter } from '../profiler/perimeter-columns.js';
 import type { ClassifiedColumn } from '../profiler/roles.js';
 import type { DataProfile } from '../spec/data-profile.js';
@@ -375,6 +376,11 @@ function eligibleFamilies(
 
 type ColumnCounts = { metrics: number; categories: number; perimeter: boolean };
 
+/** One row per agent around its goal, or per goal and group with the goals' agents by state. */
+function namesGoalsPerimeter(keys: readonly string[]): boolean {
+  return namesPerimeter(keys) || namesGoalHealth(keys);
+}
+
 /**
  * `perimeter` needs the goals perimeter in the host catalog: without it the
  * graph family has nothing to draw these columns with, and they go to the
@@ -395,7 +401,7 @@ function columnCounts(
   return {
     metrics: columns.filter((column) => column.role === 'metric').length,
     categories: columns.filter((column) => column.role === 'category').length,
-    perimeter: catalogIds?.has('goals-perimeter') === true && namesPerimeter(columns.flatMap((column) => (column.key ? [column.key] : []))),
+    perimeter: catalogIds?.has('goals-perimeter') === true && namesGoalsPerimeter(columns.flatMap((column) => (column.key ? [column.key] : []))),
   };
 }
 

@@ -6,10 +6,16 @@
  * columns add a link target per agent (a dependency, another agent, or a
  * goal), a reason, a blocker kind, and an exception count per goal.
  *
+ * Or one row per goal and resource group, as the Agent operations board is
+ * drawn: each goal with its agents by state, the healthy ones included, on
+ * every goal, and optional code, status, progress and burn; each group with
+ * its kind, state, calls, held agents and detail.
+ *
  * The reading is perimeter and population health, so the rows fit only when
  * every agent has a health state the widget can draw and the goals are few
- * against many agents. A free-form adjacency list (`source,target`) has no
- * goal or state and stays network-graph.
+ * against many agents, or when every goal counts its healthy agents. A
+ * free-form adjacency list (`source,target`) has no goal or state and stays
+ * network-graph.
  */
 
 import {
@@ -25,6 +31,7 @@ import {
   TITLE_KEYS,
 } from '../../profiler/perimeter-columns.js';
 import { normalizeName } from '../../profiler/table.js';
+import { readGoalGroups, type GoalGroups } from './goal-groups.js';
 
 /** Health words → the widget's agent states. */
 const STATES: Record<string, AgentState> = {
@@ -35,14 +42,19 @@ const STATES: Record<string, AgentState> = {
   running: 'healthy',
   online: 'healthy',
   up: 'healthy',
+  working: 'healthy',
   degraded: 'degraded',
   warning: 'degraded',
   warn: 'degraded',
   slow: 'degraded',
+  overbudget: 'degraded',
   blocked: 'blocked',
-  waiting: 'blocked',
   held: 'blocked',
-  pending: 'blocked',
+  awaiting: 'awaiting',
+  waiting: 'awaiting',
+  holding: 'awaiting',
+  pending: 'awaiting',
+  onhold: 'awaiting',
   failed: 'failed',
   failure: 'failed',
   error: 'failed',
@@ -74,7 +86,7 @@ const MIN_AGENTS_PER_GOAL = 3;
 /** Share of rows whose state must be a health word. */
 const STATE_COVERAGE = 0.9;
 
-type AgentState = 'healthy' | 'degraded' | 'blocked' | 'failed' | 'idle';
+type AgentState = 'healthy' | 'degraded' | 'awaiting' | 'blocked' | 'failed' | 'idle';
 
 type Columns = {
   agent: string;
@@ -109,7 +121,7 @@ export function goalsPerimeterPayload(
   rows: Record<string, unknown>[],
 ): unknown | null {
   const perimeter = readPerimeter(rows);
-  if (!perimeter) return null;
+  if (!perimeter) return goalHealthPayload(rows);
   const out: Record<string, unknown> = { chartType: 'goalsPerimeter' };
   if (perimeter.title) out.name = perimeter.title;
   out.goals = perimeter.goals;
@@ -126,7 +138,30 @@ export function goalsPerimeterPayload(
  */
 export function goalsPerimeterFits(payload: unknown): boolean {
   if (!Array.isArray(payload)) return false;
-  return readPerimeter(payload.filter(isRecord)) !== null;
+  const rows = payload.filter(isRecord);
+  return readPerimeter(rows) !== null || readGoalHealth(rows) !== null;
+}
+
+/** The goals as the board draws them: progress is the perimeter arc, the widget's `health`. */
+function goalHealthPayload(rows: Record<string, unknown>[]): unknown | null {
+  const board = readGoalHealth(rows);
+  if (!board) return null;
+  return {
+    chartType: 'goalsPerimeter',
+    ...(board.title ? { name: board.title } : {}),
+    goals: board.goals.map(({ progress, ...goal }) => ({
+      ...goal,
+      ...(progress !== undefined ? { health: progress } : {}),
+    })),
+  };
+}
+
+/** Goals against their groups, a few of them, every one counting its healthy agents. */
+function readGoalHealth(rows: Record<string, unknown>[]): { title?: string; goals: GoalGroups[] } | null {
+  const map = readGoalGroups(rows);
+  if (!map || map.goals.length > MAX_GOALS) return null;
+  if (!map.goals.every((goal) => goal.agents.healthy !== undefined)) return null;
+  return { ...(map.title ? { title: map.title } : {}), goals: map.goals };
 }
 
 function readPerimeter(rows: Record<string, unknown>[]): Perimeter | null {
@@ -185,7 +220,7 @@ function readPerimeter(rows: Record<string, unknown>[]): Perimeter | null {
   const exceptionCount =
     counted.length === goals.size
       ? counted.reduce((sum, goal) => sum + goal.exceptionCount!, 0)
-      : all.filter((agent) => agent.state === 'degraded' || agent.state === 'blocked' || agent.state === 'failed')
+      : all.filter((agent) => agent.state !== 'healthy' && agent.state !== 'idle')
           .length;
   const title = columns.title ? sameText(rows, columns.title) : undefined;
 
