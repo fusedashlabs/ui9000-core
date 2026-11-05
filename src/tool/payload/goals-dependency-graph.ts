@@ -10,9 +10,10 @@
  * (code, agents by state, progress, burn, status) and pair columns (kind,
  * state, detail, cause, rule, owner, since).
  *
- * The reading is what holds each goal's agents, so a link must hold agents
- * or a row must trace a hold. Up to eight goals are drawn. A free-form
- * adjacency list (`source,target`) stays network-graph.
+ * The reading is what holds each goal's agents: a traced hold (cause, rule,
+ * owner or since), or agents held without a full calls ribbon. Call traffic
+ * with holds but no traced cause is the bipartite graph. Up to eight goals
+ * are drawn. A free-form adjacency list (`source,target`) stays network-graph.
  */
 
 import { readGoalGroups, type GoalGroupMap } from './goal-groups.js';
@@ -35,7 +36,7 @@ export function goalsDependencyGraphPayload(
 
 /**
  * True when the rows are a few goals against the resource groups they draw
- * on, and something holds their agents there.
+ * on, and the hold is traced or there is no full calls ribbon for bipartite.
  */
 export function goalsDependencyGraphFits(payload: unknown): boolean {
   if (!Array.isArray(payload)) return false;
@@ -45,8 +46,11 @@ export function goalsDependencyGraphFits(payload: unknown): boolean {
 function readDependencies(rows: Record<string, unknown>[]): GoalGroupMap | null {
   const map = readGoalGroups(rows);
   if (!map || map.goals.length > MAX_GOALS) return null;
-  if (!map.holds && !map.traced) return null;
-  return map;
+  // Traced holds stay here. Holds without calls on every link too. Call
+  // traffic with holds but no traced cause is left for the bipartite graph.
+  if (map.traced) return map;
+  if (map.holds && !map.callsOnEveryLink) return map;
+  return null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

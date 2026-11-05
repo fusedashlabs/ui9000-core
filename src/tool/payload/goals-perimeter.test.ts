@@ -214,8 +214,9 @@ describe('goals perimeter from goals and their resource groups', () => {
 
   it('draws as the goals perimeter in the graph family', () => {
     expect(graphChart(BOARD)).toBe('goals-perimeter');
-    // Without the perimeter, goals whose agents are held on their groups are the goals dependency graph.
-    expect(graphChart(BOARD, (id) => id !== 'goals-perimeter')).toBe('goals-dependency-graph');
+    // Without the perimeter, board rows with holds and calls but no traced cause
+    // are the bipartite graph (not yet on this branch), so the network stays.
+    expect(graphChart(BOARD, (id) => id !== 'goals-perimeter')).toBe('network-graph');
     expect(graphChart(BOARD, (id) => id === 'network-graph')).toBe('network-graph');
   });
 });

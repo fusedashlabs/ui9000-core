@@ -71,6 +71,9 @@ describe('goals dependency graph payload', () => {
     expect(goalsDependencyGraphFits(flowing)).toBe(false);
     // A traced cause is a hold, even without a held count.
     expect(goalsDependencyGraphFits(flowing.map((row, i) => (i === 0 ? { ...row, cause: 'credential grant' } : row)))).toBe(true);
+    // Holds with calls on every link but no traced cause are the bipartite graph.
+    const heldCalls = ROWS.map(({ cause, rule, owner, since, ...row }) => row);
+    expect(goalsDependencyGraphFits(heldCalls)).toBe(false);
     // The widget draws up to eight goals.
     const nine = Array.from({ length: 9 }, (_, i) => ({ goal: `G-${i}`, agents: 10, resource_group: 'System', held: 1 }));
     expect(goalsDependencyGraphFits(nine)).toBe(false);

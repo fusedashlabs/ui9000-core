@@ -3,9 +3,10 @@
  *
  * Call the goals perimeter only when the rows are many agents (or resources)
  * around shared goals, each with a health state. Call the goals dependency
- * graph only when the rows are a few goals against the resource groups they
- * draw on, and something holds their agents there. A free-form node–link
- * list has no goal or state and stays the network graph.
+ * graph only when a hold is traced, or agents are held without a full calls
+ * ribbon (call traffic with holds but no traced cause is the bipartite
+ * graph — check bipartite before this chart when both are in GRAPH_CHARTS).
+ * A free-form node–link list has no goal or state and stays the network graph.
  */
 
 import { goalsDependencyGraphFits } from './goals-dependency-graph.js';
