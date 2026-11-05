@@ -381,13 +381,16 @@ export async function handleShowWorkspace(
   let headlineShift = false;
   let graphShift = false;
   let partShift = false;
-  // Perimeter columns open the graph family by name. Rows that are neither a perimeter nor a
-  // node–link list leave it, so they reach the families they reached before.
+  // Perimeter, insights, goal-group, and orchestration columns open the graph
+  // family by name. Rows that are none of those and not a node–link list leave
+  // it, so they reach the families they reached before.
   const graphDraws =
     (runtime.profile.hasNodes && runtime.profile.hasLinks) ||
     graphChart(runtime.payload, (id) => canDraw(id, runtime.profile, catalogIds)) !== 'network-graph';
   const drawable = (family: { id: string }) => family.id !== 'graph' || graphDraws;
-  const guided = guidedChartFamilies(runtime.profile, runtime.classified, parsed.intent, catalogIds).filter(drawable);
+  const guided = guidedChartFamilies(runtime.profile, runtime.classified, parsed.intent, catalogIds).filter(
+    drawable,
+  );
   if (!namedDraw && !discussion?.drawId && !jevDraw && intentGuidesCharts(parsed.intent)) {
     const best = guided.find((family) => canDraw(family.main, runtime.profile, catalogIds));
     const inBest =
@@ -417,7 +420,8 @@ export async function handleShowWorkspace(
   }
   // Agents around shared goals draw the goals perimeter; claims filed under goals
   // draw goals and insights; goals against their resource groups draw the bipartite
-  // or dependency graph; a free-form node–link list stays the network graph.
+  // or dependency graph; reasoning steps with an active path draw the orchestration
+  // graph; a free-form node–link list stays the network graph.
   if (!pinned && componentId && isGraphChart(componentId)) {
     const drawing = graphChart(runtime.payload, (id) => canDraw(id, runtime.profile, catalogIds));
     if (drawing !== componentId) {
@@ -428,7 +432,7 @@ export async function handleShowWorkspace(
       graphShift = true;
       choiceWhy =
         drawing === 'network-graph'
-          ? `The rows are a node–link list, not agents around a goal, claims, or goals and the groups they draw on. So this is ${chartLabel(drawing)}.`
+          ? `The rows are a node–link list, not agents around a goal, claims, goals and the groups they draw on, or reasoning steps with an active path. So this is ${chartLabel(drawing)}.`
           : when
             ? `${when} So this is ${chartLabel(drawing)}.`
             : `So this is ${chartLabel(drawing)}.`;

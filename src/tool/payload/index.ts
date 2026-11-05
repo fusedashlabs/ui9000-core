@@ -21,6 +21,7 @@ import { goalsPerimeterPayload } from './goals-perimeter.js';
 import { goalsDependencyGraphPayload } from './goals-dependency-graph.js';
 import { bipartiteGraphPayload } from './bipartite-graph.js';
 import { goalsInsightsPayload } from './goals-insights.js';
+import { reasoningOrchestrationPayload } from './reasoning-orchestration-graph.js';
 import { asRowObjects } from './rows.js';
 
 export type ColumnHint = { name: string; role: string };
@@ -90,6 +91,10 @@ const PAYLOAD_BY_COMPONENT: Record<string, PayloadBuilder> = {
   'goals-insights': (chartType, fields, rows) => {
     void chartType;
     return goalsInsightsPayload(fields, rows);
+  },
+  'reasoning-orchestration-graph': (chartType, fields, rows) => {
+    void chartType;
+    return reasoningOrchestrationPayload(fields, rows);
   },
 };
 

@@ -21,9 +21,7 @@ function widgetChartIds(): Map<string, string[]> {
 }
 
 /** Widgets charts core does not select yet. The PR that adds one to CHART_ROLES removes it here. */
-const PENDING_IN_CORE: string[] = [
-  'reasoning-orchestration-graph',
-];
+const PENDING_IN_CORE: string[] = [];
 
 describe('chart roles', () => {
   const widgets = widgetChartIds();
@@ -216,6 +214,7 @@ describe('chart roles', () => {
       'goals-insights',
       'bipartite-graph',
       'goals-dependency-graph',
+      'reasoning-orchestration-graph',
     ]);
     const when = graph?.alternatives.find((alt) => alt.id === 'goals-perimeter')?.when;
     expect(when).toContain('Many agents (or resources) are arranged around one shared goal');
@@ -286,6 +285,28 @@ describe('chart roles', () => {
     expect(chartLabel('goals-insights')).toBe(
       'goals insights (show the evidence behind one goal: the claims its agents filed, how each reads against the goal, and the goals it shares evidence with)',
     );
+  });
+
+  it('puts the reasoning orchestration graph in the graph family as an alternative, not a main or a new family', () => {
+    expect(drawingsFor('reasoning-orchestration-graph')).toBeUndefined();
+    expect(familiesForChart('reasoning-orchestration-graph').map((family) => family.id)).toEqual(['graph']);
+    expect(CHART_FAMILIES.filter((family) => family.id === 'graph')).toHaveLength(1);
+    const graph = CHART_FAMILIES.find((family) => family.id === 'graph');
+    expect(graph?.main).toBe('network-graph');
+    expect(drawingsFor('network-graph')?.alternatives.map((role) => role.id)).toContain(
+      'reasoning-orchestration-graph',
+    );
+    const when = graph?.alternatives.find((alt) => alt.id === 'reasoning-orchestration-graph')?.when;
+    expect(when).toContain('Reasoning stages, candidate paths, models, or refinement steps form an inspectable orchestration graph');
+    expect(when).toContain('with an active path to highlight');
+    expect(when).toContain('not a free-form adjacency list');
+    expect(when).toContain('A general node–link exploration stays the network graph');
+    expect(CHART_ROLES['reasoning-orchestration-graph'].chartTypeKeys).toEqual(['reasoningOrchestrationGraph']);
+    expect(chartLabel('reasoning-orchestration-graph')).toBe(
+      'reasoning orchestration graph (inspect a reasoning or inference process: its stages, candidate paths, models, and refinement steps, with the active path highlighted)',
+    );
+    const meta = collectPortMetadata().find((item) => item.id === 'reasoning-orchestration-graph');
+    expect(meta && chartTypeKeysOf(meta)).toEqual(['reasoningOrchestrationGraph']);
   });
 
   it('names a chart by what it shows', () => {

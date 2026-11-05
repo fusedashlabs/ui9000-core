@@ -254,6 +254,13 @@ export const CHART_ROLES = {
     data: 'One row per goal and resource group, with the goal\'s agent total and the agents held there or the calls a minute. Optional goal code, agents by state, progress, burn and status; optional group kind, state, detail, cause, rule, owner and since. Up to eight goals.',
     visual: 'Each goal a tree of its agents on a baseline, in their states\' marks, with the resource groups in a row over the trees and a line from each goal to every group it draws on, in the colour of the agents held there. The goal at the centre grows its full tree, with its progress ring and its worst line traced in a callout.',
   },
+  'reasoning-orchestration-graph': {
+    id: 'reasoning-orchestration-graph',
+    chartTypeKeys: ['reasoningOrchestrationGraph'],
+    role: 'Inspect a reasoning or inference process: its stages, candidate paths, models, and refinement steps, with the active path highlighted.',
+    data: 'Reasoning steps linked to the step they came from, each with a stage or a depth, and an active path to highlight. Optional model, state, score, candidate paths, and supporting metrics.',
+    visual: 'A fan from the root outward by depth, stage by stage. Hairlines in each model’s colour, candidate paths subordinate, the active path bright. Stage metrics on top; step entropy, pipeline status, and compute scaling in panels underneath.',
+  },
   'kpi-widget': {
     id: 'kpi-widget',
     chartTypeKeys: ['KPI', 'KPIs'],
@@ -502,6 +509,10 @@ export const CHART_FAMILIES = [
       {
         id: 'goals-dependency-graph',
         when: 'Up to eight goals stand against the resource groups they draw on, one row per goal and group with the goal\'s agents and the agents held there, or the cause, rule, owner or since of a hold. The reading is what holds each goal\'s agents and where. Agents one by one stay the goals perimeter, and a general node–link exploration stays the network graph.',
+      },
+      {
+        id: 'reasoning-orchestration-graph',
+        when: 'Reasoning stages, candidate paths, models, or refinement steps form an inspectable orchestration graph, with an active path to highlight. The reading is reasoning or inference structure, not a free-form adjacency list. A general node–link exploration stays the network graph.',
       },
     ],
   },
