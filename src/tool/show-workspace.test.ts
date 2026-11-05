@@ -1527,6 +1527,16 @@ describe('show_workspace fail-closed', () => {
     'Fraud Review,G-021,310,0,0,0.67,System,ok,0,700,,,,',
   ].join('\n');
 
+  const GOAL_GROUPS_CSV = [
+    'goal,goal_code,agents,blocked,awaiting,progress,resource_group,state,held,calls',
+    'Perimeter Watch,G-014,1108,0,19,0.88,Camera,slowed,0,14200',
+    'Perimeter Watch,G-014,1108,0,19,0.88,Model,waiting,19,8800',
+    'Onboarding Velocity,G-007,842,94,0,41%,System,blocked,94,5400',
+    'Onboarding Velocity,G-007,842,94,0,41%,Camera,ok,0,2100',
+    'Fraud Review,G-021,310,0,0,0.67,Model,ok,0,1900',
+    'Fraud Review,G-021,310,0,0,0.67,System,ok,0,700',
+  ].join('\n');
+
   it('draws the goals dependency graph for goals held on the resource groups they draw on', async () => {
     const channel = memoryChannel();
     const result = await handleShowWorkspace(
@@ -1554,6 +1564,45 @@ describe('show_workspace fail-closed', () => {
         { name: 'Camera', state: 'healthy', held: 0, calls: 2100 },
       ],
     });
+  });
+
+  it('draws the bipartite graph for goals against the resource groups they draw on', async () => {
+    const channel = memoryChannel();
+    const result = await handleShowWorkspace(
+      { intent: 'graph', csv: GOAL_GROUPS_CSV },
+      graphContext({ signDataLink: channel.signDataLink, loadDataset: channel.loadDataset }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('bipartite-graph');
+    expect(result.chartType).toBe('bipartiteGraph');
+    expect(result.chartWhy).toContain('how much each goal draws on each group');
+    const widget = (await readViaHandle(result.spec, channel.readDataLink)) as {
+      chartType: string;
+      goals: { name: string; code: string; agents: unknown; health: unknown; resourceGroups: unknown[] }[];
+    };
+    expect(widget.chartType).toBe('bipartiteGraph');
+    expect(widget.goals.map((goal) => goal.name)).toEqual(['Perimeter Watch', 'Onboarding Velocity', 'Fraud Review']);
+    expect(widget.goals[1]).toEqual({
+      name: 'Onboarding Velocity',
+      code: 'G-007',
+      agents: { total: 842, blocked: 94, awaiting: 0 },
+      health: '41%',
+      resourceGroups: [
+        { name: 'System', state: 'blocked', held: 94, calls: 5400 },
+        { name: 'Camera', state: 'healthy', held: 0, calls: 2100 },
+      ],
+    });
+  });
+
+  it('draws a named bipartite graph for goals against their groups', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'graph', requestedChart: 'bipartite-graph', utterance: 'show it as a bipartite graph', csv: GOAL_GROUPS_CSV },
+      graphContext(),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('bipartite-graph');
   });
 
   it('keeps a free-form adjacency list on the network graph', async () => {

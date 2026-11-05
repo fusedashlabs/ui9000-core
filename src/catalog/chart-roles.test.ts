@@ -22,7 +22,6 @@ function widgetChartIds(): Map<string, string[]> {
 
 /** Widgets charts core does not select yet. The PR that adds one to CHART_ROLES removes it here. */
 const PENDING_IN_CORE: string[] = [
-  'bipartite-graph',
   'goals-insights',
   'reasoning-orchestration-graph',
 ];
@@ -215,6 +214,7 @@ describe('chart roles', () => {
     expect(graph?.main).toBe('network-graph');
     expect(drawingsFor('network-graph')?.alternatives.map((role) => role.id)).toEqual([
       'goals-perimeter',
+      'bipartite-graph',
       'goals-dependency-graph',
     ]);
     const when = graph?.alternatives.find((alt) => alt.id === 'goals-perimeter')?.when;
@@ -254,6 +254,22 @@ describe('chart roles', () => {
     expect(CHART_ROLES['goals-dependency-graph'].chartTypeKeys).toEqual(['goalsDependencyGraph']);
     expect(chartLabel('goals-dependency-graph')).toBe(
       "goals dependency graph (trace what holds each goal's agents: the resource groups the goals draw on, and the cause, rule and owner of each hold)",
+    );
+  });
+
+  it('puts the bipartite graph in the graph family as an alternative, after the goals perimeter', () => {
+    expect(drawingsFor('bipartite-graph')).toBeUndefined();
+    expect(familiesForChart('bipartite-graph').map((family) => family.id)).toEqual(['graph']);
+    const graph = CHART_FAMILIES.find((family) => family.id === 'graph');
+    expect(graph?.main).toBe('network-graph');
+    const when = graph?.alternatives.find((alt) => alt.id === 'bipartite-graph')?.when;
+    expect(when).toContain('Goals stand against the resource groups they draw on');
+    expect(when).toContain('how much each goal draws on each group');
+    expect(when).toContain('Agents one by one stay the goals perimeter');
+    expect(when).toContain('a general node–link exploration stays the network graph');
+    expect(CHART_ROLES['bipartite-graph'].chartTypeKeys).toEqual(['bipartiteGraph', 'bipartite']);
+    expect(chartLabel('bipartite-graph')).toBe(
+      'bipartite graph (show how much each goal draws on each resource group: the calls between them, and where agents are held)',
     );
   });
 

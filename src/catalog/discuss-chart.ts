@@ -223,7 +223,7 @@ export function chartWhyFor(componentId: string): string | undefined {
 /**
  * Families whose data shape the profile can support. Same gates as discussChart.
  * `catalogIds` lets agents around a goal open the graph family when the host can draw the goals perimeter,
- * and goals against their resource groups when it can draw the goals dependency graph.
+ * and goals against their resource groups when it can draw the bipartite or dependency graph.
  */
 export function chartFamiliesFor(
   profile: DataProfile,
@@ -384,7 +384,7 @@ function namesGoalsPerimeter(keys: readonly string[]): boolean {
 
 /**
  * `perimeter` needs the goals perimeter in the host catalog, and
- * `goalGroups` the goals dependency graph: without it the graph family has
+ * `goalGroups` the bipartite or goals dependency graph: without either the graph family has
  * nothing to draw these columns with, and they go to the families they
  * reached before.
  */
@@ -406,7 +406,9 @@ function columnCounts(
     metrics: columns.filter((column) => column.role === 'metric').length,
     categories: columns.filter((column) => column.role === 'category').length,
     perimeter: catalogIds?.has('goals-perimeter') === true && namesGoalsPerimeter(keys),
-    goalGroups: catalogIds?.has('goals-dependency-graph') === true && namesGoalGroups(keys),
+    goalGroups:
+      (catalogIds?.has('bipartite-graph') === true || catalogIds?.has('goals-dependency-graph') === true) &&
+      namesGoalGroups(keys),
   };
 }
 

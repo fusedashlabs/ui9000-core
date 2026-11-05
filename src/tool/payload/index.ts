@@ -19,6 +19,7 @@ import { mapChartPayload } from './map-chart.js';
 import { networkGraphPayload } from './network-graph.js';
 import { goalsPerimeterPayload } from './goals-perimeter.js';
 import { goalsDependencyGraphPayload } from './goals-dependency-graph.js';
+import { bipartiteGraphPayload } from './bipartite-graph.js';
 import { asRowObjects } from './rows.js';
 
 export type ColumnHint = { name: string; role: string };
@@ -80,6 +81,10 @@ const PAYLOAD_BY_COMPONENT: Record<string, PayloadBuilder> = {
   'goals-dependency-graph': (chartType, fields, rows) => {
     void chartType;
     return goalsDependencyGraphPayload(fields, rows);
+  },
+  'bipartite-graph': (chartType, fields, rows) => {
+    void chartType;
+    return bipartiteGraphPayload(fields, rows);
   },
 };
 
