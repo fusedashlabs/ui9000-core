@@ -156,9 +156,10 @@ function goalHealthPayload(rows: Record<string, unknown>[]): unknown | null {
   };
 }
 
-/** Goals against their groups, a few of them, every one counting its healthy agents. */
+/** Goals against their groups, one to a few of them, every one counting its healthy agents. */
 function readGoalHealth(rows: Record<string, unknown>[]): { title?: string; goals: GoalGroups[] } | null {
-  const map = readGoalGroups(rows);
+  // One goal is a perimeter of its own, unlike goals against groups.
+  const map = readGoalGroups(rows, { minGoals: 1 });
   if (!map || map.goals.length > MAX_GOALS) return null;
   if (!map.goals.every((goal) => goal.agents.healthy !== undefined)) return null;
   return { ...(map.title ? { title: map.title } : {}), goals: map.goals };

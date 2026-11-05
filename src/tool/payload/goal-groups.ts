@@ -139,11 +139,15 @@ type Columns = {
 
 /**
  * The goals and their groups, or null unless the rows are goal × group pairs
- * with the goal's agent total on every goal, and at least two goals. A pair
+ * with the goal's agent total on every goal, and at least `minGoals` goals
+ * (two unless the reader says otherwise). A pair
  * that repeats is not one link.
  */
-export function readGoalGroups(rows: Record<string, unknown>[]): GoalGroupMap | null {
-  if (rows.length < 2) return null;
+export function readGoalGroups(
+  rows: Record<string, unknown>[],
+  { minGoals = 2 }: { minGoals?: number } = {},
+): GoalGroupMap | null {
+  if (rows.length < minGoals) return null;
   const columns = readColumns(rows);
   if (!columns) return null;
 
@@ -175,7 +179,7 @@ export function readGoalGroups(rows: Record<string, unknown>[]): GoalGroupMap | 
     goal.resourceGroups.push(link);
   }
 
-  if (goals.size < 2) return null;
+  if (goals.size < minGoals) return null;
   const read: GoalGroups[] = [];
   for (const { seen, agents, ...goal } of goals.values()) {
     void seen;

@@ -1425,6 +1425,29 @@ describe('show_workspace fail-closed', () => {
     });
   });
 
+  it('draws goal rows that fit no graph drawing as they were drawn before, not as a failed graph', async () => {
+    const nineGoals = [
+      'goal,agents,healthy,blocked,resource_group,state,held',
+      ...Array.from({ length: 9 }, (_, i) => `Goal ${i},10,9,1,Model,blocked,1`),
+    ].join('\n');
+    // No agent total on the goals.
+    const uncounted = 'goal,healthy,blocked,resource_group,held\nA,30,10,Model,10\nB,20,2,System,2\n';
+    for (const csv of [nineGoals, uncounted]) {
+      const result = await handleShowWorkspace({ intent: 'graph', csv }, graphContext());
+      expect(isDrawn(result), csv).toBe(true);
+      if (!isDrawn(result)) return;
+      expect(result.spec.component, csv).toBe('bar-chart');
+    }
+  });
+
+  it('answers too few agents as any table of text columns, not as a network graph without nodes', async () => {
+    const csv = ['agent_id,goal,state', ...Array.from({ length: 5 }, (_, i) => `agent-${i},Incident Response,healthy`)].join('\n');
+    const asGraph = await handleShowWorkspace({ intent: 'graph', csv }, graphContext());
+    const asComparison = await handleShowWorkspace({ intent: 'comparison', csv }, graphContext());
+    expect(asGraph).toMatchObject({ ok: false, code: 'chart_unbuilt' });
+    expect(asComparison).toMatchObject({ ok: false, code: 'chart_unbuilt' });
+  });
+
   it('draws the goals perimeter when the agents also link to dependencies', async () => {
     const csv = [
       'source,target,goal,status',

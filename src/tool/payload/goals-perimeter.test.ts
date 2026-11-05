@@ -191,7 +191,7 @@ describe('goals perimeter from goals and their resource groups', () => {
     expect(goalsPerimeterPayload({}, rows)).toMatchObject({ name: 'Agent operations' });
   });
 
-  it('fits only when every goal counts its healthy agents, and up to eight goals', () => {
+  it('fits one to eight goals, only when every goal counts its healthy agents', () => {
     expect(goalsPerimeterFits(BOARD)).toBe(true);
     // Without the healthy count it is goals against groups, not population health.
     expect(goalsPerimeterFits(BOARD.map(({ healthy, ...row }) => (void healthy, row)))).toBe(false);
@@ -199,8 +199,11 @@ describe('goals perimeter from goals and their resource groups', () => {
     const nine = Array.from({ length: 9 }, (_, i) => ({ goal: `G-${i}`, agents: 10, healthy: 9, resource_group: 'Model', held: 1 }));
     expect(goalsPerimeterFits(nine)).toBe(false);
     expect(goalsPerimeterFits(nine.slice(0, 8))).toBe(true);
-    // One goal is not goals against groups.
-    expect(goalsPerimeterFits(BOARD.slice(0, 2))).toBe(false);
+    // One goal is a perimeter of its own.
+    expect(goalsPerimeterFits(BOARD.slice(0, 2))).toBe(true);
+    expect(goalsPerimeterPayload({}, BOARD.slice(0, 2))).toMatchObject({
+      goals: [{ name: 'Perimeter Watch', resourceGroups: [{ name: 'Camera' }, { name: 'Model' }] }],
+    });
   });
 
   it('shares its column vocabulary with the family gate', () => {

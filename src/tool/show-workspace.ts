@@ -381,7 +381,13 @@ export async function handleShowWorkspace(
   let headlineShift = false;
   let graphShift = false;
   let partShift = false;
-  const guided = guidedChartFamilies(runtime.profile, runtime.classified, parsed.intent, catalogIds);
+  // Perimeter columns open the graph family by name. Rows that are neither a perimeter nor a
+  // node–link list leave it, so they reach the families they reached before.
+  const graphDraws =
+    (runtime.profile.hasNodes && runtime.profile.hasLinks) ||
+    graphChart(runtime.payload, (id) => canDraw(id, runtime.profile, catalogIds)) !== 'network-graph';
+  const drawable = (family: { id: string }) => family.id !== 'graph' || graphDraws;
+  const guided = guidedChartFamilies(runtime.profile, runtime.classified, parsed.intent, catalogIds).filter(drawable);
   if (!namedDraw && !discussion?.drawId && !jevDraw && intentGuidesCharts(parsed.intent)) {
     const best = guided.find((family) => canDraw(family.main, runtime.profile, catalogIds));
     const inBest =
@@ -445,8 +451,8 @@ export async function handleShowWorkspace(
     }
   }
   if (!componentId) {
-    const family = chartFamiliesFor(runtime.profile, runtime.classified, parsed.intent, catalogIds).find((item) =>
-      canDraw(item.main, runtime.profile, catalogIds),
+    const family = chartFamiliesFor(runtime.profile, runtime.classified, parsed.intent, catalogIds).find(
+      (item) => drawable(item) && canDraw(item.main, runtime.profile, catalogIds),
     );
     if (family) {
       componentId = staged(family.main)!;
