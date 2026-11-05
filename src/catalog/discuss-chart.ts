@@ -7,7 +7,7 @@
  * generated in its place.
  */
 
-import { namesGoalHealth } from '../profiler/goal-group-columns.js';
+import { namesGoalGroups, namesGoalHealth } from '../profiler/goal-group-columns.js';
 import { namesPerimeter } from '../profiler/perimeter-columns.js';
 import type { ClassifiedColumn } from '../profiler/roles.js';
 import type { DataProfile } from '../spec/data-profile.js';
@@ -222,7 +222,8 @@ export function chartWhyFor(componentId: string): string | undefined {
 
 /**
  * Families whose data shape the profile can support. Same gates as discussChart.
- * `catalogIds` lets agents around a goal open the graph family when the host can draw the goals perimeter.
+ * `catalogIds` lets agents around a goal open the graph family when the host can draw the goals perimeter,
+ * and goals against their resource groups when it can draw the goals dependency graph.
  */
 export function chartFamiliesFor(
   profile: DataProfile,
@@ -345,7 +346,7 @@ function eligibleFamilies(
   const card = profile.categoryCardinality ?? 0;
   const ids: string[] = [];
   if (profile.hasLinks && profile.hasNumericMetric) ids.push('flow');
-  if ((profile.hasNodes && profile.hasLinks) || counts.perimeter) ids.push('graph');
+  if ((profile.hasNodes && profile.hasLinks) || counts.perimeter || counts.goalGroups) ids.push('graph');
   if (profile.hasGeo) ids.push('spatial');
   if (profile.hasTemporal && profile.hasNumericMetric) ids.push('ordered-series');
   if (counts.categories >= 2 && counts.metrics >= 1) ids.push('two-way-magnitude');
@@ -374,7 +375,7 @@ function eligibleFamilies(
   return CHART_FAMILIES.filter((family) => ids.includes(family.id));
 }
 
-type ColumnCounts = { metrics: number; categories: number; perimeter: boolean };
+type ColumnCounts = { metrics: number; categories: number; perimeter: boolean; goalGroups: boolean };
 
 /** One row per agent around its goal, or per goal and group with the goals' agents by state. */
 function namesGoalsPerimeter(keys: readonly string[]): boolean {
@@ -382,9 +383,10 @@ function namesGoalsPerimeter(keys: readonly string[]): boolean {
 }
 
 /**
- * `perimeter` needs the goals perimeter in the host catalog: without it the
- * graph family has nothing to draw these columns with, and they go to the
- * families they reached before.
+ * `perimeter` needs the goals perimeter in the host catalog, and
+ * `goalGroups` the goals dependency graph: without it the graph family has
+ * nothing to draw these columns with, and they go to the families they
+ * reached before.
  */
 function columnCounts(
   profile: DataProfile,
@@ -396,12 +398,15 @@ function columnCounts(
       metrics: profile.hasNumericMetric ? 1 : 0,
       categories: profile.hasCategory ? 1 : 0,
       perimeter: false,
+      goalGroups: false,
     };
   }
+  const keys = columns.flatMap((column) => (column.key ? [column.key] : []));
   return {
     metrics: columns.filter((column) => column.role === 'metric').length,
     categories: columns.filter((column) => column.role === 'category').length,
-    perimeter: catalogIds?.has('goals-perimeter') === true && namesGoalsPerimeter(columns.flatMap((column) => (column.key ? [column.key] : []))),
+    perimeter: catalogIds?.has('goals-perimeter') === true && namesGoalsPerimeter(keys),
+    goalGroups: catalogIds?.has('goals-dependency-graph') === true && namesGoalGroups(keys),
   };
 }
 

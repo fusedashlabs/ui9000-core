@@ -23,7 +23,6 @@ function widgetChartIds(): Map<string, string[]> {
 /** Widgets charts core does not select yet. The PR that adds one to CHART_ROLES removes it here. */
 const PENDING_IN_CORE: string[] = [
   'bipartite-graph',
-  'goals-dependency-graph',
   'goals-insights',
   'reasoning-orchestration-graph',
 ];
@@ -214,7 +213,10 @@ describe('chart roles', () => {
     expect(CHART_FAMILIES.filter((family) => family.id === 'graph')).toHaveLength(1);
     const graph = CHART_FAMILIES.find((family) => family.id === 'graph');
     expect(graph?.main).toBe('network-graph');
-    expect(drawingsFor('network-graph')?.alternatives.map((role) => role.id)).toEqual(['goals-perimeter']);
+    expect(drawingsFor('network-graph')?.alternatives.map((role) => role.id)).toEqual([
+      'goals-perimeter',
+      'goals-dependency-graph',
+    ]);
     const when = graph?.alternatives.find((alt) => alt.id === 'goals-perimeter')?.when;
     expect(when).toContain('Many agents (or resources) are arranged around one shared goal');
     expect(when).toContain('health states and an optional exception count');
@@ -237,6 +239,21 @@ describe('chart roles', () => {
     expect(CHART_ROLES['goal-burst'].chartTypeKeys).toEqual(['goalBurst', 'burst']);
     expect(chartLabel('goal-burst')).toBe(
       "goal burst (show one goal's traffic: how long its calls to each resource group take to be answered, and where they are held up)",
+    );
+  });
+
+  it('puts the goals dependency graph in the graph family as an alternative, after the goals perimeter', () => {
+    expect(drawingsFor('goals-dependency-graph')).toBeUndefined();
+    expect(familiesForChart('goals-dependency-graph').map((family) => family.id)).toEqual(['graph']);
+    const when = CHART_FAMILIES.find((family) => family.id === 'graph')?.alternatives.find(
+      (alt) => alt.id === 'goals-dependency-graph',
+    )?.when;
+    expect(when).toContain('Up to eight goals stand against the resource groups they draw on');
+    expect(when).toContain("what holds each goal's agents and where");
+    expect(when).toContain('Agents one by one stay the goals perimeter');
+    expect(CHART_ROLES['goals-dependency-graph'].chartTypeKeys).toEqual(['goalsDependencyGraph']);
+    expect(chartLabel('goals-dependency-graph')).toBe(
+      "goals dependency graph (trace what holds each goal's agents: the resource groups the goals draw on, and the cause, rule and owner of each hold)",
     );
   });
 

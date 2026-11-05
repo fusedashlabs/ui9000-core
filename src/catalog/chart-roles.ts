@@ -233,6 +233,13 @@ export const CHART_ROLES = {
     data: 'Agents with an id, a health state, and the goal they work toward. Optional links to agents, resources, or external dependencies, and an exception count. Or one row per goal and resource group: the goal\'s agents by state, healthy ones included, with optional code, status, progress and burn, and the group\'s kind, state, calls, held agents and detail.',
     visual: 'A cloud of agents per goal inside a ring that fills with progress. Working and idle agents are dots; awaiting, blocked, failed, and degraded (slowed or over budget) agents each wear their own mark. Resource groups sit on the goal\'s orbit as diamonds with the agents held there. Lines join goals that draw on the same group, red where one is down. The header counts goals, agents, and held agents, and hovering a goal, group, or line shows its tooltip.',
   },
+  'goals-dependency-graph': {
+    id: 'goals-dependency-graph',
+    chartTypeKeys: ['goalsDependencyGraph'],
+    role: 'Trace what holds each goal\'s agents: the resource groups the goals draw on, and the cause, rule and owner of each hold.',
+    data: 'One row per goal and resource group, with the goal\'s agent total and the agents held there or the calls a minute. Optional goal code, agents by state, progress, burn and status; optional group kind, state, detail, cause, rule, owner and since. Up to eight goals.',
+    visual: 'Each goal a tree of its agents on a baseline, in their states\' marks, with the resource groups in a row over the trees and a line from each goal to every group it draws on, in the colour of the agents held there. The goal at the centre grows its full tree, with its progress ring and its worst line traced in a callout.',
+  },
   'kpi-widget': {
     id: 'kpi-widget',
     chartTypeKeys: ['KPI', 'KPIs'],
@@ -469,6 +476,10 @@ export const CHART_FAMILIES = [
       {
         id: 'goals-perimeter',
         when: 'Many agents (or resources) are arranged around one shared goal, with health states and an optional exception count, or goals carry their agents by state against the resource groups they draw on. The reading is perimeter and population health, not a free-form adjacency list. A general node–link exploration stays the network graph.',
+      },
+      {
+        id: 'goals-dependency-graph',
+        when: 'Up to eight goals stand against the resource groups they draw on, one row per goal and group with the goal\'s agents and the agents held there, or the cause, rule, owner or since of a hold. The reading is what holds each goal\'s agents and where. Agents one by one stay the goals perimeter, and a general node–link exploration stays the network graph.',
       },
     ],
   },
