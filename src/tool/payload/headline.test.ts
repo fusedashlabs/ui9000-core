@@ -113,6 +113,31 @@ describe('headlineChart', () => {
     expect(headlineChart(ASSET_HEALTH, (id) => id !== 'asset-health-overview')).toBe('kpi-widget');
   });
 
+  const BURST = {
+    goal: { id: 'G-007', total: 842, blocked: 94 },
+    categories: [
+      { name: 'SYSTEM', kind: 'system', healthy: 1246, held: 94, calls: 5400, latency: { p50: 0.24, p95: 0.7 } },
+      { name: 'APP', kind: 'app', healthy: 8931, held: 0, calls: 3300 },
+    ],
+  };
+
+  it('calls the goal burst when the resource groups carry their calls and answer times', () => {
+    expect(headlineChart(BURST)).toBe('goal-burst');
+    expect(headlineChart([BURST])).toBe('goal-burst');
+  });
+
+  it('calls the asset health overview when the goal burst cannot be drawn', () => {
+    expect(headlineChart(BURST, (id) => id !== 'goal-burst')).toBe('asset-health-overview');
+  });
+
+  it('keeps the asset health overview without answer times', () => {
+    const categories = BURST.categories.map(({ latency, ...category }) => {
+      void latency;
+      return category;
+    });
+    expect(headlineChart({ ...BURST, categories })).toBe('asset-health-overview');
+  });
+
   it('keeps the dial for a health score beside other measures, not the asset health overview', () => {
     expect(headlineChart([{ unitHealth: 72.8, txPower: 28, min: 0, max: 100, okTo: 80 }])).toBe(
       'status-gauge-widget',

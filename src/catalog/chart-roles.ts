@@ -282,6 +282,13 @@ export const CHART_ROLES = {
     data: 'One goal\'s agent counts (total, held by state; optional working, idle, over budget, progress, status), plus asset categories each with healthy / degraded / failing counts or problems. Optional per category: held agents, calls, traffic and a 24-hour day. Do not invent category totals or the day.',
     visual: 'Goal rings arena: the goal\'s agents as dots in a section per asset category, the held ones against its gate; a cell per asset with problems lit as beams; the category\'s last 24 hours as a wall when sent; progress as a ring in the middle.',
   },
+  'goal-burst': {
+    id: 'goal-burst',
+    chartTypeKeys: ['goalBurst', 'burst'],
+    role: 'Show one goal\'s traffic: how long its calls to each resource group take to be answered, and where they are held up.',
+    data: 'The asset health overview\'s payload (one goal\'s agent counts, and per resource group its health, calls and held agents), with the calls on every group and answer times (p50 / p95) on at least one. Optional kind, traffic mix, problems, bytes a minute, shared goals and the fleet\'s resource group total. Do not invent answer times.',
+    visual: 'The goal\'s agents as a cloud with its progress ring; its calls as spikes into one sector per resource group, as wide as the group\'s share of the calls, each spike as long as its answer time on a 0.1s to 2s scale, white through, amber throttled, and in the hold\'s colour where held up; the group\'s assets in trouble on the outer band.',
+  },
   'step-line-chart': {
     id: 'step-line-chart',
     chartTypeKeys: ['stepLineChart', 'ksPlotChart', 'rocCurveChart'],
@@ -492,6 +499,10 @@ export const CHART_FAMILIES = [
       {
         id: 'asset-health-overview',
         when: 'The operational environment already has an agent population plus asset categories with health counts (and optional problems, traffic and a 24-hour day per category); the reading is environment health at a glance. A single health dial stays the status gauge. A plain number stays the KPI. Free-form node–link exploration stays the network graph.',
+      },
+      {
+        id: 'goal-burst',
+        when: 'One goal\'s agents and the resource groups it calls, every group with its calls a minute and at least one with how long its calls take to be answered (p50 / p95). The reading is the goal\'s traffic: how long its calls take and where they are held up. Without answer times the same rows stay the asset health overview. A plain number stays the KPI.',
       },
     ],
   },

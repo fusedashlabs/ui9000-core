@@ -16,7 +16,7 @@ const BLOCKED_KEYS = /^blocked$/i;
 const FAILED_KEYS = /^(failed|failing_?agents?)$/i;
 const BURN_KEYS = /^burn$/i;
 const OVER_BUDGET_KEYS = /^over_?budget$/i;
-const CATEGORY_KEYS = /^(category|asset_?category|name|label|group)$/i;
+const CATEGORY_KEYS = /^(category|asset_?category|resource_?group|name|label|group)$/i;
 const TOTAL_KEYS = /^(total|assets?|count|n)$/i;
 const HEALTHY_KEYS = /^(healthy|ok|good|green)$/i;
 const DEGRADED_KEYS = /^(degraded|warn|warning|amber)$/i;
@@ -74,11 +74,16 @@ type Agents = {
   status?: string;
 };
 
-type Overview = {
+export type Overview<Extra extends object = object> = {
   name?: string;
   agents: Agents;
-  categories: Category[];
+  categories: (Category & Extra)[];
 };
+
+/** What a chart that takes this payload reads of a category besides it, from the category's record. */
+export type CategoryExtra<Extra extends object> = (source: Record<string, unknown>) => Extra;
+
+const NO_EXTRA: CategoryExtra<object> = () => ({});
 
 export function assetHealthOverviewPayload(
   _fields: Record<string, string>,
@@ -107,11 +112,19 @@ export function assetHealthFits(payload: unknown): boolean {
   return readOverview(payload.filter(isRecord)) !== null;
 }
 
-function readOverview(rows: Record<string, unknown>[]): Overview | null {
+/**
+ * The overview the rows (or one overview object) describe. `extra` adds what
+ * another chart taking this payload reads of each category, such as the goal
+ * burst's answer times.
+ */
+export function readOverview<Extra extends object = object>(
+  rows: Record<string, unknown>[],
+  extra: CategoryExtra<Extra> = NO_EXTRA as CategoryExtra<Extra>,
+): Overview<Extra> | null {
   if (rows.length === 1 && isOverviewObject(rows[0]!)) {
-    return readOverviewFromObject(rows[0]!);
+    return readOverviewFromObject(rows[0]!, extra);
   }
-  return readOverviewFromRows(rows);
+  return readOverviewFromRows(rows, extra);
 }
 
 function isOverviewObject(row: Record<string, unknown>): boolean {
@@ -125,13 +138,18 @@ function isOverviewObject(row: Record<string, unknown>): boolean {
   );
 }
 
-function readOverviewFromObject(raw: Record<string, unknown>): Overview | null {
+function readOverviewFromObject<Extra extends object>(
+  raw: Record<string, unknown>,
+  extra: CategoryExtra<Extra> = NO_EXTRA as CategoryExtra<Extra>,
+): Overview<Extra> | null {
   const categorySource = Array.isArray(raw.categories)
     ? raw.categories
     : Array.isArray(raw.data)
       ? raw.data
       : [];
-  const categories = categorySource.map(readCategory).filter((c): c is Category => !!c);
+  const categories = categorySource
+    .map((value) => readCategory(value, extra))
+    .filter((c): c is Category & Extra => !!c);
   if (categories.length < 2) return null;
   if (!categories.every(hasHealthSignal)) return null;
 
@@ -151,9 +169,12 @@ function readOverviewFromObject(raw: Record<string, unknown>): Overview | null {
   return { agents, categories, ...(title ? { name: title } : {}) };
 }
 
-function readOverviewFromRows(rows: Record<string, unknown>[]): Overview | null {
+function readOverviewFromRows<Extra extends object>(
+  rows: Record<string, unknown>[],
+  extra: CategoryExtra<Extra>,
+): Overview<Extra> | null {
   if (rows.length < 2) return null;
-  const categories = rows.map(readCategory).filter((c): c is Category => !!c);
+  const categories = rows.map((row) => readCategory(row, extra)).filter((c): c is Category & Extra => !!c);
   if (categories.length < 2 || categories.length !== rows.length) return null;
   if (!categories.every(hasHealthSignal)) return null;
 
@@ -230,7 +251,7 @@ function readAgents(raw: unknown): Agents | null {
   };
 }
 
-function readCategory(value: unknown): Category | null {
+function readCategory<Extra extends object>(value: unknown, extra: CategoryExtra<Extra>): (Category & Extra) | null {
   if (!isRecord(value)) return null;
   const name = text(cell(value, CATEGORY_KEYS)) || text(value.name) || text(value.id);
   if (!name) return null;
@@ -259,6 +280,7 @@ function readCategory(value: unknown): Category | null {
     ...(items ? { items } : {}),
     ...(problems ? { problems } : {}),
     ...readArenaFields(value),
+    ...extra(value),
   };
 }
 
