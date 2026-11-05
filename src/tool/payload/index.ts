@@ -73,6 +73,38 @@ const PAYLOAD_BY_COMPONENT: Record<string, PayloadBuilder> = {
   },
 };
 
+/**
+ * The fields the hosted viewer (mcp-ui `fuseWidgetLooksPlottable`) looks for
+ * before it unwraps a stored chart object for the widget. A chart object with
+ * none of them reaches the widget still wrapped, and the widget draws nothing.
+ */
+const VIEWER_UNWRAP_FIELDS = [
+  'data',
+  'layers',
+  'items',
+  'kpis',
+  'histogramResults',
+  'boxes',
+  'cells',
+  'series',
+  'points',
+  'nodes',
+  'links',
+] as const;
+
+/**
+ * Lets the viewer unwrap a chart object built around other fields (goals,
+ * agents, categories, counts) with an empty `cells`, which none of those
+ * widgets read. Drop it once the viewer unwraps any object with a chartType.
+ */
+function unwrappableByViewer(payload: unknown): unknown {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return payload;
+  const chart = payload as Record<string, unknown>;
+  if (typeof chart.chartType !== 'string') return payload;
+  if (VIEWER_UNWRAP_FIELDS.some((field) => Array.isArray(chart[field]))) return payload;
+  return { ...chart, cells: [] };
+}
+
 function builderFor(component: string): PayloadBuilder | undefined {
   const known = PAYLOAD_BY_COMPONENT[component];
   if (known) return known;
@@ -91,5 +123,7 @@ export function workspaceWidgetPayload(
   if (!rows) return payload;
   const build = builderFor(component);
   if (!build) return payload;
-  return build(chartType ?? chartTypeForComponent(component), bindFieldMap(binds), rows, columns);
+  return unwrappableByViewer(
+    build(chartType ?? chartTypeForComponent(component), bindFieldMap(binds), rows, columns),
+  );
 }
