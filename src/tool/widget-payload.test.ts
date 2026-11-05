@@ -24,6 +24,29 @@ const LINK_BINDS = [
 ];
 
 describe('workspaceWidgetPayload', () => {
+  it('adds an empty cells list only to a chart object the viewer would not unwrap', () => {
+    const board = [
+      { goal: 'Perimeter Watch', agents: 1108, healthy: 1070, resource_group: 'Model', held: 19 },
+      { goal: 'Onboarding Velocity', agents: 842, healthy: 645, resource_group: 'System', held: 94 },
+    ];
+    const perimeter = workspaceWidgetPayload('goals-perimeter', 'goalsPerimeter', [], board) as Record<string, unknown>;
+    expect(perimeter).toMatchObject({ chartType: 'goalsPerimeter', cells: [] });
+    expect(perimeter.goals).toHaveLength(2);
+    // A chart object that already carries a row field is left as built.
+    const bars = workspaceWidgetPayload(
+      'bar-chart',
+      'barChart',
+      [
+        { role: 'category', field: 'team' },
+        { role: 'metric', field: 'incidents' },
+      ],
+      [{ team: 'Search', incidents: '22' }],
+    );
+    expect(bars).not.toHaveProperty('cells');
+    // A chart that does not fit stays null, so the next chart is tried.
+    expect(workspaceWidgetPayload('goals-perimeter', 'goalsPerimeter', [], [{ goal: 'A' }])).toBeNull();
+  });
+
   it('maps engine ids to FuseDash chartType when catalog keys are empty', () => {
     expect(chartTypeForComponent('form', [])).toBe('customWidget');
     expect(chartTypeForComponent('network-graph', [])).toBe('networkGraphChart');
@@ -514,6 +537,8 @@ describe('workspaceWidgetPayload', () => {
       metric: { label: 'Packet loss', value: 1.02, unit: '%' },
       delta: { value: 0.8, label: 'vs 30m ago' },
       trend: [2.4, 1.9, 1.6, 1.4, 1.1, 1.02],
+      // The viewer unwraps a chart object only with one of its row fields.
+      cells: [],
     });
   });
 
@@ -528,6 +553,8 @@ describe('workspaceWidgetPayload', () => {
       name: 'Sector A1 Antenna',
       assetId: 'RTX-3090',
       metric: { label: 'Packet loss', value: 1.02, unit: '%' },
+      // The viewer unwraps a chart object only with one of its row fields.
+      cells: [],
     });
   });
 
@@ -548,6 +575,8 @@ describe('workspaceWidgetPayload', () => {
         level: 'critical',
         thresholds: { warning: 0.5, critical: 1 },
       },
+      // The viewer unwraps a chart object only with one of its row fields.
+      cells: [],
     });
   });
 
@@ -590,6 +619,8 @@ describe('workspaceWidgetPayload', () => {
       ],
       total: 102,
       track: true,
+      // The viewer unwraps a chart object only with one of its row fields.
+      cells: [],
     });
   });
 
@@ -621,6 +652,8 @@ describe('workspaceWidgetPayload', () => {
       ],
       total: 102,
       track: true,
+      // The viewer unwraps a chart object only with one of its row fields.
+      cells: [],
     });
     const toned = workspaceWidgetPayload('incidents-review-card', 'incidentsReviewCard', [], [
       { incident_status: 'Open', count: 3, color: 'Amber' },

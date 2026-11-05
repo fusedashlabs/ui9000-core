@@ -11,6 +11,7 @@ const CHART_TYPE_BY_COMPONENT: Record<string, string> = {
   'incidents-review-card': 'incidentsReviewCard',
   'asset-health-overview': 'assetHealthOverview',
   'network-graph': 'networkGraphChart',
+  'goals-perimeter': 'goalsPerimeter',
   table: 'customWidget',
   text: 'customWidget',
   image: 'customWidget',

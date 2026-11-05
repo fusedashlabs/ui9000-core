@@ -12,6 +12,7 @@ import {
   type SignedLink,
 } from './data-channel.js';
 import { datasetFromPayload } from './ingest-table.js';
+import { loadWorkspaceCatalog } from '../catalog/load-workspace.js';
 import { requestedChartFromUtterance } from '../catalog/discuss-chart.js';
 import {
   SHOW_WORKSPACE_DESCRIPTION,
@@ -1312,6 +1313,194 @@ describe('show_workspace fail-closed', () => {
     if (!isDrawn(result)) return;
     expect(result.spec.component).toBe('sankey-chart');
     expect(result.suggestion).toBe('bar-chart');
+  });
+
+  /** The real engine catalog, so network-graph is the graph family's main drawing. */
+  const graphContext = (overrides: Partial<ShowWorkspaceContext> = {}) =>
+    context({ catalog: loadWorkspaceCatalog(), ...overrides });
+
+  const AGENTS_CSV = [
+    'agent_id,goal,state,reason,blocker',
+    'agent-01,Incident Response,healthy,,',
+    'agent-02,Incident Response,healthy,,',
+    'agent-03,Incident Response,failed,Pager integration returns 503,',
+    'agent-04,Incident Response,healthy,,',
+    'agent-05,Incident Response,blocked,Escalation needs on-call sign-off,human',
+    'agent-06,Incident Response,degraded,Slow ticket enrichment,',
+    'agent-07,Incident Response,healthy,,',
+    'agent-08,Incident Response,healthy,,',
+    'agent-09,Incident Response,failed,Pager integration returns 503,',
+    'agent-10,Incident Response,healthy,,',
+  ].join('\n');
+
+  it('draws the goals perimeter for agents around a shared goal', async () => {
+    const channel = memoryChannel();
+    const result = await handleShowWorkspace(
+      { intent: 'graph', csv: AGENTS_CSV },
+      graphContext({ signDataLink: channel.signDataLink, loadDataset: channel.loadDataset }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('goals-perimeter');
+    expect(result.chartType).toBe('goalsPerimeter');
+    expect(result.trace.chosen?.id).toBe('goals-perimeter');
+    expect(result.chartWhy).toContain('perimeter and population health');
+    expect(result.chartWhy).toContain('goals perimeter (monitor many agents around a shared goal');
+    const widget = await readViaHandle(result.spec, channel.readDataLink);
+    expect(widget).toMatchObject({
+      chartType: 'goalsPerimeter',
+      goals: [{ name: 'Incident Response' }],
+      exceptionCount: 4,
+    });
+    const agents = (widget as { agents: { id: string; state: string }[] }).agents;
+    expect(agents).toHaveLength(10);
+    expect(agents.find((agent) => agent.id === 'agent-05')).toEqual({
+      id: 'agent-05',
+      state: 'blocked',
+      goal: 'Incident Response',
+      reason: 'Escalation needs on-call sign-off',
+      blocker: 'human',
+    });
+  });
+
+  /** The Agent operations board: one row per goal and resource group, every goal with its agents by state. */
+  const BOARD_CSV = [
+    'goal_code,goal,goal_status,agents,healthy,idle,awaiting,blocked,failed,degraded,progress,burn,resource_group,kind,state,calls,held,detail',
+    'G-014,Perimeter Watch,on track,1108,1070,19,19,,,,88%,1.1,Camera,camera,degraded,14200,0,"7% of streams throttled, 2% blocked by R-047"',
+    'G-014,Perimeter Watch,on track,1108,1070,19,19,,,,88%,1.1,System,system,healthy,2100,0,',
+    'G-014,Perimeter Watch,on track,1108,1070,19,19,,,,88%,1.1,Model,model,awaiting,8800,19,Model gateway p95 at 2.1s against a 1.2s threshold',
+    'G-007,Onboarding Velocity,blocked,842,645,22,33,94,27,21,41%,4.2,App,app,degraded,3300,0,12% of writes throttled',
+    'G-007,Onboarding Velocity,blocked,842,645,22,33,94,27,21,41%,4.2,System,system,blocked,5400,94,Credential grant required',
+    'G-007,Onboarding Velocity,blocked,842,645,22,33,94,27,21,41%,4.2,Tool,tool,failed,1800,27,Browser tool sandbox crash-loops on cold start',
+    'G-007,Onboarding Velocity,blocked,842,645,22,33,94,27,21,41%,4.2,Model,model,awaiting,6200,33,Model gateway p95 at 2.1s against a 1.2s threshold',
+    'G-007,Onboarding Velocity,blocked,842,645,22,33,94,27,21,41%,4.2,Human,human,degraded,14,0,The credential grant waits on Security on-call',
+    'G-022,Maintain Verified Asset Visibility,at risk,612,586,11,4,,11,,66%,1.3,Camera,camera,degraded,9100,0,3% of streams blocked',
+    'G-022,Maintain Verified Asset Visibility,at risk,612,586,11,4,,11,,66%,1.3,Tool,tool,failed,1300,11,Browser tool sandbox crash-loops on cold start',
+    'G-022,Maintain Verified Asset Visibility,at risk,612,586,11,4,,11,,66%,1.3,Store,store,healthy,740,0,',
+    'G-022,Maintain Verified Asset Visibility,at risk,612,586,11,4,,11,,66%,1.3,Model,model,awaiting,4600,4,Model gateway p95 at 2.1s against a 1.2s threshold',
+    'G-045,Pipeline Quality,on track,318,315,3,,,,,92%,0.8,Tool,tool,healthy,2600,0,',
+    'G-045,Pipeline Quality,on track,318,315,3,,,,,92%,0.8,Store,store,healthy,980,0,',
+    'G-045,Pipeline Quality,on track,318,315,3,,,,,92%,0.8,Model,model,healthy,2400,0,',
+    'G-052,Incident Response,at risk,144,137,2,5,,,,78%,1.6,System,system,healthy,1900,0,',
+    'G-052,Incident Response,at risk,144,137,2,5,,,,78%,1.6,Model,model,healthy,1100,0,',
+    'G-052,Incident Response,at risk,144,137,2,5,,,,78%,1.6,Human,human,awaiting,22,5,Access approval pending for 41 minutes',
+    'G-061,Model Drift Watch,on track,96,94,2,,,,,90%,0.9,Model,model,healthy,3100,0,',
+  ].join('\n');
+
+  it('draws the goals perimeter for goals with their agents by state against their resource groups', async () => {
+    const channel = memoryChannel();
+    const result = await handleShowWorkspace(
+      { intent: 'graph', csv: BOARD_CSV },
+      graphContext({ signDataLink: channel.signDataLink, loadDataset: channel.loadDataset }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('goals-perimeter');
+    expect(result.chartType).toBe('goalsPerimeter');
+    const widget = (await readViaHandle(result.spec, channel.readDataLink)) as {
+      goals: { name: string; resourceGroups: unknown[] }[];
+    };
+    expect(widget.goals.map((goal) => goal.name)).toEqual([
+      'Perimeter Watch',
+      'Onboarding Velocity',
+      'Maintain Verified Asset Visibility',
+      'Pipeline Quality',
+      'Incident Response',
+      'Model Drift Watch',
+    ]);
+    expect(widget.goals[1]).toEqual({
+      name: 'Onboarding Velocity',
+      code: 'G-007',
+      agents: { total: 842, healthy: 645, idle: 22, awaiting: 33, blocked: 94, failed: 27, degraded: 21 },
+      health: '41%',
+      multiplier: 4.2,
+      status: 'blocked',
+      resourceGroups: [
+        { name: 'App', kind: 'app', state: 'degraded', held: 0, calls: 3300, detail: '12% of writes throttled' },
+        { name: 'System', kind: 'system', state: 'blocked', held: 94, calls: 5400, detail: 'Credential grant required' },
+        { name: 'Tool', kind: 'tool', state: 'failed', held: 27, calls: 1800, detail: 'Browser tool sandbox crash-loops on cold start' },
+        { name: 'Model', kind: 'model', state: 'awaiting', held: 33, calls: 6200, detail: 'Model gateway p95 at 2.1s against a 1.2s threshold' },
+        { name: 'Human', kind: 'human', state: 'degraded', held: 0, calls: 14, detail: 'The credential grant waits on Security on-call' },
+      ],
+    });
+  });
+
+  it('draws goal rows that fit no graph drawing as they were drawn before, not as a failed graph', async () => {
+    const nineGoals = [
+      'goal,agents,healthy,blocked,resource_group,state,held',
+      ...Array.from({ length: 9 }, (_, i) => `Goal ${i},10,9,1,Model,blocked,1`),
+    ].join('\n');
+    // No agent total on the goals.
+    const uncounted = 'goal,healthy,blocked,resource_group,held\nA,30,10,Model,10\nB,20,2,System,2\n';
+    for (const csv of [nineGoals, uncounted]) {
+      const result = await handleShowWorkspace({ intent: 'graph', csv }, graphContext());
+      expect(isDrawn(result), csv).toBe(true);
+      if (!isDrawn(result)) return;
+      expect(result.spec.component, csv).toBe('bar-chart');
+    }
+  });
+
+  it('answers too few agents as any table of text columns, not as a network graph without nodes', async () => {
+    const csv = ['agent_id,goal,state', ...Array.from({ length: 5 }, (_, i) => `agent-${i},Incident Response,healthy`)].join('\n');
+    const asGraph = await handleShowWorkspace({ intent: 'graph', csv }, graphContext());
+    const asComparison = await handleShowWorkspace({ intent: 'comparison', csv }, graphContext());
+    expect(asGraph).toMatchObject({ ok: false, code: 'chart_unbuilt' });
+    expect(asComparison).toMatchObject({ ok: false, code: 'chart_unbuilt' });
+  });
+
+  it('draws the goals perimeter when the agents also link to dependencies', async () => {
+    const csv = [
+      'source,target,goal,status',
+      'a1,PagerDuty,Incident Response,healthy',
+      'a2,a1,Incident Response,failed',
+      'a3,a1,Incident Response,healthy',
+      'a4,CMDB,Incident Response,blocked',
+      'a5,a4,Incident Response,healthy',
+      'a6,a2,Incident Response,degraded',
+    ].join('\n');
+    const channel = memoryChannel();
+    const result = await handleShowWorkspace(
+      { intent: 'graph', csv },
+      graphContext({ signDataLink: channel.signDataLink, loadDataset: channel.loadDataset }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('goals-perimeter');
+    const widget = (await readViaHandle(result.spec, channel.readDataLink)) as {
+      links: { source: string; target: string }[];
+      exceptionCount: number;
+    };
+    expect(widget.links).toHaveLength(6);
+    expect(widget.links[0]).toEqual({ source: 'a1', target: 'PagerDuty' });
+    expect(widget.exceptionCount).toBe(3);
+  });
+
+  it('keeps a free-form adjacency list on the network graph', async () => {
+    for (const csv of [
+      'source,target\nA,B\nB,C\nC,A\nA,D\nD,E\nE,F\n',
+      // A goal column without health states is still a node–link list.
+      'source,target,goal\nA,B,G\nB,C,G\nC,A,G\nA,D,G\nD,E,G\nE,F,G\n',
+    ]) {
+      const result = await handleShowWorkspace({ intent: 'graph', csv }, graphContext());
+      expect(isDrawn(result), csv).toBe(true);
+      if (!isDrawn(result)) return;
+      expect(result.spec.component, csv).toBe('network-graph');
+      expect(result.chartType, csv).toBe('networkGraphChart');
+    }
+  });
+
+  it('moves a goals perimeter request back to the network graph when the rows are only nodes and links', async () => {
+    const result = await handleShowWorkspace(
+      { intent: 'graph', csv: 'source,target\nA,B\nB,C\nC,A\nA,D\n' },
+      graphContext({
+        askJev: async () => ({
+          answers: { chart: { type: 'choice' as const, choice: 'goals-perimeter', confidence: 0.9 } },
+        }),
+      }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('network-graph');
   });
 
   const FOUR_STAGE_FLOW = [

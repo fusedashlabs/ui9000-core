@@ -226,6 +226,13 @@ export const CHART_ROLES = {
     data: 'Nodes and links.',
     visual: 'Force layout. Node size from a value, color from a category.',
   },
+  'goals-perimeter': {
+    id: 'goals-perimeter',
+    chartTypeKeys: ['goalsPerimeter'],
+    role: 'Monitor many agents around a shared goal: their health states, their links, and how many need attention.',
+    data: 'Agents with an id, a health state, and the goal they work toward. Optional links to agents, resources, or external dependencies, and an exception count. Or one row per goal and resource group: the goal\'s agents by state, healthy ones included, with optional code, status, progress and burn, and the group\'s kind, state, calls, held agents and detail.',
+    visual: 'A cloud of agents per goal inside a ring that fills with progress. Working and idle agents are dots; awaiting, blocked, failed, and degraded (slowed or over budget) agents each wear their own mark. Resource groups sit on the goal\'s orbit as diamonds with the agents held there. Lines join goals that draw on the same group, red where one is down. The header counts goals, agents, and held agents, and hovering a goal, group, or line shows its tooltip.',
+  },
   'kpi-widget': {
     id: 'kpi-widget',
     chartTypeKeys: ['KPI', 'KPIs'],
@@ -451,7 +458,12 @@ export const CHART_FAMILIES = [
     question: 'What is connected to what?',
     data: 'Nodes and links.',
     main: 'network-graph',
-    alternatives: [],
+    alternatives: [
+      {
+        id: 'goals-perimeter',
+        when: 'Many agents (or resources) are arranged around one shared goal, with health states and an optional exception count, or goals carry their agents by state against the resource groups they draw on. The reading is perimeter and population health, not a free-form adjacency list. A general node–link exploration stays the network graph.',
+      },
+    ],
   },
   {
     id: 'headline',
