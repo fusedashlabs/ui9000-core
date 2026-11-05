@@ -1605,6 +1605,52 @@ describe('show_workspace fail-closed', () => {
     expect(result.spec.component).toBe('bipartite-graph');
   });
 
+  const CLAIMS_CSV = [
+    'claim_id,goal,goal_name,confidence,claim,theme,type,polarity,state,sources,records,age',
+    'INS-8822,G-014,Perimeter Watch,0.81,Firmware 4.2 cameras recover within 90 seconds,camera coverage,observation,confirming,corroborated,6,294,60.5',
+    'INS-8824,G-022,Maintain Verified Asset Visibility,0.58,Decommissioned servers are still listed as live,asset inventory,gap,contradicting,corroborated,3,243,57.9',
+    'INS-8827,G-014,Perimeter Watch,0.81,Gate 3 tailgating alerts down 40% week on week,perimeter patrol,observation,confirming,corroborated,5,310,52.3',
+    'INS-8862,G-014,Perimeter Watch,0.81,Badge event at C-114 overlaps a camera outage,badge / access,correlation,contradicting,corroborated,4,152,9.1',
+    'INS-8868,G-014,Perimeter Watch,0.81,Hall C aisle 07 has no motion coverage,camera coverage,gap,contradicting,corroborated,3,117,6.4',
+    'INS-8870,G-022,Maintain Verified Asset Visibility,0.58,Hall C aisle 07 cameras are missing from the visibility map,camera feed,gap,contradicting,corroborated,3,207,5.8',
+    'INS-8885,G-014,Perimeter Watch,0.81,Video triage lane p95 1.9s against a 1.2s threshold,gateway latency,observation,contradicting,new,3,111,0.6',
+  ].join('\n');
+
+  it('draws goals and insights for claims filed under goals', async () => {
+    const channel = memoryChannel();
+    const result = await handleShowWorkspace(
+      { intent: 'graph', csv: CLAIMS_CSV },
+      graphContext({ signDataLink: channel.signDataLink, loadDataset: channel.loadDataset }),
+    );
+    expect(isDrawn(result)).toBe(true);
+    if (!isDrawn(result)) return;
+    expect(result.spec.component).toBe('goals-insights');
+    expect(result.chartType).toBe('goalsInsights');
+    expect(result.chartWhy).toContain('the evidence behind the goal with the most claims');
+    const widget = (await readViaHandle(result.spec, channel.readDataLink)) as {
+      chartType: string;
+      goal: unknown;
+      connected: unknown[];
+      claims: Record<string, unknown>[];
+    };
+    expect(widget.chartType).toBe('goalsInsights');
+    expect(widget.goal).toEqual({ id: 'G-014', name: 'Perimeter Watch', confidence: 0.81 });
+    expect(widget.connected).toEqual([{ id: 'G-022', name: 'Maintain Verified Asset Visibility', confidence: 0.58 }]);
+    expect(widget.claims).toHaveLength(7);
+    expect(widget.claims[1]).toEqual({
+      id: 'INS-8824',
+      goal: 'G-022',
+      claim: 'Decommissioned servers are still listed as live',
+      age: 57.9,
+      theme: 'asset inventory',
+      polarity: 'contradicting',
+      state: 'corroborated',
+      type: 'gap',
+      sources: 3,
+      records: 243,
+    });
+  });
+
   it('keeps a free-form adjacency list on the network graph', async () => {
     for (const csv of [
       'source,target\nA,B\nB,C\nC,A\nA,D\nD,E\nE,F\n',

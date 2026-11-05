@@ -22,7 +22,6 @@ function widgetChartIds(): Map<string, string[]> {
 
 /** Widgets charts core does not select yet. The PR that adds one to CHART_ROLES removes it here. */
 const PENDING_IN_CORE: string[] = [
-  'goals-insights',
   'reasoning-orchestration-graph',
 ];
 
@@ -214,6 +213,7 @@ describe('chart roles', () => {
     expect(graph?.main).toBe('network-graph');
     expect(drawingsFor('network-graph')?.alternatives.map((role) => role.id)).toEqual([
       'goals-perimeter',
+      'goals-insights',
       'bipartite-graph',
       'goals-dependency-graph',
     ]);
@@ -270,6 +270,21 @@ describe('chart roles', () => {
     expect(CHART_ROLES['bipartite-graph'].chartTypeKeys).toEqual(['bipartiteGraph', 'bipartite']);
     expect(chartLabel('bipartite-graph')).toBe(
       'bipartite graph (show how much each goal draws on each resource group: the calls between them, and where agents are held)',
+    );
+  });
+
+  it('puts goals and insights in the graph family as an alternative, after the goals perimeter', () => {
+    expect(drawingsFor('goals-insights')).toBeUndefined();
+    expect(familiesForChart('goals-insights').map((family) => family.id)).toEqual(['graph']);
+    const when = CHART_FAMILIES.find((family) => family.id === 'graph')?.alternatives.find(
+      (alt) => alt.id === 'goals-insights',
+    )?.when;
+    expect(when).toContain('claims that agents filed under a few goals');
+    expect(when).toContain('the evidence behind the goal with the most claims');
+    expect(when).toContain('Agents and their health states stay the goals perimeter');
+    expect(CHART_ROLES['goals-insights'].chartTypeKeys).toEqual(['goalsInsights', 'goalInsights', 'insights', 'evidenceColumn']);
+    expect(chartLabel('goals-insights')).toBe(
+      'goals insights (show the evidence behind one goal: the claims its agents filed, how each reads against the goal, and the goals it shares evidence with)',
     );
   });
 

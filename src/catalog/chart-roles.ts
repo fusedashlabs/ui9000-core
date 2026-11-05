@@ -233,6 +233,13 @@ export const CHART_ROLES = {
     data: 'Agents with an id, a health state, and the goal they work toward. Optional links to agents, resources, or external dependencies, and an exception count. Or one row per goal and resource group: the goal\'s agents by state, healthy ones included, with optional code, status, progress and burn, and the group\'s kind, state, calls, held agents and detail.',
     visual: 'A cloud of agents per goal inside a ring that fills with progress. Working and idle agents are dots; awaiting, blocked, failed, and degraded (slowed or over budget) agents each wear their own mark. Resource groups sit on the goal\'s orbit as diamonds with the agents held there. Lines join goals that draw on the same group, red where one is down. The header counts goals, agents, and held agents, and hovering a goal, group, or line shows its tooltip.',
   },
+  'goals-insights': {
+    id: 'goals-insights',
+    chartTypeKeys: ['goalsInsights', 'goalInsights', 'insights', 'evidenceColumn'],
+    role: 'Show the evidence behind one goal: the claims its agents filed, how each reads against the goal, and the goals it shares evidence with.',
+    data: 'One row per claim, with its text, the goal it was filed under, and its age in hours. Optional stance, state, type, subject, sources, records, weight, agent, asset kind and other goals it bears on; optional goal name, status, confidence, priority and agents.',
+    visual: 'A column under the goal, a ring every two hours with now at the top. Each claim is a diamond on the ring of its hour: ink when it supports the goal, grey on one source, yellow when disputed, orange when it argues against; larger with more records, nearer the axis the more it moves the goal. Up to two connected goals stand beside it.',
+  },
   'bipartite-graph': {
     id: 'bipartite-graph',
     chartTypeKeys: ['bipartiteGraph', 'bipartite'],
@@ -483,6 +490,10 @@ export const CHART_FAMILIES = [
       {
         id: 'goals-perimeter',
         when: 'Many agents (or resources) are arranged around one shared goal, with health states and an optional exception count, or goals carry their agents by state against the resource groups they draw on. The reading is perimeter and population health, not a free-form adjacency list. A general node–link exploration stays the network graph.',
+      },
+      {
+        id: 'goals-insights',
+        when: 'The rows are claims that agents filed under a few goals, each with its text, its goal and its age in hours, and optionally its stance and sources. The reading is the evidence behind the goal with the most claims, and the goals it shares evidence with. Agents and their health states stay the goals perimeter, and a general node–link exploration stays the network graph.',
       },
       {
         id: 'bipartite-graph',

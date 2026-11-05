@@ -15,6 +15,7 @@ const CHART_TYPE_BY_COMPONENT: Record<string, string> = {
   'goals-perimeter': 'goalsPerimeter',
   'goals-dependency-graph': 'goalsDependencyGraph',
   'bipartite-graph': 'bipartiteGraph',
+  'goals-insights': 'goalsInsights',
   table: 'customWidget',
   text: 'customWidget',
   image: 'customWidget',
