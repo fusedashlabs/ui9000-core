@@ -90,6 +90,8 @@ export const WORKSPACE_INSTRUCTIONS = [
   "Pass the user's words as utterance.",
   'Pass requestedChart only when they named a chart. On a new table, a known chart the utterance does not name is ignored and a chart is drawn. An unknown name is kept. A datasetId call with no new csv, url, or path keeps the id.',
   'A result with spec is the chart. Show that chart. Do not tell the user nothing was drawn, and do not ask them to choose between charts.',
+  'The agent operations charts read named columns: goals perimeter, goals insights, bipartite graph, goals dependency graph, goal burst, asset health overview, and reasoning orchestration graph.',
+  'If a result has chartColumns, the chart they named did not fit. Rewrite the csv with those column names, keep their values, and call again with the same requestedChart.',
 ].join(' ');
 
 const DEFAULT_INPUT_SCHEMA: Record<string, unknown> = { type: 'object' };

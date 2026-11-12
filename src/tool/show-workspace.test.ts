@@ -14,6 +14,7 @@ import {
 import { datasetFromPayload } from './ingest-table.js';
 import { loadWorkspaceCatalog } from '../catalog/load-workspace.js';
 import { requestedChartFromUtterance } from '../catalog/discuss-chart.js';
+import { CHART_ROLES } from '../catalog/chart-roles.js';
 import {
   SHOW_WORKSPACE_DESCRIPTION,
   SHOW_WORKSPACE_INPUT_SCHEMA,
@@ -1603,6 +1604,36 @@ describe('show_workspace fail-closed', () => {
     expect(isDrawn(result)).toBe(true);
     if (!isDrawn(result)) return;
     expect(result.spec.component).toBe('bipartite-graph');
+    expect(result).not.toHaveProperty('chartColumns');
+  });
+
+  it('sends the columns of a named chart its table did not fit, and draws it once the table is rewritten', async () => {
+    const guessed = ['source,target,value', 'Perimeter Watch,Camera,14200', 'Onboarding Velocity,System,5400'].join('\n');
+    const words = { intent: 'graph', requestedChart: 'bipartite graph', utterance: 'show it as a bipartite graph' } as const;
+    const missed = await handleShowWorkspace({ ...words, csv: guessed }, graphContext());
+    expect(isDrawn(missed)).toBe(true);
+    if (!isDrawn(missed)) return;
+    expect(missed.spec.component).not.toBe('bipartite-graph');
+    expect(missed.chartColumns).toBe(CHART_ROLES['bipartite-graph'].columns);
+    expect(missed.chartWhy).toContain('bipartite graph reads columns like chartColumns');
+    const rewritten = await handleShowWorkspace({ ...words, csv: missed.chartColumns }, graphContext());
+    expect(isDrawn(rewritten)).toBe(true);
+    if (!isDrawn(rewritten)) return;
+    expect(rewritten.spec.component).toBe('bipartite-graph');
+    expect(rewritten).not.toHaveProperty('chartColumns');
+  });
+
+  it('sends the columns of a named chart when nothing could be built from the table', async () => {
+    const fewAgents = ['agent_id,goal,state', 'a1,Incident Response,healthy', 'a2,Incident Response,failed', 'a3,Incident Response,healthy'].join('\n');
+    const result = await handleShowWorkspace(
+      { intent: 'graph', requestedChart: 'goals perimeter', utterance: 'draw the goals perimeter', csv: fewAgents },
+      graphContext(),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.code).toBe('chart_unbuilt');
+    expect(result.chartColumns).toBe(CHART_ROLES['goals-perimeter'].columns);
+    expect(result.reason).toContain('call again with the same requestedChart');
   });
 
   const CLAIMS_CSV = [
@@ -2216,7 +2247,11 @@ describe('show_workspace fail-closed', () => {
     expect(result.chartWhy).toContain('columns');
     expect(result.chartWhy).toContain('bar chart (compare discrete groups on one metric)');
     expect(result.chartWhy).not.toMatch(/[a-z]-chart/);
-    expect(result.chartWhy).not.toContain('sankey');
+    // The sankey is named only as the chart to rewrite the table for, not as the drawing.
+    const [drawn, hint] = result.chartWhy!.split('sankey chart reads columns like chartColumns');
+    expect(drawn).not.toContain('sankey');
+    expect(hint).toBeDefined();
+    expect(result.chartColumns).toBe(CHART_ROLES['sankey-chart'].columns);
   });
 });
 
