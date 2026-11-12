@@ -47,6 +47,7 @@ import {
   guidedChartFamilies,
   intentGuidesCharts,
   requestedChartFromUtterance,
+  resolveChartName,
 } from '../catalog/discuss-chart.js';
 import { resolveJev } from '../jev/resolve.js';
 import {
@@ -83,6 +84,11 @@ export type ShowWorkspaceOk = {
   summary: string;
   /** Why this chart was drawn. The model should say it to the user. */
   chartWhy?: string;
+  /**
+   * The chart the user named was not drawn: a CSV that draws it. Rewrite the
+   * table with these column names and call again with the same requestedChart.
+   */
+  chartColumns?: string;
   /** Closer chart from the column reading. The drawn chart stays the one named. */
   suggestion?: string;
   suggestionWhy?: string;
@@ -102,6 +108,8 @@ export type ShowWorkspaceFail = {
   ok: false;
   code: ShowWorkspaceCode;
   reason: string;
+  /** Same as on a drawn result: a CSV that draws the chart the user named. */
+  chartColumns?: string;
 };
 
 export type ShowWorkspaceResult = ShowWorkspaceOk | ShowWorkspaceFail;
@@ -235,6 +243,7 @@ export const SHOW_WORKSPACE_DESCRIPTION = [
   '5. If the named chart cannot be drawn, draw the chart the columns support. The user always receives a chart.',
   'Do not answer that nothing was drawn, and do not ask them to pick between two charts.',
   'confirm does not change the chart.',
+  'If the result has chartColumns, rewrite csv with those column names, keep their values, and call again with the same requestedChart.',
   '',
   'A refusal is not awaitingUser. Retry a refusal only with a different intent or source.',
   'Do not invent a 7th intent. Do not replace their chart with suggestion.',
@@ -555,10 +564,14 @@ export async function handleShowWorkspace(
   if (payload == null) {
     if (mapRefusal) return fail('map_unrenderable', mapRefusal);
     if (!shaped.ok) return shaped;
-    return fail(
+    const unbuilt = fail(
       'chart_unbuilt',
       'The chart could not be built from these columns, so nothing was signed.',
     );
+    const missed = namedColumns(requestedChart, undefined, catalogIds);
+    return missed
+      ? { ...unbuilt, reason: `${unbuilt.reason} ${missed.why}`, chartColumns: missed.columns }
+      : unbuilt;
   }
   if (!shaped.ok) return shaped;
 
@@ -607,7 +620,9 @@ export async function handleShowWorkspace(
       : jevMissed
         ? [missedWhy, discussion?.chartWhy].filter(Boolean).join(' ')
         : discussion?.chartWhy || engineWhy;
-  const chartWhy = switched || headlineShift || graphShift || partShift ? choiceWhy : argued;
+  const missed = namedColumns(requestedChart, componentId, catalogIds);
+  const drawnWhy = switched || headlineShift || graphShift || partShift ? choiceWhy : argued;
+  const chartWhy = missed ? [drawnWhy, missed.why].filter(Boolean).join(' ') : drawnWhy;
   const recorded = chosenByJev
     ? governTrace(
         {
@@ -650,6 +665,7 @@ export async function handleShowWorkspace(
       choiceWhy || (hostChart ? '' : trace.tieBreak),
     ),
     ...(chartWhy ? { chartWhy } : {}),
+    ...(missed ? { chartColumns: missed.columns } : {}),
     ...(discussion?.suggestion
       ? { suggestion: discussion.suggestion, suggestionWhy: discussion.suggestionWhy }
       : {}),
@@ -660,6 +676,23 @@ export async function handleShowWorkspace(
     ...(datasetId ? { datasetId } : {}),
     ...(typeof runtime.profile.rowCount === 'number' ? { rowCount: runtime.profile.rowCount } : {}),
     ...(columns && columns.length > 0 ? { columns: [...columns] } : {}),
+  };
+}
+
+/**
+ * The chart the user named, when this host can draw it and it was not drawn:
+ * the columns that draw it, so the model can rewrite the table and call again.
+ */
+function namedColumns(
+  requestedChart: string | undefined,
+  drawn: string | undefined,
+  catalogIds: ReadonlySet<string>,
+): { columns: string; why: string } | undefined {
+  const named = requestedChart ? resolveChartName(requestedChart) : undefined;
+  if (!named || named === drawn || !catalogIds.has(named)) return undefined;
+  return {
+    columns: CHART_ROLES[named].columns,
+    why: `${chartName(named)} reads columns like chartColumns. Rewrite the table with those column names and call again with the same requestedChart.`,
   };
 }
 
