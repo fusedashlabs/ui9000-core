@@ -49,23 +49,27 @@ const RAW = new Set([
   'parallel-coordinates-chart',
 ]);
 
+/**
+ * Charts whose payload reads its own column names, not catalog binds. The
+ * server instructions name them, so the model knows their columns matter.
+ */
+export const NAMED_COLUMN_CHARTS: ReadonlySet<string> = new Set([
+  'status-gauge-widget',
+  'loss-indicator',
+  'power-path-card',
+  'component-asset-card',
+  'incidents-review-card',
+  'asset-health-overview',
+  'goal-burst',
+  'goals-perimeter',
+  'goals-dependency-graph',
+  'bipartite-graph',
+  'goals-insights',
+  'reasoning-orchestration-graph',
+]);
+
 export function dataRolesForChart(id: string): CatalogDataRole[] {
-  if (
-    id === 'status-gauge-widget' ||
-    id === 'loss-indicator' ||
-    id === 'power-path-card' ||
-    id === 'component-asset-card' ||
-    id === 'incidents-review-card' ||
-    id === 'asset-health-overview' ||
-    id === 'goal-burst' ||
-    id === 'goals-perimeter' ||
-    id === 'goals-dependency-graph' ||
-    id === 'bipartite-graph' ||
-    id === 'goals-insights' ||
-    id === 'reasoning-orchestration-graph'
-  ) {
-    return [];
-  }
+  if (NAMED_COLUMN_CHARTS.has(id)) return [];
   if (id === 'band-utilization-chart') {
     return [
       { id: 'label', required: true },

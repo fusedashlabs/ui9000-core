@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { CHART_ROLES, chartName } from '../catalog/chart-roles.js';
+import { dataRolesForChart, NAMED_COLUMN_CHARTS } from '../tool/payload/hosted-chart.js';
 import { SHOW_WORKSPACE_NAME } from '../tool/show-workspace.js';
 import {
   PROTOCOL_VERSION,
@@ -123,6 +125,14 @@ describe('createServer', () => {
     expect(result.protocolVersion).toBe(PROTOCOL_VERSION);
     expect(result.capabilities).toEqual({ tools: {} });
     expect(result.instructions).toBe(WORKSPACE_INSTRUCTIONS);
+  });
+
+  it('names every chart that reads its own columns in the instructions', () => {
+    for (const id of NAMED_COLUMN_CHARTS) {
+      expect(id in CHART_ROLES).toBe(true);
+      expect(dataRolesForChart(id)).toEqual([]);
+      expect(WORKSPACE_INSTRUCTIONS).toContain(chartName(id));
+    }
   });
 
   it('advertises resources when an MCP App is attached', async () => {
