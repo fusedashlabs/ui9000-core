@@ -86,7 +86,7 @@ export type ShowWorkspaceOk = {
   chartWhy?: string;
   /**
    * The chart the user named was not drawn: a CSV that draws it. Rewrite the
-   * table with these column names and call again with the same requestedChart.
+   * table with these column names and call once more with the same requestedChart.
    */
   chartColumns?: string;
   /** Closer chart from the column reading. The drawn chart stays the one named. */
@@ -243,7 +243,7 @@ export const SHOW_WORKSPACE_DESCRIPTION = [
   '5. If the named chart cannot be drawn, draw the chart the columns support. The user always receives a chart.',
   'Do not answer that nothing was drawn, and do not ask them to pick between two charts.',
   'confirm does not change the chart.',
-  'If the result has chartColumns, rewrite csv with those column names, keep their values, and call again with the same requestedChart.',
+  'If the result has chartColumns, rewrite csv with those column names, keep their values, and call once more with the same requestedChart.',
   '',
   'A refusal is not awaitingUser. Retry a refusal only with a different intent or source.',
   'Do not invent a 7th intent. Do not replace their chart with suggestion.',
@@ -692,7 +692,7 @@ function namedColumns(
   if (!named || named === drawn || !catalogIds.has(named)) return undefined;
   return {
     columns: CHART_ROLES[named].columns,
-    why: `${chartName(named)} reads columns like chartColumns. Rewrite the table with those column names and call again with the same requestedChart.`,
+    why: `${chartName(named)} reads columns like chartColumns. Rewrite the table with those column names and call once more with the same requestedChart.`,
   };
 }
 

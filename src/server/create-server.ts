@@ -14,6 +14,8 @@
 
 import { SHOW_WORKSPACE_NAME } from '../tool/show-workspace.js';
 import { chartTypeForComponent } from '../tool/widget-payload.js';
+import { NAMED_COLUMN_CHARTS } from '../tool/payload/hosted-chart.js';
+import { chartName } from '../catalog/chart-roles.js';
 import { workspaceMeta, omitRowArrays } from '../inspector/meta-contract.js';
 import type { Trace, TraceProposal } from '../trace/trace.js';
 import type { McpAppResource } from './mcp-app.js';
@@ -90,8 +92,8 @@ export const WORKSPACE_INSTRUCTIONS = [
   "Pass the user's words as utterance.",
   'Pass requestedChart only when they named a chart. On a new table, a known chart the utterance does not name is ignored and a chart is drawn. An unknown name is kept. A datasetId call with no new csv, url, or path keeps the id.',
   'A result with spec is the chart. Show that chart. Do not tell the user nothing was drawn, and do not ask them to choose between charts.',
-  'The agent operations charts read named columns: goals perimeter, goals insights, bipartite graph, goals dependency graph, goal burst, asset health overview, and reasoning orchestration graph.',
-  'If a result has chartColumns, the chart they named did not fit. Rewrite the csv with those column names, keep their values, and call again with the same requestedChart.',
+  `These charts read named columns: ${[...NAMED_COLUMN_CHARTS].map(chartName).join(', ')}.`,
+  'If a result has chartColumns, the chart they named did not fit. Rewrite the csv with those column names, keep their values, and call once more with the same requestedChart.',
 ].join(' ');
 
 const DEFAULT_INPUT_SCHEMA: Record<string, unknown> = { type: 'object' };

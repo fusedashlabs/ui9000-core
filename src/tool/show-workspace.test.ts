@@ -1633,7 +1633,7 @@ describe('show_workspace fail-closed', () => {
     if (result.ok) return;
     expect(result.code).toBe('chart_unbuilt');
     expect(result.chartColumns).toBe(CHART_ROLES['goals-perimeter'].columns);
-    expect(result.reason).toContain('call again with the same requestedChart');
+    expect(result.reason).toContain('call once more with the same requestedChart');
   });
 
   const CLAIMS_CSV = [

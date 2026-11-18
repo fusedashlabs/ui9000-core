@@ -5,12 +5,6 @@ import { handleShowWorkspace, type ShowWorkspaceContext } from '../tool/show-wor
 import { CHART_FAMILIES, CHART_ROLES } from './chart-roles.js';
 import { loadWorkspaceCatalog } from './load-workspace.js';
 
-/**
- * Each chart's `columns` is what the model is told to rewrite its table into
- * when the chart it named did not fit. A reader that drifts from its example
- * would send the model a table that still does not draw.
- */
-
 function context(): ShowWorkspaceContext {
   return {
     catalog: loadWorkspaceCatalog(),

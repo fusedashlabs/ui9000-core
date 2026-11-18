@@ -69,7 +69,7 @@ export const CHART_ROLES = {
     chartTypeKeys: ['lollipopChart', 'lollipopGroupedChart', 'lollipopStackedChart'],
     role: 'Same comparison as a bar, drawn as a stem and a dot.',
     data: 'Category, one number, optional series.',
-    columns: 'team,incidents\nNorth,42\nSouth,31\nEast,18',
+    columns: 'service,errors\nAuth,42\nSearch,31\nBilling,18',
     visual: 'Stem length plus a head. Vertical or horizontal; plain, grouped, or stacked.',
   },
   'line-chart': {
@@ -101,7 +101,7 @@ export const CHART_ROLES = {
     chartTypeKeys: ['radialBarChart'],
     role: 'Compare a few categories by ring length instead of a bar.',
     data: 'Category and one number. Few categories.',
-    columns: 'team,incidents\nNorth,42\nSouth,31\nEast,18',
+    columns: 'channel,tickets\nEmail,42\nChat,31\nPhone,18',
     visual: 'One ring per category over a 270° sweep.',
   },
   'polar-area-chart': {
@@ -109,7 +109,7 @@ export const CHART_ROLES = {
     chartTypeKeys: ['polarAreaChart'],
     role: 'Compare a few categories by wedge radius.',
     data: 'Category and one number, optional group.',
-    columns: 'team,incidents\nNorth,42\nSouth,31\nEast,18',
+    columns: 'genre,sales\nBooks,42\nGames,31\nMusic,18',
     visual: 'Coxcomb slices. Radius is the metric, not the share of a whole.',
   },
   'pie-chart': {
@@ -277,7 +277,7 @@ export const CHART_ROLES = {
     chartTypeKeys: ['bipartiteGraph', 'bipartite'],
     role: 'Show how much each goal draws on each resource group: the calls between them, and where agents are held.',
     data: 'One row per goal and resource group, with the goal\'s agent total and the calls a minute it makes there. Optional goal code, agents by state, progress, burn and status; optional group kind, state, held agents and detail.',
-    columns: 'goal,goal_code,agents,blocked,progress,resource_group,kind,state,calls,held\nPerimeter Watch,G-014,1108,0,0.88,Camera,camera,degraded,14200,0\nPerimeter Watch,G-014,1108,0,0.88,Model,model,healthy,8800,0\nOnboarding Velocity,G-007,842,94,41%,System,system,blocked,5400,94\nOnboarding Velocity,G-007,842,94,41%,Camera,camera,healthy,2100,0',
+    columns: 'goal,goal_code,agents,blocked,progress,resource_group,kind,state,calls,held\nPerimeter Watch,G-014,1108,0,0.88,Camera,camera,degraded,14200,0\nPerimeter Watch,G-014,1108,0,0.88,Model,model,healthy,8800,0\nOnboarding Velocity,G-007,842,94,0.41,System,system,blocked,5400,94\nOnboarding Velocity,G-007,842,94,0.41,Camera,camera,healthy,2100,0',
     visual: 'Goals as agent clouds in a column, resource groups as diamonds against them, and a ribbon for each pair: the wider, the more calls; in the held agents\' colour, yellow where traffic is only slowed.',
   },
   'goals-dependency-graph': {
@@ -294,7 +294,7 @@ export const CHART_ROLES = {
     role: 'Inspect a reasoning or inference process: its stages, candidate paths, models, and refinement steps, with the active path highlighted.',
     data: 'Reasoning steps linked to the step they came from, each with a stage or a depth, and an active path to highlight. Optional model, state, score, candidate paths, and supporting metrics.',
     columns: 'step_id,parent_id,stage,model,status,score,active\nq,,Prompt,,verified,1,yes\ns1,q,Sample,Astra,candidate,0.4,no\ns2,q,Sample,Astra,candidate,0.7,yes\nv1,s2,Verify,Opus,verified,0.8,yes\nr1,v1,Repair,Opus,refined,0.9,yes',
-    visual: 'A fan from the root outward by depth, stage by stage. Hairlines in each model’s colour, candidate paths subordinate, the active path bright. Stage metrics on top; step entropy, pipeline status, and compute scaling in panels underneath.',
+    visual: 'A fan from the root at the bottom outward by depth, stage by stage, with each stage named down the right edge beside its metric. Hairlines in each model’s colour, red and dashed into a pruned step, candidate paths subordinate, the active path bright. Step entropy and benchmarks in one panel under the plot.',
   },
   'kpi-widget': {
     id: 'kpi-widget',
